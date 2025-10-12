@@ -24,10 +24,10 @@ enum ClockConstants {
     // Основные элементы (сдвинуты к центру)
     static let cityNameRadius: CGFloat = 0.96
     static let tickOuterRadius: CGFloat = 0.75
-    static let hourTickInnerRadius: CGFloat = 0.68
-    static let halfHourTickInnerRadius: CGFloat = 0.70
-    static let quarterTickInnerRadius: CGFloat = 0.72
-    static let numberRadius: CGFloat = 0.66
+    static let hourTickInnerRadius: CGFloat = 0.715      // Укорочены вдвое: (0.68 + 0.75) / 2
+    static let halfHourTickInnerRadius: CGFloat = 0.725  // Укорочены вдвое: (0.70 + 0.75) / 2
+    static let quarterTickInnerRadius: CGFloat = 0.735   // Укорочены вдвое: (0.72 + 0.75) / 2
+    static let numberRadius: CGFloat = 0.64
 
     // Толщина тиков
     static let hourTickThickness: CGFloat = 0.011
@@ -40,9 +40,9 @@ enum ClockConstants {
     static let labelRingFontSizeRatio: CGFloat = 0.06   // IATA коды на кольцах
 
     // Параметры стрелок (сдвинуты к центру)
-    static let arrowLineEndRadius: CGFloat = 0.45
-    static let arrowThicknessRatio: CGFloat = 0.01
-    static let weekdayNumberRadius: CGFloat = 0.52  // Пузыри с днями месяца
+    static let arrowLineEndRadius: CGFloat = 0.44
+    static let arrowThicknessRatio: CGFloat = 0.02
+    static let weekdayNumberRadius: CGFloat = 0.51  // Пузыри с днями месяца
     static let weekdayBubbleRadiusRatio: CGFloat = 0.05
     
     // Параметры дней месяца

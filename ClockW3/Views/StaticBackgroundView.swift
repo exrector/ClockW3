@@ -21,13 +21,13 @@ struct StaticBackgroundView: View {
                 .fill(colors.background)
                 .frame(width: baseRadius * 2, height: baseRadius * 2)
 
-            // Тики (96 штук) - временно закомментировано
-            // TicksView(
-            //     baseRadius: baseRadius,
-            //     center: center,
-            //     hourTicksColor: colors.hourTicks,
-            //     minorTicksColor: colors.minorTicks
-            // )
+            // Тики (96 штук)
+            TicksView(
+                baseRadius: baseRadius,
+                center: center,
+                hourTicksColor: colors.hourTicks,
+                minorTicksColor: colors.minorTicks
+            )
 
             // Цифры часов (24 штуки)
             HourNumbersView(
