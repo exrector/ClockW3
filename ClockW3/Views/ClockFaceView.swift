@@ -210,36 +210,36 @@ struct CityLabelRingsView: View {
         let hour24 = hour + minute / 60.0
         let angle = ClockConstants.calculateArrowAngle(hour24: hour24)
 
-        let position = AngleCalculations.pointOnCircle(
-            center: center,
-            radius: radius,
-            angle: angle
-        )
+        // Используем IATA код вместо полного названия
+        let cityCode = city.iataCode
+        let letters = cityCode.map { String($0) }
 
-        // Разбиваем название на отдельные буквы
-        let letters = city.name.map { String($0) }
-        let letterSpacing = fontSize * 0.9
-
-        var labelContext = context
-        labelContext.translateBy(x: position.x, y: position.y)
-
-        // Поворачиваем контекст "головой наружу" (от центра)
-        let textAngle = angle + .pi / 2
-        labelContext.rotate(by: Angle(radians: textAngle))
-
-        // Рисуем каждую букву вертикально
-        let totalHeight = CGFloat(letters.count - 1) * letterSpacing
-        var currentY = -totalHeight / 2
+        // Рисуем каждую букву по дуге
+        let letterSpacing = fontSize * 0.8  // Угловое расстояние между буквами
+        let totalWidth = CGFloat(letters.count - 1) * letterSpacing
+        let startAngle = angle - totalWidth / (2 * radius)  // Центрируем текст
 
         let font = Font.system(size: fontSize, weight: .regular, design: .default)
 
-        for letter in letters {
+        for (index, letter) in letters.enumerated() {
+            let letterAngle = startAngle + (CGFloat(index) * letterSpacing) / radius
+            let position = AngleCalculations.pointOnCircle(
+                center: center,
+                radius: radius,
+                angle: letterAngle
+            )
+
+            var letterContext = context
+            letterContext.translateBy(x: position.x, y: position.y)
+
+            // Поворачиваем букву "головой наружу" (перпендикулярно радиусу)
+            letterContext.rotate(by: Angle(radians: letterAngle + .pi / 2))
+
             let text = Text(letter)
                 .font(font)
                 .foregroundColor(Color("ClockSecondary"))
 
-            labelContext.draw(text, at: CGPoint(x: 0, y: currentY), anchor: .center)
-            currentY += letterSpacing
+            letterContext.draw(text, at: .zero, anchor: .center)
         }
     }
 }
