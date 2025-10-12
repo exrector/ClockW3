@@ -33,30 +33,22 @@ struct SimpleEntry: TimelineEntry {
     let date: Date
 }
 
-// MARK: - Simple Widget View
+// MARK: - Widget View
 struct ClockW3WidgetEntryView: View {
     @Environment(\.widgetFamily) var widgetFamily
     var entry: Provider.Entry
 
     var body: some View {
-        ZStack {
-            Color.black
+        GeometryReader { geometry in
+            let size = min(geometry.size.width, geometry.size.height)
 
-            VStack(spacing: 8) {
-                // Иконка часов
-                Image(systemName: "clock.fill")
-                    .font(.system(size: widgetFamily == .systemSmall ? 40 : 60))
-                    .foregroundColor(.white)
+            ZStack {
+                // Используем системный черный фон
+                Color.black
 
-                // Текущее время
-                Text(entry.date, style: .time)
-                    .font(.system(size: widgetFamily == .systemSmall ? 16 : 24, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white)
-
-                // Дата
-                Text(entry.date, style: .date)
-                    .font(.system(size: widgetFamily == .systemSmall ? 10 : 14))
-                    .foregroundColor(.white.opacity(0.7))
+                // Наш циферблат
+                ClockFaceView()
+                    .frame(width: size, height: size)
             }
         }
         .containerBackground(Color.black, for: .widget)
@@ -72,7 +64,7 @@ struct ClockW3Widget: Widget {
             ClockW3WidgetEntryView(entry: entry)
         }
         .configurationDisplayName("World Clock")
-        .description("24-hour world clock widget")
+        .description("24-hour world clock with time zones")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }

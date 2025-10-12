@@ -1,4 +1,9 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 // MARK: - Clock Face View (основной компонент циферблата)
 struct ClockFaceView: View {
@@ -34,7 +39,8 @@ struct ClockFaceView: View {
                     CityLabelRingsView(
                         size: size,
                         cities: viewModel.cities,
-                        currentTime: viewModel.currentTime
+                        currentTime: viewModel.currentTime,
+                        palette: palette
                     )
                     .rotationEffect(.radians(viewModel.rotationAngle))
                     .animation(
@@ -128,21 +134,45 @@ struct ClockColorPalette {
     let weekdayBackground: Color
     let centerCircle: Color
     let arrow: Color
+    let secondaryColor: Color  // Для сегментов и IATA кодов
 
     static func system() -> ClockColorPalette {
-        ClockColorPalette(
-            background: Color("ClockBackground"),
-            numbers: Color("ClockPrimary"),
-            hourTicks: Color("ClockPrimary"),
-            minorTicks: Color("ClockSecondary"),
-            monthDayText: Color("ClockAccentText"),
-            monthDayBackground: Color("ClockAccentBackground"),
-            currentDayText: Color("ClockPrimary"),
-            weekdayText: Color("ClockAccentText"),
-            weekdayBackground: Color("ClockAccentBackground"),
-            centerCircle: Color("ClockCenter"),
-            arrow: Color("ClockPrimary")
+        // Проверяем доступность Color Assets, если нет - используем fallback
+        let backgroundFallback: Color = .black
+        let primaryFallback: Color = .white
+        let secondaryFallback: Color = .gray
+        let accentTextFallback: Color = .white
+        let accentBackgroundFallback: Color = .gray.opacity(0.3)
+        let centerFallback: Color = .red
+
+        return ClockColorPalette(
+            background: colorOrFallback("ClockBackground", fallback: backgroundFallback),
+            numbers: colorOrFallback("ClockPrimary", fallback: primaryFallback),
+            hourTicks: colorOrFallback("ClockPrimary", fallback: primaryFallback),
+            minorTicks: colorOrFallback("ClockSecondary", fallback: secondaryFallback),
+            monthDayText: colorOrFallback("ClockAccentText", fallback: accentTextFallback),
+            monthDayBackground: colorOrFallback("ClockAccentBackground", fallback: accentBackgroundFallback),
+            currentDayText: colorOrFallback("ClockPrimary", fallback: primaryFallback),
+            weekdayText: colorOrFallback("ClockAccentText", fallback: accentTextFallback),
+            weekdayBackground: colorOrFallback("ClockAccentBackground", fallback: accentBackgroundFallback),
+            centerCircle: colorOrFallback("ClockCenter", fallback: centerFallback),
+            arrow: colorOrFallback("ClockPrimary", fallback: primaryFallback),
+            secondaryColor: colorOrFallback("ClockSecondary", fallback: secondaryFallback)
         )
+    }
+
+    private static func colorOrFallback(_ name: String, fallback: Color) -> Color {
+        // В виджетах Color Assets могут быть недоступны, используем fallback
+        #if canImport(UIKit)
+        if UIColor(named: name) != nil {
+            return Color(name)
+        }
+        #elseif canImport(AppKit)
+        if NSColor(named: name) != nil {
+            return Color(name)
+        }
+        #endif
+        return fallback
     }
 
 }
@@ -152,6 +182,7 @@ struct CityLabelRingsView: View {
     let size: CGSize
     let cities: [WorldCity]
     let currentTime: Date
+    let palette: ClockColorPalette
 
     private var baseRadius: CGFloat {
         min(size.width, size.height) / 2.0 * ClockConstants.clockSizeRatio
@@ -163,7 +194,7 @@ struct CityLabelRingsView: View {
 
     // Параметры цветных сегментов (адаптировано из ClockW)
     private static let segmentBandWidthRatio: CGFloat = 0.1  // 4% от baseRadius
-    private static let segmentAlpha: CGFloat = 0.85  // 85% прозрачность
+    private static let segmentAlpha: CGFloat = 1  // 85% прозрачность
 
     var body: some View {
         Canvas { context, size in
@@ -188,7 +219,7 @@ struct CityLabelRingsView: View {
                 radius: baseRadius * ClockConstants.outerLabelRingRadius,
                 bandWidth: baseRadius * Self.segmentBandWidthRatio,
                 fontSize: fontSize,
-                color: Color("ClockSecondary").opacity(Self.segmentAlpha)
+                color: palette.secondaryColor.opacity(Self.segmentAlpha)
             )
 
             // Рисуем цветные сегменты для среднего кольца
@@ -198,7 +229,7 @@ struct CityLabelRingsView: View {
                 radius: baseRadius * ClockConstants.middleLabelRingRadius,
                 bandWidth: baseRadius * Self.segmentBandWidthRatio,
                 fontSize: fontSize,
-                color: Color("ClockSecondary").opacity(Self.segmentAlpha)
+                color: palette.secondaryColor.opacity(Self.segmentAlpha)
             )
 
             // Рисуем внешнее кольцо
@@ -403,7 +434,7 @@ struct CityLabelRingsView: View {
 
             let text = Text(letter)
                 .font(font)
-                .foregroundColor(Color("ClockSecondary"))
+                .foregroundColor(palette.secondaryColor)
 
             letterContext.draw(text, at: .zero, anchor: .center)
         }

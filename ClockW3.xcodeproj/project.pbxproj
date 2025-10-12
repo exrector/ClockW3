@@ -6,21 +6,95 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AD2AE4332E9C09AC003A9381 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADDCD5762E9813910032583D /* WidgetKit.framework */; };
+		AD2AE4342E9C09AC003A9381 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADDCD5782E9813910032583D /* SwiftUI.framework */; };
+		AD2AE4412E9C09AD003A9381 /* ClockW3WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AD2AE4322E9C09AC003A9381 /* ClockW3WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AD2AE43F2E9C09AD003A9381 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = ADD4DAE52E97D4D700439B5F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AD2AE4312E9C09AC003A9381;
+			remoteInfo = ClockW3WidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AD2AE4462E9C09AD003A9381 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AD2AE4412E9C09AD003A9381 /* ClockW3WidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		AD2AE4322E9C09AC003A9381 /* ClockW3WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ClockW3WidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		ADD4DAED2E97D4D700439B5F /* ClockW3.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClockW3.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ADDCD5762E9813910032583D /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = /System/Library/Frameworks/WidgetKit.framework; sourceTree = "<absolute>"; };
 		ADDCD5782E9813910032583D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = /System/Library/Frameworks/SwiftUI.framework; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AD2AE4422E9C09AD003A9381 /* Exceptions for "ClockW3Widget" folder in "ClockW3WidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AD2AE4312E9C09AC003A9381 /* ClockW3WidgetExtension */;
+		};
+		AD2AE4592E9C0BF8003A9381 /* Exceptions for "ClockW3" folder in "ClockW3WidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Helpers/AngleCalculations.swift,
+				Models/ClockConstants.swift,
+				Models/WorldCity.swift,
+				ViewModels/ClockViewModel.swift,
+				Views/CityArrowsView.swift,
+				Views/ClockFaceView.swift,
+				Views/StaticBackgroundView.swift,
+			);
+			target = AD2AE4312E9C09AC003A9381 /* ClockW3WidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		AD2AE4352E9C09AC003A9381 /* ClockW3Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AD2AE4422E9C09AD003A9381 /* Exceptions for "ClockW3Widget" folder in "ClockW3WidgetExtension" target */,
+			);
+			path = ClockW3Widget;
+			sourceTree = "<group>";
+		};
 		ADD4DAEF2E97D4D700439B5F /* ClockW3 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AD2AE4592E9C0BF8003A9381 /* Exceptions for "ClockW3" folder in "ClockW3WidgetExtension" target */,
+			);
 			path = ClockW3;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		AD2AE42F2E9C09AC003A9381 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AD2AE4342E9C09AC003A9381 /* SwiftUI.framework in Frameworks */,
+				AD2AE4332E9C09AC003A9381 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		ADD4DAEA2E97D4D700439B5F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -35,6 +109,7 @@
 			isa = PBXGroup;
 			children = (
 				ADD4DAEF2E97D4D700439B5F /* ClockW3 */,
+				AD2AE4352E9C09AC003A9381 /* ClockW3Widget */,
 				ADDCD5752E9813910032583D /* Frameworks */,
 				ADD4DAEE2E97D4D700439B5F /* Products */,
 			);
@@ -44,6 +119,7 @@
 			isa = PBXGroup;
 			children = (
 				ADD4DAED2E97D4D700439B5F /* ClockW3.app */,
+				AD2AE4322E9C09AC003A9381 /* ClockW3WidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -60,6 +136,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		AD2AE4312E9C09AC003A9381 /* ClockW3WidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AD2AE4432E9C09AD003A9381 /* Build configuration list for PBXNativeTarget "ClockW3WidgetExtension" */;
+			buildPhases = (
+				AD2AE42E2E9C09AC003A9381 /* Sources */,
+				AD2AE42F2E9C09AC003A9381 /* Frameworks */,
+				AD2AE4302E9C09AC003A9381 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AD2AE4352E9C09AC003A9381 /* ClockW3Widget */,
+			);
+			name = ClockW3WidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = ClockW3WidgetExtension;
+			productReference = AD2AE4322E9C09AC003A9381 /* ClockW3WidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		ADD4DAEC2E97D4D700439B5F /* ClockW3 */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = ADD4DAF82E97D4D800439B5F /* Build configuration list for PBXNativeTarget "ClockW3" */;
@@ -67,10 +165,12 @@
 				ADD4DAE92E97D4D700439B5F /* Sources */,
 				ADD4DAEA2E97D4D700439B5F /* Frameworks */,
 				ADD4DAEB2E97D4D700439B5F /* Resources */,
+				AD2AE4462E9C09AD003A9381 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AD2AE4402E9C09AD003A9381 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				ADD4DAEF2E97D4D700439B5F /* ClockW3 */,
@@ -92,6 +192,9 @@
 				LastSwiftUpdateCheck = 2610;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
+					AD2AE4312E9C09AC003A9381 = {
+						CreatedOnToolsVersion = 26.1;
+					};
 					ADD4DAEC2E97D4D700439B5F = {
 						CreatedOnToolsVersion = 26.1;
 					};
@@ -112,11 +215,19 @@
 			projectRoot = "";
 			targets = (
 				ADD4DAEC2E97D4D700439B5F /* ClockW3 */,
+				AD2AE4312E9C09AC003A9381 /* ClockW3WidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		AD2AE4302E9C09AC003A9381 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		ADD4DAEB2E97D4D700439B5F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -127,6 +238,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AD2AE42E2E9C09AC003A9381 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		ADD4DAE92E97D4D700439B5F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -136,7 +254,99 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		AD2AE4402E9C09AD003A9381 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AD2AE4312E9C09AC003A9381 /* ClockW3WidgetExtension */;
+			targetProxy = AD2AE43F2E9C09AD003A9381 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		AD2AE4442E9C09AD003A9381 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = K3Q8WG53V3;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ClockW3Widget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ClockW3Widget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Exrector.ClockW3.ClockW3Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		AD2AE4452E9C09AD003A9381 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = K3Q8WG53V3;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ClockW3Widget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ClockW3Widget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Exrector.ClockW3.ClockW3Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 		ADD4DAF62E97D4D800439B5F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -344,6 +554,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		AD2AE4432E9C09AD003A9381 /* Build configuration list for PBXNativeTarget "ClockW3WidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AD2AE4442E9C09AD003A9381 /* Debug */,
+				AD2AE4452E9C09AD003A9381 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		ADD4DAE82E97D4D700439B5F /* Build configuration list for PBXProject "ClockW3" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

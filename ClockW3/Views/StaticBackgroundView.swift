@@ -37,10 +37,10 @@ struct StaticBackgroundView: View {
                 numbersColor: colors.numbers
             )
 
-            // Отладочный круг базового радиуса
-            Circle()
-                .stroke(Color.red.opacity(0.3), lineWidth: 0.5)
-                .frame(width: baseRadius * 2, height: baseRadius * 2)
+            // Отладочный круг базового радиуса (закомментирован)
+            // Circle()
+            //     .stroke(Color.red.opacity(0.3), lineWidth: 0.5)
+            //     .frame(width: baseRadius * 2, height: baseRadius * 2)
         }
     }
 }
