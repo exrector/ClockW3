@@ -12,13 +12,14 @@ struct ClockCanvasView: View {
                 let baseRadius = min(size.width, size.height) / 2.0 * 0.85
                 let center = CGPoint(x: size.width / 2, y: size.height / 2)
 
-                // Рисуем статичные элементы (фон, тики, цифры, дни месяца)
+                // Рисуем статичные элементы (фон, тики, цифры, дни месяца, кольца с городами)
                 ClockDrawingHelpers.drawStaticElements(
                     context: context,
                     size: size,
                     baseRadius: baseRadius,
                     center: center,
-                    currentTime: currentTime
+                    currentTime: currentTime,
+                    cities: cities
                 )
 
                 // Рисуем глобус под стрелками

@@ -9,7 +9,8 @@ struct ClockDrawingHelpers {
         size: CGSize,
         baseRadius: CGFloat,
         center: CGPoint,
-        currentTime: Date
+        currentTime: Date,
+        cities: [ClockCity]
     ) {
         // Фон циферблата
         var circlePath = Path()
@@ -26,6 +27,9 @@ struct ClockDrawingHelpers {
 
         // 24 цифры часов
         draw24HourNumbers(context: context, size: size, baseRadius: baseRadius, center: center)
+
+        // Два кольца с подписями городов
+        drawCityLabelRings(context: context, size: size, baseRadius: baseRadius, center: center, cities: cities, currentTime: currentTime)
     }
 
     // MARK: - Draw 96 Ticks
@@ -39,20 +43,20 @@ struct ClockDrawingHelpers {
             let color: Color
 
             if isHourTick {
-                innerRadius = baseRadius * 0.78
-                thickness = baseRadius * 0.011
+                innerRadius = baseRadius * ClockConstants.hourTickInnerRadius
+                thickness = baseRadius * ClockConstants.hourTickThickness
                 color = .white
             } else if isHalfHourTick {
-                innerRadius = baseRadius * 0.8
-                thickness = baseRadius * 0.0073
+                innerRadius = baseRadius * ClockConstants.halfHourTickInnerRadius
+                thickness = baseRadius * ClockConstants.halfHourTickThickness
                 color = .gray
             } else {
-                innerRadius = baseRadius * 0.82
-                thickness = baseRadius * 0.0045
+                innerRadius = baseRadius * ClockConstants.quarterTickInnerRadius
+                thickness = baseRadius * ClockConstants.quarterTickThickness
                 color = Color(white: 0.3)
             }
 
-            let outerRadius = baseRadius * 0.85
+            let outerRadius = baseRadius * ClockConstants.tickOuterRadius
             // 96 тиков: тик 0 = 18:00 (справа), каждый тик = 15 минут = 3.75°
             let angle = CGFloat(i) * 3.75 * .pi / 180  // Начинаем с 0° (справа)
 
@@ -69,13 +73,13 @@ struct ClockDrawingHelpers {
 
     // MARK: - Draw 24 Hour Numbers
     static func draw24HourNumbers(context: GraphicsContext, size: CGSize, baseRadius: CGFloat, center: CGPoint) {
-        let fontSize = min(size.width, size.height) * 0.05
+        let fontSize = min(size.width, size.height) * ClockConstants.numberFontSizeRatio
         // SF Pro Text для мелких кеглей (< 20pt)
         let font = Font.system(size: fontSize, weight: .regular, design: .default)
 
         for hour in 1...24 {
             let angle = hourNumberAngle(hour: hour)
-            let position = pointOnCircle(center: center, radius: baseRadius * 0.70, angle: angle)
+            let position = pointOnCircle(center: center, radius: baseRadius * ClockConstants.numberRadius, angle: angle)
 
             let text = String(format: "%02d", hour)
 
@@ -90,6 +94,70 @@ struct ClockDrawingHelpers {
                 anchor: .center
             )
         }
+    }
+
+    // MARK: - Draw City Label Rings
+    static func drawCityLabelRings(context: GraphicsContext, size: CGSize, baseRadius: CGFloat, center: CGPoint, cities: [ClockCity], currentTime: Date) {
+        guard !cities.isEmpty else { return }
+
+        let fontSize = min(size.width, size.height) * ClockConstants.labelRingFontSizeRatio
+        let font = Font.system(size: fontSize, weight: .regular, design: .default)
+
+        // Разделяем города на две группы (четные и нечетные индексы)
+        var outerRingCities: [ClockCity] = []
+        var middleRingCities: [ClockCity] = []
+
+        for (index, city) in cities.enumerated() {
+            if index % 2 == 0 {
+                outerRingCities.append(city)
+            } else {
+                middleRingCities.append(city)
+            }
+        }
+
+        // Рисуем внешнее кольцо
+        for city in outerRingCities {
+            let angle = calculateArrowAngle(for: city, at: currentTime)
+            drawCityLabelOnRing(
+                context: context,
+                cityName: city.name,
+                angle: angle,
+                radius: baseRadius * ClockConstants.outerLabelRingRadius,
+                center: center,
+                font: font
+            )
+        }
+
+        // Рисуем среднее кольцо
+        for city in middleRingCities {
+            let angle = calculateArrowAngle(for: city, at: currentTime)
+            drawCityLabelOnRing(
+                context: context,
+                cityName: city.name,
+                angle: angle,
+                radius: baseRadius * ClockConstants.middleLabelRingRadius,
+                center: center,
+                font: font
+            )
+        }
+    }
+
+    // MARK: - Draw City Label On Ring
+    static func drawCityLabelOnRing(context: GraphicsContext, cityName: String, angle: CGFloat, radius: CGFloat, center: CGPoint, font: Font) {
+        let position = pointOnCircle(center: center, radius: radius, angle: angle)
+
+        var labelContext = context
+        labelContext.translateBy(x: position.x, y: position.y)
+
+        // Поворачиваем текст "головой наружу" (от центра)
+        let textAngle = angle + .pi / 2
+        labelContext.rotate(by: Angle(radians: textAngle))
+
+        let text = Text(cityName)
+            .font(font)
+            .foregroundColor(Color("ClockSecondary"))
+
+        labelContext.draw(text, at: .zero, anchor: .center)
     }
 
     // MARK: - Draw Globe
@@ -149,7 +217,7 @@ struct ClockDrawingHelpers {
 
     // MARK: - Draw City Arrow
     static func drawCityArrow(context: GraphicsContext, city: ClockCity, angle: CGFloat, baseRadius: CGFloat, center: CGPoint) {
-        let endRadius = baseRadius * 0.7
+        let endRadius = baseRadius * ClockConstants.arrowLineEndRadius
         let endPoint = pointOnCircle(center: center, radius: endRadius, angle: angle)
 
         var arrowPath = Path()
@@ -159,13 +227,13 @@ struct ClockDrawingHelpers {
         context.stroke(
             arrowPath,
             with: .color(Color("ClockPrimary")),
-            style: StrokeStyle(lineWidth: baseRadius * 0.01, lineCap: .round)
+            style: StrokeStyle(lineWidth: baseRadius * ClockConstants.arrowThicknessRatio, lineCap: .round)
         )
     }
 
     // MARK: - Draw City Label (ретина-чёткий текст на середине стрелки)
     static func drawCityLabel(context: GraphicsContext, city: ClockCity, angle: CGFloat, baseRadius: CGFloat, center: CGPoint, size: CGSize) {
-        let endRadius = baseRadius * 0.7
+        let endRadius = baseRadius * ClockConstants.arrowLineEndRadius
         let endPoint = pointOnCircle(center: center, radius: endRadius, angle: angle)
         let midPoint = CGPoint(
             x: (center.x + endPoint.x) / 2,

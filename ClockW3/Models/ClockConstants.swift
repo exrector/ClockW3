@@ -16,28 +16,35 @@ enum ClockConstants {
 
     // Радиусы элементов циферблата (относительные к baseRadius)
     static let staticBackgroundRadius: CGFloat = 1.0
+
+    // Два внешних кольца с подписями городов
+    static let outerLabelRingRadius: CGFloat = 0.97  // Внешнее кольцо
+    static let middleLabelRingRadius: CGFloat = 0.905 // Среднее кольцо
+
+    // Основные элементы (сдвинуты к центру)
     static let cityNameRadius: CGFloat = 0.96
-    static let tickOuterRadius: CGFloat = 0.85
-    static let hourTickInnerRadius: CGFloat = 0.8
-    static let halfHourTickInnerRadius: CGFloat = 0.83
-    static let quarterTickInnerRadius: CGFloat = 0.82
-    static let numberRadius: CGFloat = 0.72
-    
+    static let tickOuterRadius: CGFloat = 0.75
+    static let hourTickInnerRadius: CGFloat = 0.68
+    static let halfHourTickInnerRadius: CGFloat = 0.70
+    static let quarterTickInnerRadius: CGFloat = 0.72
+    static let numberRadius: CGFloat = 0.60
+
     // Толщина тиков
     static let hourTickThickness: CGFloat = 0.011
     static let halfHourTickThickness: CGFloat = 0.0073
     static let quarterTickThickness: CGFloat = 0.0045
-    
+
     // Размеры шрифтов (относительные)
     static let numberFontSizeRatio: CGFloat = 0.05
     static let daySectorFontSizeRatio: CGFloat = 0.04
     static let weekdayFontSizeRatio: CGFloat = 0.03
     static let cityLabelFontSizeRatio: CGFloat = 0.1
-    
-    // Параметры стрелок
-    static let arrowLineEndRadius: CGFloat = 0.57
+    static let labelRingFontSizeRatio: CGFloat = 0.04  // Шрифт для колец подписей
+
+    // Параметры стрелок (сдвинуты к центру)
+    static let arrowLineEndRadius: CGFloat = 0.55
     static let arrowThicknessRatio: CGFloat = 0.01
-    static let weekdayNumberRadius: CGFloat = 0.62
+    static let weekdayNumberRadius: CGFloat = 0.83  // Пузыри с днями месяца
     static let weekdayBubbleRadiusRatio: CGFloat = 0.035
     
     // Параметры дней месяца
