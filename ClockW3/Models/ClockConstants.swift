@@ -18,8 +18,8 @@ enum ClockConstants {
     static let staticBackgroundRadius: CGFloat = 1.0
 
     // Два внешних кольца с подписями городов
-    static let outerLabelRingRadius: CGFloat = 0.97  // Внешнее кольцо
-    static let middleLabelRingRadius: CGFloat = 0.905 // Среднее кольцо
+    static let outerLabelRingRadius: CGFloat = 0.88  // Внешнее кольцо
+    static let middleLabelRingRadius: CGFloat = 0.82 // Среднее кольцо
 
     // Основные элементы (сдвинуты к центру)
     static let cityNameRadius: CGFloat = 0.96
