@@ -36,17 +36,6 @@ struct StaticBackgroundView: View {
                 fontSize: size.width * ClockConstants.numberFontSizeRatio,
                 numbersColor: colors.numbers
             )
-            
-            // Дни месяца
-            MonthDaysView(
-                baseRadius: baseRadius,
-                center: center,
-                fontSize: size.width * ClockConstants.daySectorFontSizeRatio,
-                dayNumberColor: colors.monthDayText,
-                dayBackgroundColor: colors.monthDayBackground,
-                currentDayColor: colors.currentDayText,
-                currentTime: currentTime
-            )
         }
     }
 }
@@ -126,52 +115,6 @@ struct HourNumbersView: View {
                 .font(.system(size: fontSize, design: .monospaced))
                 .foregroundColor(numbersColor)
                 .position(position)
-        }
-    }
-}
-
-// MARK: - Month Days View
-struct MonthDaysView: View {
-    let baseRadius: CGFloat
-    let center: CGPoint
-    let fontSize: CGFloat
-    let dayNumberColor: Color
-    let dayBackgroundColor: Color
-    let currentDayColor: Color
-    let currentTime: Date
-    
-    private var currentDay: Int {
-        TimeHelper.getCurrentDay(currentTime: currentTime)
-    }
-    
-    var body: some View {
-        ForEach(1...ClockConstants.daySectorCount, id: \.self) { day in
-            let angle = ClockConstants.dayAngle(day: day)
-            let position = AngleCalculations.pointOnCircle(
-                center: center,
-                radius: baseRadius * ClockConstants.daySectorNumberRadius,
-                angle: angle
-            )
-            
-            ZStack {
-                // Фон для текущего дня
-                if day == currentDay {
-                    Circle()
-                        .fill(dayBackgroundColor)
-                        .frame(
-                            width: baseRadius * ClockConstants.dayBubbleRadiusRatio * 2,
-                            height: baseRadius * ClockConstants.dayBubbleRadiusRatio * 2
-                        )
-                }
-                
-                // Цифра дня
-                Text(String(format: "%02d", day))
-                    .font(.system(size: fontSize, design: .monospaced))
-                    .foregroundColor(day == currentDay ? currentDayColor : dayNumberColor)
-                    // Поворачиваем цифры лицом наружу
-                    .rotationEffect(.radians(angle + .pi / 2))
-            }
-            .position(position)
         }
     }
 }
