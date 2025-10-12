@@ -117,26 +117,12 @@ struct CityArrowView: View {
     
     var body: some View {
         ZStack {
-            // Линия стрелки с разрывом для названия
-            ArrowLineWithBreakView(
-                startPosition: arrowStartPosition,
+            // Линия стрелки (без разрыва)
+            ArrowLineView(
+                center: arrowStartPosition,
                 endPosition: arrowEndPosition,
-                cityName: city.iataCode,
-                fontSize: baseRadius * ClockConstants.cityLabelFontSizeRatio,
                 color: arrowColor,
                 thickness: baseRadius * ClockConstants.arrowThicknessRatio
-            )
-
-            // Название города в разрыве линии
-            CityLabelView(
-                cityName: city.iataCode,
-                startPosition: arrowStartPosition,
-                endPosition: arrowEndPosition,
-                angle: arrowAngle,
-                containerRotation: containerRotation,
-                fontSize: baseRadius * ClockConstants.cityLabelFontSizeRatio,
-                textColor: arrowColor,
-                backgroundColor: labelBackgroundColor
             )
 
             // День месяца на конце стрелки
@@ -285,19 +271,11 @@ struct MonthDayBubbleView: View {
     var body: some View {
         let targetAngle = angle + Double.pi / 2
 
-        return ZStack {
-            // Фон пузыря без свечения
-            Circle()
-                .fill(backgroundColor)
-                .frame(width: bubbleRadius * 2, height: bubbleRadius * 2)
-
-            // Цифра дня месяца
-            Text(String(format: "%02d", dayOfMonth))
-                .font(.system(size: fontSize, weight: .medium, design: .monospaced))
-                .foregroundColor(textColor)
-                .rotationEffect(.radians(displayedAngle))
-        }
-        .position(position)
+        return Text(String(format: "%02d", dayOfMonth))
+            .font(.system(size: fontSize, weight: .medium, design: .monospaced))
+            .foregroundColor(textColor)
+            .rotationEffect(.radians(displayedAngle))
+            .position(position)
         .onAppear {
             displayedAngle = targetAngle
             hasAppeared = true

@@ -124,7 +124,8 @@ struct ClockDrawingHelpers {
                 angle: angle,
                 radius: baseRadius * ClockConstants.outerLabelRingRadius,
                 center: center,
-                font: font
+                font: font,
+                fontSize: fontSize
             )
         }
 
@@ -137,27 +138,41 @@ struct ClockDrawingHelpers {
                 angle: angle,
                 radius: baseRadius * ClockConstants.middleLabelRingRadius,
                 center: center,
-                font: font
+                font: font,
+                fontSize: fontSize
             )
         }
     }
 
-    // MARK: - Draw City Label On Ring
-    static func drawCityLabelOnRing(context: GraphicsContext, cityName: String, angle: CGFloat, radius: CGFloat, center: CGPoint, font: Font) {
+    // MARK: - Draw City Label On Ring (вертикально вдоль радиуса, как буква Т)
+    static func drawCityLabelOnRing(context: GraphicsContext, cityName: String, angle: CGFloat, radius: CGFloat, center: CGPoint, font: Font, fontSize: CGFloat) {
         let position = pointOnCircle(center: center, radius: radius, angle: angle)
+
+        // Разбиваем название на отдельные буквы
+        let letters = cityName.map { String($0) }
+
+        // Расстояние между буквами (примерно высота буквы + отступ)
+        let letterSpacing = fontSize * 0.9
 
         var labelContext = context
         labelContext.translateBy(x: position.x, y: position.y)
 
-        // Поворачиваем текст "головой наружу" (от центра)
+        // Поворачиваем контекст "головой наружу" (от центра)
         let textAngle = angle + .pi / 2
         labelContext.rotate(by: Angle(radians: textAngle))
 
-        let text = Text(cityName)
-            .font(font)
-            .foregroundColor(Color("ClockSecondary"))
+        // Рисуем каждую букву вертикально
+        let totalHeight = CGFloat(letters.count - 1) * letterSpacing
+        var currentY = -totalHeight / 2
 
-        labelContext.draw(text, at: .zero, anchor: .center)
+        for letter in letters {
+            let text = Text(letter)
+                .font(font)
+                .foregroundColor(Color("ClockSecondary"))
+
+            labelContext.draw(text, at: CGPoint(x: 0, y: currentY), anchor: .center)
+            currentY += letterSpacing
+        }
     }
 
     // MARK: - Draw Globe
