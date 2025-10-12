@@ -271,11 +271,19 @@ struct MonthDayBubbleView: View {
     var body: some View {
         let targetAngle = angle + Double.pi / 2
 
-        return Text(String(format: "%02d", dayOfMonth))
-            .font(.system(size: fontSize, weight: .medium, design: .monospaced))
-            .foregroundColor(textColor)
-            .rotationEffect(.radians(displayedAngle))
-            .position(position)
+        return ZStack {
+            // Фон пузыря
+            Circle()
+                .fill(backgroundColor)
+                .frame(width: bubbleRadius * 2, height: bubbleRadius * 2)
+
+            // Цифра дня месяца
+            Text(String(format: "%02d", dayOfMonth))
+                .font(.system(size: fontSize, weight: .medium, design: .monospaced))
+                .foregroundColor(textColor)
+                .rotationEffect(.radians(displayedAngle))
+        }
+        .position(position)
         .onAppear {
             displayedAngle = targetAngle
             hasAppeared = true
