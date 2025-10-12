@@ -7,7 +7,7 @@
 		<key>ClockW3.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>0</integer>
+			<integer>1</integer>
 		</dict>
 		<key>ClockW3WidgetExtension.xcscheme_^#shared#^_</key>
 		<dict>
@@ -22,6 +22,11 @@
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
+		<key>AD2AE4312E9C09AC003A9381</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
 		<key>ADDCD5732E9813910032583D</key>
 		<dict>
 			<key>primary</key>

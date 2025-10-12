@@ -9,8 +9,11 @@ import AppKit
 struct ClockFaceView: View {
     @StateObject private var viewModel = ClockViewModel()
 
-    // Выбор городов
-    @AppStorage("selectedCityIdentifiers") private var selectedCityIdentifiers: String = ""
+    // Выбор городов (используем общий UserDefaults для синхронизации с виджетом)
+    @AppStorage(
+        SharedUserDefaults.selectedCitiesKey,
+        store: SharedUserDefaults.shared
+    ) private var selectedCityIdentifiers: String = ""
     
     var body: some View {
         GeometryReader { geometry in
