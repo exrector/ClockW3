@@ -20,22 +20,27 @@ struct StaticBackgroundView: View {
             Circle()
                 .fill(colors.background)
                 .frame(width: baseRadius * 2, height: baseRadius * 2)
-            
-            // Тики (96 штук)
-            TicksView(
-                baseRadius: baseRadius,
-                center: center,
-                hourTicksColor: colors.hourTicks,
-                minorTicksColor: colors.minorTicks
-            )
-            
+
+            // Тики (96 штук) - временно закомментировано
+            // TicksView(
+            //     baseRadius: baseRadius,
+            //     center: center,
+            //     hourTicksColor: colors.hourTicks,
+            //     minorTicksColor: colors.minorTicks
+            // )
+
             // Цифры часов (24 штуки)
             HourNumbersView(
                 baseRadius: baseRadius,
                 center: center,
-                fontSize: size.width * ClockConstants.numberFontSizeRatio,
+                fontSize: baseRadius * 2 * ClockConstants.numberFontSizeRatio,
                 numbersColor: colors.numbers
             )
+
+            // Отладочный круг базового радиуса
+            Circle()
+                .stroke(Color.red.opacity(0.3), lineWidth: 0.5)
+                .frame(width: baseRadius * 2, height: baseRadius * 2)
         }
     }
 }

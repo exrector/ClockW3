@@ -18,7 +18,7 @@ enum ClockConstants {
     static let staticBackgroundRadius: CGFloat = 1.0
 
     // Два внешних кольца с подписями городов
-    static let outerLabelRingRadius: CGFloat = 0.88  // Внешнее кольцо
+    static let outerLabelRingRadius: CGFloat = 0.95  // Внешнее кольцо
     static let middleLabelRingRadius: CGFloat = 0.82 // Среднее кольцо
 
     // Основные элементы (сдвинуты к центру)
@@ -27,25 +27,23 @@ enum ClockConstants {
     static let hourTickInnerRadius: CGFloat = 0.68
     static let halfHourTickInnerRadius: CGFloat = 0.70
     static let quarterTickInnerRadius: CGFloat = 0.72
-    static let numberRadius: CGFloat = 0.60
+    static let numberRadius: CGFloat = 0.66
 
     // Толщина тиков
     static let hourTickThickness: CGFloat = 0.011
     static let halfHourTickThickness: CGFloat = 0.0073
     static let quarterTickThickness: CGFloat = 0.0045
 
-    // Размеры шрифтов (относительные)
-    static let numberFontSizeRatio: CGFloat = 0.05
-    static let daySectorFontSizeRatio: CGFloat = 0.04
-    static let weekdayFontSizeRatio: CGFloat = 0.03
-    static let cityLabelFontSizeRatio: CGFloat = 0.1
-    static let labelRingFontSizeRatio: CGFloat = 0.04  // Шрифт для колец подписей
+    // Размеры шрифтов (относительные к baseRadius * 2)
+    static let numberFontSizeRatio: CGFloat = 0.06      // 24 цифры часов
+    static let weekdayFontSizeRatio: CGFloat = 0.03     // Дни месяца в пузырях
+    static let labelRingFontSizeRatio: CGFloat = 0.06   // IATA коды на кольцах
 
     // Параметры стрелок (сдвинуты к центру)
-    static let arrowLineEndRadius: CGFloat = 0.55
+    static let arrowLineEndRadius: CGFloat = 0.45
     static let arrowThicknessRatio: CGFloat = 0.01
-    static let weekdayNumberRadius: CGFloat = 0.5  // Пузыри с днями месяца (меньше чем numberRadius 0.60)
-    static let weekdayBubbleRadiusRatio: CGFloat = 0.035
+    static let weekdayNumberRadius: CGFloat = 0.52  // Пузыри с днями месяца
+    static let weekdayBubbleRadiusRatio: CGFloat = 0.05
     
     // Параметры дней месяца
     static let daySectorCount: Int = 31
@@ -84,9 +82,11 @@ extension ClockConstants {
         return -degrees * Double.pi / 180.0  // Радианы, минус для правильного направления
     }
     
-    /// Вычисляет угол для цифры часа на циферблате
+    /// Вычисляет угол для цифры часа на циферблате (по часовой стрелке)
     static func hourNumberAngle(hour: Int) -> Double {
-        return -Double(hour - 18) * degreesPerHour * .pi / 180.0
+        // Положительный угол = по часовой стрелке (18→24→6→12)
+        // 18 справа (0°), 24 внизу (90°), 6 слева (180°), 12 вверху (270°)
+        return Double(hour - 18) * degreesPerHour * .pi / 180.0
     }
     
     /// Вычисляет угол для дня месяца

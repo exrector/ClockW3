@@ -132,7 +132,7 @@ struct CityArrowView: View {
                 angle: arrowAngle,
                 containerRotation: containerRotation,
                 bubbleRadius: baseRadius * ClockConstants.weekdayBubbleRadiusRatio,
-                fontSize: size.width * ClockConstants.weekdayFontSizeRatio,
+                fontSize: baseRadius * 2 * ClockConstants.weekdayFontSizeRatio,
                 textColor: weekdayNumberColor,
                 backgroundColor: weekdayBackgroundColor
             )
