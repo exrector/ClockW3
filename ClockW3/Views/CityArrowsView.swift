@@ -53,7 +53,7 @@ extension CityArrowsView {
     struct CitySnapshot: Identifiable {
         let city: WorldCity
         let angle: Double
-        let weekday: Int
+        let dayOfMonth: Int
 
         var id: UUID { city.id }
     }
@@ -71,9 +71,9 @@ extension CityArrowsView {
             let angle = ClockConstants.calculateArrowAngle(hour24: hour24)
 
             calendar.timeZone = timeZone
-            let weekday = calendar.component(.weekday, from: currentTime)
+            let dayOfMonth = calendar.component(.day, from: currentTime)
 
-            return CitySnapshot(city: city, angle: angle, weekday: weekday)
+            return CitySnapshot(city: city, angle: angle, dayOfMonth: dayOfMonth)
         }
     }
 }
@@ -92,7 +92,7 @@ struct CityArrowView: View {
     
     private var city: WorldCity { snapshot.city }
     private var arrowAngle: Double { snapshot.angle }
-    private var weekdayNumber: Int { snapshot.weekday }
+    private var dayOfMonth: Int { snapshot.dayOfMonth }
     
     private var arrowStartPosition: CGPoint {
         // Стрелка должна выходить строго из центра
@@ -139,10 +139,10 @@ struct CityArrowView: View {
                 backgroundColor: labelBackgroundColor
             )
 
-            // Номер дня недели на конце стрелки
-            WeekdayBubbleView(
+            // День месяца на конце стрелки
+            MonthDayBubbleView(
                 position: weekdayPosition,
-                weekdayNumber: weekdayNumber,
+                dayOfMonth: dayOfMonth,
                 angle: arrowAngle,
                 containerRotation: containerRotation,
                 bubbleRadius: baseRadius * ClockConstants.weekdayBubbleRadiusRatio,
@@ -268,10 +268,10 @@ struct CityLabelView: View {
     }
 }
 
-// MARK: - Weekday Bubble View
-struct WeekdayBubbleView: View {
+// MARK: - Month Day Bubble View
+struct MonthDayBubbleView: View {
     let position: CGPoint
-    let weekdayNumber: Int
+    let dayOfMonth: Int
     let angle: Double
     let containerRotation: Double
     let bubbleRadius: CGFloat
@@ -291,8 +291,8 @@ struct WeekdayBubbleView: View {
                 .fill(backgroundColor)
                 .frame(width: bubbleRadius * 2, height: bubbleRadius * 2)
 
-            // Цифра дня недели
-            Text("\(weekdayNumber)")
+            // Цифра дня месяца
+            Text(String(format: "%02d", dayOfMonth))
                 .font(.system(size: fontSize, weight: .medium, design: .monospaced))
                 .foregroundColor(textColor)
                 .rotationEffect(.radians(displayedAngle))

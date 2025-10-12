@@ -26,9 +26,6 @@ struct ClockDrawingHelpers {
 
         // 24 цифры часов
         draw24HourNumbers(context: context, size: size, baseRadius: baseRadius, center: center)
-
-        // 31 день месяца
-        drawMonthDays(context: context, size: size, baseRadius: baseRadius, center: center, currentTime: currentTime)
     }
 
     // MARK: - Draw 96 Ticks
@@ -89,52 +86,6 @@ struct ClockDrawingHelpers {
                 Text(text)
                     .font(font)
                     .foregroundColor(.white),
-                at: .zero,
-                anchor: .center
-            )
-        }
-    }
-
-    // MARK: - Draw Month Days
-    static func drawMonthDays(context: GraphicsContext, size: CGSize, baseRadius: CGFloat, center: CGPoint, currentTime: Date) {
-        let calendar = Calendar.current
-        let currentDay = calendar.component(.day, from: currentTime)
-        let fontSize = min(size.width, size.height) * 0.04
-        // SF Pro Text для мелких кеглей (< 20pt)
-        let font = Font.system(size: fontSize, weight: .regular, design: .default)
-
-        for day in 1...31 {
-            let angle = dayAngle(day: day)
-            let position = pointOnCircle(center: center, radius: baseRadius * 0.93, angle: angle)
-
-            let isCurrentDay = (day == currentDay)
-
-            var dayContext = context
-            dayContext.translateBy(x: position.x, y: position.y)
-            // Поворачиваем цифру "головой наружу" (от центра)
-            dayContext.rotate(by: Angle(radians: angle + .pi / 2))
-
-            // Фон для текущего дня
-            if isCurrentDay {
-                let bubbleRadius = baseRadius * 0.06
-                var bubblePath = Path()
-                bubblePath.addEllipse(in: CGRect(
-                    x: -bubbleRadius,
-                    y: -bubbleRadius,
-                    width: bubbleRadius * 2,
-                    height: bubbleRadius * 2
-                ))
-                dayContext.fill(bubblePath, with: .color(.white))
-            }
-
-            // Текст дня
-            let text = String(format: "%02d", day)
-            let textColor: Color = isCurrentDay ? .black : Color("ClockSecondary")
-
-            dayContext.draw(
-                Text(text)
-                    .font(font)
-                    .foregroundColor(textColor),
                 at: .zero,
                 anchor: .center
             )
@@ -326,11 +277,5 @@ struct ClockDrawingHelpers {
         // 12 вверху (-90°), 18 справа (0°), 24 внизу (90°), 6 слева (180°/-180°)
         let degrees = CGFloat(hour - 18) * 15.0  // 18 = 0° (справа)
         return degrees * .pi / 180.0
-    }
-
-    static func dayAngle(day: Int) -> CGFloat {
-        let degreesPerSector = 360.0 / 31.0
-        let offset = Double(12 - 1) * degreesPerSector + degreesPerSector / 2
-        return CGFloat((-Double(day - 1) * degreesPerSector + offset + 90) * .pi / 180.0)
     }
 }
