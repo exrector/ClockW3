@@ -44,7 +44,7 @@ enum ClockConstants {
     // Параметры стрелок (сдвинуты к центру)
     static let arrowLineEndRadius: CGFloat = 0.55
     static let arrowThicknessRatio: CGFloat = 0.01
-    static let weekdayNumberRadius: CGFloat = 0.55  // Пузыри с днями месяца (меньше чем numberRadius 0.60)
+    static let weekdayNumberRadius: CGFloat = 0.5  // Пузыри с днями месяца (меньше чем numberRadius 0.60)
     static let weekdayBubbleRadiusRatio: CGFloat = 0.035
     
     // Параметры дней месяца
