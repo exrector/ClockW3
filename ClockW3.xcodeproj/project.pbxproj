@@ -141,8 +141,8 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				AD2AE4E32E9C1500003A9381 /* Shared */,
 				AD2AE4352E9C09AC003A9381 /* ClockW3Widget */,
+				AD2AE4E32E9C1500003A9381 /* Shared */,
 			);
 			name = ClockW3WidgetExtension;
 			packageProductDependencies = (

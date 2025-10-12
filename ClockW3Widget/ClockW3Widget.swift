@@ -41,17 +41,20 @@ struct ClockW3WidgetEntryView: View {
     var body: some View {
         GeometryReader { geometry in
             let size = min(geometry.size.width, geometry.size.height)
+            let palette = ClockColorPalette.system()
 
             ZStack {
-                // Используем системный черный фон
-                Color.black
+                // Используем фон из палитры
+                palette.background
 
                 // Наш циферблат
                 ClockFaceView()
                     .frame(width: size, height: size)
             }
         }
-        .containerBackground(Color.black, for: .widget)
+        .containerBackground(for: .widget) {
+            ClockColorPalette.system().background
+        }
     }
 }
 

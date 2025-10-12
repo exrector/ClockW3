@@ -16,8 +16,11 @@ struct SwiftUIClockApp: App {
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
-    // Выбор городов
-    @AppStorage("selectedCityIdentifiers") private var selectedCityIdentifiers: String = ""
+    // Выбор городов (используем SharedUserDefaults для синхронизации с виджетом)
+    @AppStorage(
+        SharedUserDefaults.selectedCitiesKey,
+        store: SharedUserDefaults.shared
+    ) private var selectedCityIdentifiers: String = ""
     @State private var selectedIds: Set<String> = []
     @State private var showTimeZonePicker = false
 
