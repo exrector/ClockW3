@@ -29,7 +29,19 @@ struct ClockFaceView: View {
                         colors: palette,
                         currentTime: viewModel.currentTime
                     )
-                    
+
+                    // Вращающиеся кольца с подписями городов
+                    CityLabelRingsView(
+                        size: size,
+                        cities: viewModel.cities,
+                        currentTime: viewModel.currentTime
+                    )
+                    .rotationEffect(.radians(viewModel.rotationAngle))
+                    .animation(
+                        viewModel.isDragging ? .none : .easeOut(duration: 0.3),
+                        value: viewModel.rotationAngle
+                    )
+
                     // Вращающийся контейнер со стрелками (Layer05)
                     CityArrowsView(
                         size: size,
@@ -133,6 +145,103 @@ struct ClockColorPalette {
         )
     }
 
+}
+
+// MARK: - City Label Rings View
+struct CityLabelRingsView: View {
+    let size: CGSize
+    let cities: [WorldCity]
+    let currentTime: Date
+
+    private var baseRadius: CGFloat {
+        min(size.width, size.height) / 2.0 * ClockConstants.clockSizeRatio
+    }
+
+    private var center: CGPoint {
+        CGPoint(x: size.width / 2, y: size.height / 2)
+    }
+
+    var body: some View {
+        Canvas { context, size in
+            let fontSize = min(size.width, size.height) * ClockConstants.labelRingFontSizeRatio
+
+            // Разделяем города на две группы (четные и нечетные индексы)
+            var outerRingCities: [WorldCity] = []
+            var middleRingCities: [WorldCity] = []
+
+            for (index, city) in cities.enumerated() {
+                if index % 2 == 0 {
+                    outerRingCities.append(city)
+                } else {
+                    middleRingCities.append(city)
+                }
+            }
+
+            // Рисуем внешнее кольцо
+            for city in outerRingCities {
+                drawCityLabel(
+                    context: context,
+                    city: city,
+                    radius: baseRadius * ClockConstants.outerLabelRingRadius,
+                    fontSize: fontSize
+                )
+            }
+
+            // Рисуем среднее кольцо
+            for city in middleRingCities {
+                drawCityLabel(
+                    context: context,
+                    city: city,
+                    radius: baseRadius * ClockConstants.middleLabelRingRadius,
+                    fontSize: fontSize
+                )
+            }
+        }
+    }
+
+    private func drawCityLabel(context: GraphicsContext, city: WorldCity, radius: CGFloat, fontSize: CGFloat) {
+        guard let timeZone = city.timeZone else { return }
+
+        var calendar = Calendar.current
+        calendar.timeZone = timeZone
+
+        let hour = Double(calendar.component(.hour, from: currentTime))
+        let minute = Double(calendar.component(.minute, from: currentTime))
+        let hour24 = hour + minute / 60.0
+        let angle = ClockConstants.calculateArrowAngle(hour24: hour24)
+
+        let position = AngleCalculations.pointOnCircle(
+            center: center,
+            radius: radius,
+            angle: angle
+        )
+
+        // Разбиваем название на отдельные буквы
+        let letters = city.name.map { String($0) }
+        let letterSpacing = fontSize * 0.9
+
+        var labelContext = context
+        labelContext.translateBy(x: position.x, y: position.y)
+
+        // Поворачиваем контекст "головой наружу" (от центра)
+        let textAngle = angle + .pi / 2
+        labelContext.rotate(by: Angle(radians: textAngle))
+
+        // Рисуем каждую букву вертикально
+        let totalHeight = CGFloat(letters.count - 1) * letterSpacing
+        var currentY = -totalHeight / 2
+
+        let font = Font.system(size: fontSize, weight: .regular, design: .default)
+
+        for letter in letters {
+            let text = Text(letter)
+                .font(font)
+                .foregroundColor(Color("ClockSecondary"))
+
+            labelContext.draw(text, at: CGPoint(x: 0, y: currentY), anchor: .center)
+            currentY += letterSpacing
+        }
+    }
 }
 
 // MARK: - Preview
