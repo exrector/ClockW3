@@ -6,47 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		ADDCD5772E9813910032583D /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADDCD5762E9813910032583D /* WidgetKit.framework */; };
-		ADDCD5792E9813910032583D /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADDCD5782E9813910032583D /* SwiftUI.framework */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		ADD4DAED2E97D4D700439B5F /* ClockW3.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClockW3.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		ADDCD5742E9813910032583D /* ColocolExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ColocolExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		ADDCD5762E9813910032583D /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = /System/Library/Frameworks/WidgetKit.framework; sourceTree = "<absolute>"; };
 		ADDCD5782E9813910032583D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = /System/Library/Frameworks/SwiftUI.framework; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		ADDCD6B52E985E980032583D /* Exceptions for "ClockW3" folder in "ColocolExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Assets.xcassets,
-				ContentView.swift,
-				Helpers/AngleCalculations.swift,
-				Models/ClockConstants.swift,
-				README.md,
-				Shared/ClockController.swift,
-				Shared/ClockPhysics.swift,
-				SwiftUIClockApp.swift,
-				ViewModels/ClockViewModel.swift,
-				Views/CityArrowsView.swift,
-				Views/ClockFaceView.swift,
-				Views/ClockViewRepresentable.swift,
-				Views/CoreGraphicsClockView.swift,
-				Views/StaticBackgroundView.swift,
-			);
-			target = ADDCD5732E9813910032583D /* ColocolExtension */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		ADD4DAEF2E97D4D700439B5F /* ClockW3 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				ADDCD6B52E985E980032583D /* Exceptions for "ClockW3" folder in "ColocolExtension" target */,
-			);
 			path = ClockW3;
 			sourceTree = "<group>";
 		};
@@ -57,15 +25,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		ADDCD5712E9813910032583D /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				ADDCD5792E9813910032583D /* SwiftUI.framework in Frameworks */,
-				ADDCD5772E9813910032583D /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,7 +44,6 @@
 			isa = PBXGroup;
 			children = (
 				ADD4DAED2E97D4D700439B5F /* ClockW3.app */,
-				ADDCD5742E9813910032583D /* ColocolExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -124,28 +82,6 @@
 			productReference = ADD4DAED2E97D4D700439B5F /* ClockW3.app */;
 			productType = "com.apple.product-type.application";
 		};
-		ADDCD5732E9813910032583D /* ColocolExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = ADDCD58B2E9813920032583D /* Build configuration list for PBXNativeTarget "ColocolExtension" */;
-			buildPhases = (
-				ADDCD5702E9813910032583D /* Sources */,
-				ADDCD5712E9813910032583D /* Frameworks */,
-				ADDCD5722E9813910032583D /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				ADD4DAEF2E97D4D700439B5F /* ClockW3 */,
-			);
-			name = ColocolExtension;
-			packageProductDependencies = (
-			);
-			productName = ColocolExtension;
-			productReference = ADDCD5742E9813910032583D /* ColocolExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -157,9 +93,6 @@
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					ADD4DAEC2E97D4D700439B5F = {
-						CreatedOnToolsVersion = 26.1;
-					};
-					ADDCD5732E9813910032583D = {
 						CreatedOnToolsVersion = 26.1;
 					};
 				};
@@ -179,7 +112,6 @@
 			projectRoot = "";
 			targets = (
 				ADD4DAEC2E97D4D700439B5F /* ClockW3 */,
-				ADDCD5732E9813910032583D /* ColocolExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -192,24 +124,10 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		ADDCD5722E9813910032583D /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		ADD4DAE92E97D4D700439B5F /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		ADDCD5702E9813910032583D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -423,90 +341,6 @@
 			};
 			name = Release;
 		};
-		ADDCD5882E9813920032583D /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = K3Q8WG53V3;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Colocol;
-				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Exrector.ClockW3.Colocol;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = auto;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.0;
-			};
-			name = Debug;
-		};
-		ADDCD5892E9813920032583D /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = K3Q8WG53V3;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Colocol;
-				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Exrector.ClockW3.Colocol;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = auto;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.0;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -524,15 +358,6 @@
 			buildConfigurations = (
 				ADD4DAF92E97D4D800439B5F /* Debug */,
 				ADD4DAFA2E97D4D800439B5F /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		ADDCD58B2E9813920032583D /* Build configuration list for PBXNativeTarget "ColocolExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				ADDCD5882E9813920032583D /* Debug */,
-				ADDCD5892E9813920032583D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
