@@ -1,99 +1,149 @@
-# Примечания по восстановлению проекта
+# Recovery Notes - Project Structure History
 
-## Что произошло
+## 2025-10-12: Major Refactoring
 
-Grok изменил файл `ClockW3.xcodeproj/project.pbxproj`, что привело к ошибке:
+### What Changed
+- **Created `Shared/` directory** for code shared between app and widget
+- **Removed dead code** (~700 lines of unused alternate rendering stack)
+- **Fixed app-widget synchronization** using App Groups
+- **Improved project structure** with PBXFileSystemSynchronized
+
+### Current Project Structure
+
 ```
-The project at '/Users/exrector/Documents/ClockW3/ClockW3/ClockW3.xcodeproj' cannot be opened
-because it is in an unsupported Xcode project file format.
+ClockW3/
+├── Shared/              # Code shared between app and widget
+│   ├── Models/          # WorldCity, ClockConstants
+│   ├── ViewModels/      # ClockViewModel
+│   ├── Views/           # ClockFaceView, CityArrowsView, StaticBackgroundView
+│   └── Helpers/         # AngleCalculations, SharedUserDefaults, CityOrbitDistribution
+├── ClockW3/             # App-specific code
+│   ├── ContentView.swift
+│   ├── SwiftUIClockApp.swift
+│   ├── Helpers/ClockHaptics.swift
+│   └── Assets.xcassets/
+├── ClockW3Widget/       # Widget Extension
+│   ├── ClockW3Widget.swift
+│   ├── Info.plist
+│   └── Assets.xcassets/
+├── ClockW3.xcodeproj/
+└── ARCHITECTURE.md      # Detailed project documentation
 ```
 
-## Что было сделано для восстановления
+### Key Improvements
+- ✅ No manual `membershipExceptions` needed
+- ✅ Files automatically included in correct targets
+- ✅ Widget syncs with app via `group.exrector.ClockW3` App Group
+- ✅ Cleaner git history (no project.pbxproj conflicts)
 
-1. **Восстановлен оригинальный project.pbxproj**:
-   ```bash
-   git restore ClockW3.xcodeproj/project.pbxproj
-   git restore ClockW3.xcodeproj/xcuserdata/exrector.xcuserdatad/xcschemes/xcschememanagement.plist
-   ```
+## Previous Issues (2025-10-09)
 
-2. **Удалены изменения от grok**:
-   ```bash
-   git reset HEAD Widget/
-   git reset HEAD ClockW3/ClockW3App.swift
-   rm -rf Widget/ ClockWidgetExtension/ WIDGET_SETUP.md
-   ```
+### Original Problem
+Grok modified `ClockW3.xcodeproj/project.pbxproj` causing:
+```
+The project cannot be opened because it is in an unsupported Xcode project file format.
+```
 
-3. **Восстановлена моя версия ContentView.swift** с упрощённым интерфейсом
+### How It Was Fixed
+```bash
+git restore ClockW3.xcodeproj/project.pbxproj
+git restore ClockW3.xcodeproj/xcuserdata/exrector.xcuserdatad/xcschemes/xcschememanagement.plist
+git reset HEAD Widget/
+rm -rf Widget/ ClockWidgetExtension/ WIDGET_SETUP.md
+```
 
-## Текущее состояние проекта
+## How to Work with This Project
 
-### ✅ Работает
-- Проект открывается в Xcode
-- Проект успешно собирается для macOS
-- Все мои изменения сохранены:
-  - Упрощённый интерфейс (без меню, панели, кнопки сброса)
-  - Подписи городов на стрелках
-  - Все новые компоненты и файлы
+### Adding New Files
 
-### 📝 Файлы в проекте
+**For shared code (used by both app and widget):**
+- Create file in `Shared/` directory
+- File automatically available to both targets
 
-**Новые файлы** (не добавлены в git, но проект их использует):
-- `ClockW3/Helpers/` - вспомогательные функции
-- `ClockW3/Models/` - модели данных
-- `ClockW3/ViewModels/` - view models
-- `ClockW3/Views/` - компоненты интерфейса
-- `ClockW3/SwiftUIClockApp.swift` - главный файл приложения
-- `ClockW3/README.md` - документация
+**For app-only code:**
+- Create file in `ClockW3/`
+- Available only to main app
 
-**Изменённые файлы**:
-- `ClockW3/ContentView.swift` - упрощён до минимума
+**For widget-only code:**
+- Create file in `ClockW3Widget/`
+- Available only to widget
 
-**Удалённый файл**:
-- `ClockW3/ClockW3App.swift` - заменён на SwiftUIClockApp.swift
-
-## Как добавить файлы в Xcode вручную
-
-Если нужно добавить новые файлы в проект через Xcode:
-
-1. Откройте `ClockW3.xcodeproj` в Xcode
-2. В Project Navigator, правой кнопкой на группу `ClockW3`
-3. Выберите **Add Files to "ClockW3"...**
-4. Выберите папки:
-   - Helpers
-   - Models
-   - ViewModels
-   - Views
-   - SwiftUIClockApp.swift
-   - README.md
-5. Убедитесь что выбрано:
-   - ✓ Copy items if needed
-   - ✓ Create groups
-   - ✓ Add to targets: ClockW3
-6. Нажмите **Add**
-
-## Как собрать проект
+### Building the Project
 
 ```bash
-# Для macOS
-xcodebuild -scheme ClockW3 -destination 'platform=macOS' build
+# For iOS Simulator
+xcodebuild -scheme ClockW3 -destination 'platform=iOS Simulator,name=iPhone 16' build
 
-# Для iOS симулятора (если нужно)
-xcodebuild -scheme ClockW3 -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17' build
+# For macOS
+xcodebuild -scheme ClockW3 -destination 'platform=macOS' build
 ```
 
-## Важные замечания
+### App Groups Setup
 
-- **НЕ используйте grok** для изменения файла project.pbxproj
-- Все изменения в структуре проекта лучше делать через Xcode UI
-- Если нужно добавить новые файлы, используйте Xcode, а не редактирование pbxproj вручную
-- Текущая версия проекта полностью рабочая и собирается без ошибок
+Both targets need App Groups capability:
 
-## Следующие шаги
+1. **ClockW3 target:**
+   - Signing & Capabilities → + Capability → App Groups
+   - Enable: `group.exrector.ClockW3`
 
-Если хотите добавить виджет:
-1. Откройте проект в Xcode
-2. **File → New → Target...**
-3. Выберите **Widget Extension**
-4. Следуйте инструкциям Xcode
+2. **ClockW3WidgetExtension target:**
+   - Signing & Capabilities → + Capability → App Groups
+   - Enable: `group.exrector.ClockW3`
 
-НЕ пытайтесь редактировать project.pbxproj вручную!
+## Best Practices
+
+### ✅ DO
+- Use Xcode UI for target/file management
+- Keep shared code in `Shared/` directory
+- Read `ARCHITECTURE.md` before making structural changes
+- Let PBXFileSystemSynchronized handle file membership automatically
+
+### ❌ DON'T
+- Manually edit `project.pbxproj` unless absolutely necessary
+- Put shared code in `ClockW3/` directory
+- Create directories named "Shared" inside app-specific folders (causes ambiguity)
+- Mix app-specific and shared code
+
+## Current Status
+
+### ✅ Working
+- Project opens in Xcode 16.1+
+- Builds successfully for iOS and macOS
+- Widget Extension functional
+- App and widget share city selections
+- No dead code or duplicate logic
+
+### 📚 Documentation
+- `README.md` - Project overview and usage
+- `ARCHITECTURE.md` - Technical details, coordinate system, project structure
+- `.gitignore` - Excludes .DS_Store and Xcode artifacts
+
+## Migration Guide
+
+If you have old code referencing removed files:
+
+**Dead files removed:**
+- `ClockW3/Shared/ClockCanvasView.swift`
+- `ClockW3/Shared/ClockController.swift`
+- `ClockW3/Shared/ClockDrawingHelpers.swift`
+- `ClockW3/Shared/ClockModel.swift`
+- `ClockW3/Shared/ClockPhysics.swift`
+- `ClockW3/Views/ClockViewRepresentable.swift`
+- `ClockW3/Views/CoreGraphicsClockView.swift`
+
+**Current rendering:**
+Use `Shared/Views/ClockFaceView.swift` and `Shared/Views/CityArrowsView.swift`
+
+## Troubleshooting
+
+**Widget not updating with city changes:**
+- Verify App Groups are configured in both targets
+- Check `SharedUserDefaults.appGroupID` matches "group.exrector.ClockW3"
+
+**Files not building:**
+- Ensure files are in correct directory (`Shared/` vs `ClockW3/`)
+- Let Xcode rescan: Product → Clean Build Folder
+
+**Git conflicts in project.pbxproj:**
+- Prefer Xcode UI changes over manual edits
+- PBXFileSystemSynchronized minimizes these conflicts
