@@ -200,12 +200,18 @@ struct CityLabelRingsView: View {
         Canvas { context, size in
             let fontSize = min(size.width, size.height) * ClockConstants.labelRingFontSizeRatio
 
-            // Разделяем города на две группы (четные и нечетные индексы)
+            // Используем умное распределение городов по орбитам (избегаем наложения текста)
+            let orbitAssignment = CityOrbitDistribution.distributeCities(
+                cities: cities,
+                currentTime: currentTime
+            )
+
             var outerRingCities: [WorldCity] = []
             var middleRingCities: [WorldCity] = []
 
-            for (index, city) in cities.enumerated() {
-                if index % 2 == 0 {
+            for city in cities {
+                let orbit = orbitAssignment[city.id] ?? 1
+                if orbit == 1 {
                     outerRingCities.append(city)
                 } else {
                     middleRingCities.append(city)

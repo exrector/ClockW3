@@ -55,6 +55,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Helpers/AngleCalculations.swift,
+				Helpers/CityOrbitDistribution.swift,
 				Models/ClockConstants.swift,
 				Models/WorldCity.swift,
 				ViewModels/ClockViewModel.swift,
