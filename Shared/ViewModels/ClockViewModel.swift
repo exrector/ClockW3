@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 import Combine
+import QuartzCore
 
 // MARK: - Clock View Model
 @MainActor
@@ -10,12 +11,29 @@ class ClockViewModel: ObservableObject {
         let angle: Double
     }
     
+    private struct RotationAnimation {
+        let startAngle: Double
+        let targetAngle: Double
+        let duration: TimeInterval
+        let startTime: CFTimeInterval
+        let direction: Double
+        let endHaptic: HapticFeedback.Strength?
+        let completion: (() -> Void)?
+    }
+    
     // MARK: - Published Properties
     @Published var currentTime = Date()
     @Published var cities: [WorldCity] = WorldCity.defaultCities
     
     // Интерактивность
-    @Published var rotationAngle: Double = 0
+    @Published var rotationAngle: Double = 0 {
+        didSet {
+            if suppressTickHaptics {
+                return
+            }
+            handleTickHaptics()
+        }
+    }
     @Published var isDragging = false
     @Published var isSnapping = false
 
@@ -33,6 +51,9 @@ class ClockViewModel: ObservableObject {
     private let zeroSnapThreshold: Double = 10.0 * .pi / 180.0
     private let directionEpsilon: Double = 1e-4
     private let magnetHardSnapEpsilon: Double = 0.12 * .pi / 180.0
+    private var lastHapticTick: Int?
+    private var suppressTickHaptics = false
+    private var rotationAnimation: RotationAnimation?
     
     // MARK: - Initialization
     init() {
@@ -113,6 +134,7 @@ class ClockViewModel: ObservableObject {
         dragVelocity = 0
         dragSamples.removeAll()
         dragSamples.append(DragSample(time: Date().timeIntervalSinceReferenceDate, angle: rotationAngle))
+        handleTickHaptics(trigger: false)
     }
     
     func updateDrag(at location: CGPoint, in geometry: GeometryProxy) {
@@ -146,6 +168,8 @@ class ClockViewModel: ObservableObject {
             updateLastRotationDirection(with: dragVelocity)
         }
 
+        handleTickHaptics()
+
         // Во время драга НЕ притягиваемся, чтобы не ломать естественное движение
     }
     
@@ -160,6 +184,7 @@ class ClockViewModel: ObservableObject {
             updateLastRotationDirection(with: inferredVelocity)
         }
         applyInertiaAndSnap()
+        handleTickHaptics(trigger: false)
     }
     
     // MARK: - Physics Simulation
@@ -181,6 +206,37 @@ class ClockViewModel: ObservableObject {
     
     private func updatePhysics() {
         guard !isDragging else { return }
+
+        if let animation = rotationAnimation {
+            let now = CACurrentMediaTime()
+            let elapsed = now - animation.startTime
+            let progress = animation.duration > 0 ? min(1.0, elapsed / animation.duration) : 1.0
+            let eased = easeOutCubic(progress)
+            let interpolated: Double
+
+            if progress >= 1.0 {
+                interpolated = animation.targetAngle
+            } else {
+                interpolated = animation.startAngle + (animation.targetAngle - animation.startAngle) * eased
+            }
+
+            if abs(interpolated - rotationAngle) > 1e-9 {
+                rotationAngle = interpolated
+            }
+
+            if progress >= 1.0 {
+                rotationAnimation = nil
+                isSnapping = false
+                dragVelocity = 0
+                updateLastRotationDirection(with: animation.direction)
+                if let endHaptic = animation.endHaptic {
+                    HapticFeedback.impact(endHaptic)
+                }
+                animation.completion?()
+            }
+            return
+        }
+
         guard !isSnapping else { return }
 
         dragVelocity *= 0.985
@@ -189,6 +245,7 @@ class ClockViewModel: ObservableObject {
             updateLastRotationDirection(with: dragVelocity)
             rotationAngle += dragVelocity / 60.0
             applyMagnetWhileCoasting()
+            handleTickHaptics()
             return
         }
 
@@ -196,6 +253,7 @@ class ClockViewModel: ObservableObject {
 
         if !isSnapping {
             snapToNearestTick()
+            handleTickHaptics(trigger: false)
         }
     }
     
@@ -204,20 +262,61 @@ class ClockViewModel: ObservableObject {
         // Здесь ничего не делаем — оставляем текущую dragVelocity
     }
     
+    private func startRotationAnimation(
+        to targetAngle: Double,
+        duration: TimeInterval,
+        startHaptic: HapticFeedback.Strength? = nil,
+        endHaptic: HapticFeedback.Strength? = nil,
+        completion: (() -> Void)? = nil
+    ) {
+        let delta = targetAngle - rotationAngle
+        dragVelocity = 0
+        dragSamples.removeAll()
+        if abs(delta) <= directionEpsilon {
+            completion?()
+            return
+        }
+
+        let clampedDuration = max(0.01, duration)
+        rotationAnimation = RotationAnimation(
+            startAngle: rotationAngle,
+            targetAngle: targetAngle,
+            duration: clampedDuration,
+            startTime: CACurrentMediaTime(),
+            direction: delta > 0 ? 1 : -1,
+            endHaptic: endHaptic,
+            completion: completion
+        )
+        isSnapping = true
+        if let startHaptic = startHaptic {
+            HapticFeedback.impact(startHaptic)
+        }
+    }
+    
     private func snapToNearestTick() {
         guard !isSnapping else { return }
         
-        isSnapping = true
         let nearestTick = ClockConstants.nearestTickAngle(rotationAngle)
-        
-        withAnimation(.easeOut(duration: ClockConstants.snapDuration)) {
-            rotationAngle = nearestTick
+        var delta = nearestTick - rotationAngle
+        delta = ClockConstants.normalizeAngle(delta)
+        if abs(delta) < 1e-4 {
+            setRotationNoAnimation(nearestTick)
+            dragVelocity = 0
+            if abs(delta) > directionEpsilon {
+                lastRotationDirection = delta > 0 ? 1 : -1
+            }
+            return
         }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + ClockConstants.snapDuration) { [weak self] in
-            guard let self else { return }
-            self.isSnapping = false
-            self.dragVelocity = 0
+
+        lastRotationDirection = delta > 0 ? 1 : -1
+
+        startRotationAnimation(
+            to: nearestTick,
+            duration: ClockConstants.snapDuration,
+            startHaptic: .medium,
+            endHaptic: nil
+        ) { [weak self] in
+            self?.handleTickHaptics(trigger: false)
         }
     }
 
@@ -281,6 +380,7 @@ class ClockViewModel: ObservableObject {
 
         if distance <= magnetHardSnapEpsilon {
             setRotationNoAnimation(target)
+            HapticFeedback.impact(.light)
             return true
         }
 
@@ -288,6 +388,7 @@ class ClockViewModel: ObservableObject {
         let easing = pow(clamped, 1.6)
         let adaptiveLerp = min(1.0, lerp + (1.0 - lerp) * easing)
         rotationAngle += delta * adaptiveLerp
+        handleTickHaptics()
         return true
     }
 
@@ -296,11 +397,48 @@ class ClockViewModel: ObservableObject {
         lastRotationDirection = value > 0 ? 1 : -1
     }
 
+    private func easeOutCubic(_ t: Double) -> Double {
+        let clamped = max(0.0, min(1.0, t))
+        let inv = 1.0 - clamped
+        return 1.0 - inv * inv * inv
+    }
+
     private func setRotationNoAnimation(_ value: Double) {
         var transaction = Transaction()
         transaction.disablesAnimations = true
+        suppressTickHaptics = true
         withTransaction(transaction) {
             rotationAngle = value
+        }
+        suppressTickHaptics = false
+        handleTickHaptics(trigger: false)
+    }
+
+    private func handleTickHaptics(trigger: Bool = true) {
+        let step = ClockConstants.quarterTickStepRadians
+        guard step > 0 else { return }
+        let currentTick = Int(round(rotationAngle / step))
+        if let last = lastHapticTick, currentTick == last {
+            return
+        }
+        if !trigger {
+            lastHapticTick = currentTick
+            return
+        }
+        guard let last = lastHapticTick else {
+            lastHapticTick = currentTick
+            return
+        }
+        lastHapticTick = currentTick
+        if currentTick == last { return }
+
+        let hourRatio = ClockConstants.hourTickStepRadians / step
+        let hourInterval = max(1, Int(round(hourRatio)))
+        let normalized = ((currentTick % hourInterval) + hourInterval) % hourInterval
+        if normalized == 0 {
+            HapticFeedback.impact(.medium)
+        } else {
+            HapticFeedback.impact(.light)
         }
     }
 
@@ -314,16 +452,20 @@ class ClockViewModel: ObservableObject {
         let normalizedOffset = ClockConstants.normalizeAngle(rotationAngle)
         if abs(normalizedOffset) <= zeroSnapThreshold {
             let targetAngle = rotationAngle - normalizedOffset
-            let duration = 0.12
-            isSnapping = true
-            withAnimation(.easeOut(duration: duration)) {
-                rotationAngle = targetAngle
+            let duration = 0.16
+            let delta = targetAngle - rotationAngle
+            if abs(delta) > directionEpsilon {
+                lastRotationDirection = delta > 0 ? 1 : -1
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+            startRotationAnimation(
+                to: targetAngle,
+                duration: duration,
+                startHaptic: .medium,
+                endHaptic: .heavy
+            ) { [weak self] in
                 guard let self else { return }
                 self.setRotationNoAnimation(0)
                 self.dragVelocity = 0
-                self.isSnapping = false
             }
             return
         }
@@ -358,6 +500,7 @@ class ClockViewModel: ObservableObject {
             lastRotationDirection = direction
             isSnapping = false
             setRotationNoAnimation(0)
+            HapticFeedback.impact(.heavy)
             return
         }
 
@@ -368,16 +511,15 @@ class ClockViewModel: ObservableObject {
         let angularDistance = abs(delta)
         let duration = min(0.75, max(0.2, (angularDistance / twoPi) * 0.45 + 0.18))
 
-        isSnapping = true
-        withAnimation(.easeOut(duration: duration)) {
-            rotationAngle = targetAngle
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+        startRotationAnimation(
+            to: targetAngle,
+            duration: duration,
+            startHaptic: .medium,
+            endHaptic: .heavy
+        ) { [weak self] in
             guard let self else { return }
             self.setRotationNoAnimation(0)
             self.dragVelocity = 0
-            self.isSnapping = false
         }
     }
     
@@ -386,12 +528,21 @@ class ClockViewModel: ObservableObject {
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: currentTime)
         let minute = calendar.component(.minute, from: currentTime)
+        isDragging = false
         
         let targetAngle = ClockConstants.calculateArrowAngle(hour: hour, minute: minute)
-        
-        withAnimation(.easeOut(duration: 0.5)) {
-            rotationAngle = -targetAngle  // Инвертируем, так как поворачиваем контейнер
+        let destination = -targetAngle
+        let delta = destination - rotationAngle
+        if abs(delta) > directionEpsilon {
+            lastRotationDirection = delta > 0 ? 1 : -1
         }
+
+        startRotationAnimation(
+            to: destination,
+            duration: 0.5,
+            startHaptic: .light,
+            endHaptic: .medium
+        )
     }
     
     // MARK: - Physics control (for lifecycle/extensions)

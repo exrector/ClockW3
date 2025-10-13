@@ -82,6 +82,7 @@ struct ClockFaceView: View {
                     
                     if interactivityEnabled {
                         Button {
+                            HapticFeedback.impact(.medium)
                             viewModel.resetRotation()
                         } label: {
                             ZStack {

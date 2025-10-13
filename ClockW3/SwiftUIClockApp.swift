@@ -206,6 +206,7 @@ extension SettingsView {
     private func removeCity(_ identifier: String) {
         guard identifier != localCityIdentifier else { return }
         selectedIds.remove(identifier)
+        HapticFeedback.impact(.light)
     }
 }
 
@@ -328,8 +329,10 @@ struct TimeZoneSelectionView: View {
         if selection.contains(identifier) {
             if identifier == localCityIdentifier { return }
             selection.remove(identifier)
+            HapticFeedback.impact(.light)
         } else {
             selection.insert(identifier)
+            HapticFeedback.impact(.light)
         }
     }
 
@@ -394,8 +397,10 @@ struct TimeZoneSelectionInlineView: View {
         if selection.contains(identifier) {
             if identifier == localCityIdentifier { return }
             selection.remove(identifier)
+            HapticFeedback.impact(.light)
         } else {
             selection.insert(identifier)
+            HapticFeedback.impact(.light)
         }
         onChanged()
     }
