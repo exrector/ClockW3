@@ -19,7 +19,7 @@ enum ClockConstants {
 
     // Два внешних кольца с подписями городов
     static let outerLabelRingRadius: CGFloat = 0.95  // Внешнее кольцо
-    static let middleLabelRingRadius: CGFloat = 0.82 // Среднее кольцо
+    static let middleLabelRingRadius: CGFloat = 0.83 // Среднее кольцо
 
     // Основные элементы (сдвинуты к центру)
     static let cityNameRadius: CGFloat = 0.96
@@ -44,7 +44,10 @@ enum ClockConstants {
     static let arrowThicknessRatio: CGFloat = 0.02
     static let weekdayNumberRadius: CGFloat = 0.51  // Пузыри с днями месяца
     static let weekdayBubbleRadiusRatio: CGFloat = 0.05
-    
+    static let cityMarkerRadius: CGFloat = 0.76      // Точки между тиками и подписями
+    static let deadZoneRadiusRatio: CGFloat = 0.20   // Радиус зоны, блокирующей drag
+    static let centerButtonVisualRatio: CGFloat = 0.035
+
     // Параметры дней месяца
     static let daySectorCount: Int = 31
     static let daySectorInnerRadius: CGFloat = 0.87
@@ -57,7 +60,12 @@ enum ClockConstants {
     
     // Анимации
     static let snapDuration: Double = 0.25
-    static let magneticThreshold: CGFloat = 1.5 * .pi / 180  // 1.5 градуса в радианах
+    static let hourTickStepRadians: Double = degreesPerHour * .pi / 180.0
+    static let halfHourTickStepRadians: Double = hourTickStepRadians / 2.0
+    static let quarterTickStepRadians: Double = degreesPerTick * .pi / 180.0
+    static let hourMagneticThreshold: Double = 1.5 * .pi / 180.0
+    static let halfHourMagneticThreshold: Double = 1.2 * .pi / 180.0
+    static let quarterHourMagneticThreshold: Double = 1.0 * .pi / 180.0
 }
 
 // MARK: - Geometry Helpers
@@ -79,7 +87,7 @@ extension ClockConstants {
     static func calculateArrowAngle(hour24: Double) -> Double {
         let normalized = normalizeHour24(hour24)
         let degrees = normalized * degreesPerHour - referenceHour * degreesPerHour
-        return -degrees * Double.pi / 180.0  // Радианы, минус для правильного направления
+        return degrees * Double.pi / 180.0  // Радианы (без инверсии для правильного направления)
     }
     
     /// Вычисляет угол для цифры часа на циферблате (по часовой стрелке)

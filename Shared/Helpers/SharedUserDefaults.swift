@@ -17,4 +17,8 @@ enum SharedUserDefaults {
 
     /// Ключ для хранения выбранных городов
     static let selectedCitiesKey = "selectedCityIdentifiers"
+    static let seededDefaultsKey = "didSeedDefaultCities"
+
+    /// Ключ для хранения предпочтения цветовой схемы (system/light/dark)
+    static let colorSchemeKey = "colorSchemePreference"
 }

@@ -8,7 +8,10 @@
 import SwiftUI
 
 struct ContentView: View {
-    @AppStorage("colorSchemePreference") private var colorSchemePreference: String = "system"
+    @AppStorage(
+        SharedUserDefaults.colorSchemeKey,
+        store: SharedUserDefaults.shared
+    ) private var colorSchemePreference: String = "system"
 
     private var preferredColorScheme: ColorScheme? {
         switch colorSchemePreference {

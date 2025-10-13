@@ -5,6 +5,11 @@ import Combine
 // MARK: - Clock View Model
 @MainActor
 class ClockViewModel: ObservableObject {
+    private struct DragSample {
+        let time: TimeInterval
+        let angle: Double
+    }
+    
     // MARK: - Published Properties
     @Published var currentTime = Date()
     @Published var cities: [WorldCity] = WorldCity.defaultCities
@@ -13,13 +18,17 @@ class ClockViewModel: ObservableObject {
     @Published var rotationAngle: Double = 0
     @Published var isDragging = false
     @Published var isSnapping = false
-    
+
     // MARK: - Private Properties
     private var timer: Timer?
+    private var physicsTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private var lastDragAngle: Double = 0
     private var dragVelocity: Double = 0
     private var lastDragTime: Date = Date()
+    private var dragSamples: [DragSample] = []
+    private let maxDragSamples = 6
+    private let snapVelocityThreshold: Double = 0.03
     
     // MARK: - Initialization
     init() {
@@ -29,22 +38,27 @@ class ClockViewModel: ObservableObject {
     
     deinit {
         timer?.invalidate()
+        physicsTimer?.invalidate()
+        timer = nil
+        physicsTimer = nil
     }
     
     // MARK: - Time Management
     private func startTimeUpdates() {
+        Task { @MainActor in
+            refreshCurrentTime()
+        }
+
         // Обновляем время каждую минуту
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { [weak self] in
-                guard let self else { return }
-                await MainActor.run {
-                    self.currentTime = Date()
-                }
+            Task { @MainActor [weak self] in
+                self?.refreshCurrentTime()
             }
         }
-        
-        // Также обновляем сразу
-        currentTime = Date()
+        timer?.tolerance = 0.2
+        if let timer = timer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
     }
     
     // MARK: - City Management
@@ -89,6 +103,8 @@ class ClockViewModel: ObservableObject {
         lastDragAngle = atan2(location.y - center.y, location.x - center.x)
         lastDragTime = Date()
         dragVelocity = 0
+        dragSamples.removeAll()
+        dragSamples.append(DragSample(time: Date().timeIntervalSinceReferenceDate, angle: rotationAngle))
     }
     
     func updateDrag(at location: CGPoint, in geometry: GeometryProxy) {
@@ -101,6 +117,12 @@ class ClockViewModel: ObservableObject {
         angleDelta = ClockConstants.normalizeAngle(angleDelta)
 
         rotationAngle += angleDelta
+        let nowReference = Date().timeIntervalSinceReferenceDate
+        dragSamples.append(DragSample(time: nowReference, angle: rotationAngle))
+        if dragSamples.count > maxDragSamples {
+            dragSamples.removeFirst()
+        }
+        applyMagnetDuringDrag()
 
         // Вычисляем скорость для инерции
         let now = Date()
@@ -119,13 +141,18 @@ class ClockViewModel: ObservableObject {
         isDragging = false
         
         // Применяем инерцию и снэп к ближайшему тику
+        let inferredVelocity = velocityFromSamples()
+        dragVelocity = inferredVelocity
+        dragSamples.removeAll()
         applyInertiaAndSnap()
     }
     
     // MARK: - Physics Simulation
     private func setupDragPhysics() {
+        // Не создаём второй таймер, если уже есть
+        guard physicsTimer == nil else { return }
         // Симуляция физики каждые 16ms (~60fps)
-        Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { [weak self] _ in
             Task { [weak self] in
                 guard let self else { return }
                 await MainActor.run {
@@ -133,43 +160,26 @@ class ClockViewModel: ObservableObject {
                 }
             }
         }
+        physicsTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
     }
     
     private func updatePhysics() {
-        guard !isDragging && !isSnapping else { return }
+        guard !isDragging else { return }
+        guard !isSnapping else { return }
 
-        // Плавная инерция с мягким затуханием
-        dragVelocity *= 0.94
+        dragVelocity *= 0.985
 
-        if abs(dragVelocity) >= 0.02 {
-            // Продолжаем движение по инерции (60 Гц)
+        if abs(dragVelocity) > snapVelocityThreshold {
             rotationAngle += dragVelocity / 60.0
+            applyMagnetWhileCoasting()
             return
         }
 
-        // Скорость мала — мягкий снэп к ближайшему тику без рывков
-        let nearestTick = ClockConstants.nearestTickAngle(rotationAngle)
-        var delta = nearestTick - rotationAngle
-        delta = ClockConstants.normalizeAngle(delta)
+        dragVelocity = 0
 
-        // Критически демпфированное подведение к цели
-        let step = delta * 0.10
-        rotationAngle += step
-
-        // Когда очень близко — фиксируем точно и гасим скорость
-        if abs(delta) < (0.3 * .pi / 180.0) { // 0.3°
-            rotationAngle = nearestTick
-            dragVelocity = 0
-        }
-    }
-    
-    private func applyMagneticAttraction() {
-        let nearestTick = ClockConstants.nearestTickAngle(rotationAngle)
-        let distance = abs(ClockConstants.normalizeAngle(rotationAngle - nearestTick))
-        
-        if distance < ClockConstants.magneticThreshold {
-            let attraction = (nearestTick - rotationAngle) * 0.1
-            rotationAngle += attraction
+        if !isSnapping {
+            snapToNearestTick()
         }
     }
     
@@ -194,12 +204,72 @@ class ClockViewModel: ObservableObject {
             self.dragVelocity = 0
         }
     }
-    
+
+    private func velocityFromSamples() -> Double {
+        guard dragSamples.count >= 2,
+              let first = dragSamples.first,
+              let last = dragSamples.last else {
+            return dragVelocity
+        }
+        let timeDelta = last.time - first.time
+        guard timeDelta > 0.01 else { return dragVelocity }
+        var angleDelta = last.angle - first.angle
+        angleDelta = ClockConstants.normalizeAngle(angleDelta)
+        return angleDelta / timeDelta
+    }
+
+    private func refreshCurrentTime() {
+        currentTime = Date()
+    }
+
+    private func applyMagnetDuringDrag() {
+        if applyMagnet(step: ClockConstants.hourTickStepRadians,
+                       threshold: ClockConstants.hourMagneticThreshold,
+                       lerp: 0.12) {
+            return
+        }
+        if applyMagnet(step: ClockConstants.halfHourTickStepRadians,
+                       threshold: ClockConstants.halfHourMagneticThreshold,
+                       lerp: 0.10) {
+            return
+        }
+        _ = applyMagnet(step: ClockConstants.quarterTickStepRadians,
+                        threshold: ClockConstants.quarterHourMagneticThreshold,
+                        lerp: 0.08)
+    }
+
+    private func applyMagnetWhileCoasting() {
+        if applyMagnet(step: ClockConstants.hourTickStepRadians,
+                       threshold: ClockConstants.hourMagneticThreshold,
+                       lerp: 0.06) {
+            return
+        }
+        if applyMagnet(step: ClockConstants.halfHourTickStepRadians,
+                       threshold: ClockConstants.halfHourMagneticThreshold,
+                       lerp: 0.05) {
+            return
+        }
+        _ = applyMagnet(step: ClockConstants.quarterTickStepRadians,
+                        threshold: ClockConstants.quarterHourMagneticThreshold,
+                        lerp: 0.04)
+    }
+
+    @discardableResult
+    private func applyMagnet(step: Double, threshold: Double, lerp: Double) -> Bool {
+        guard step > 0 else { return false }
+        let target = round(rotationAngle / step) * step
+        var delta = target - rotationAngle
+        delta = ClockConstants.normalizeAngle(delta)
+        if abs(delta) < threshold {
+            rotationAngle += delta * lerp
+            return true
+        }
+        return false
+    }
+
     // MARK: - Reset Functions
     func resetRotation() {
-        withAnimation(.easeOut(duration: ClockConstants.snapDuration)) {
-            rotationAngle = 0
-        }
+        // TODO: Implement reset rotation logic
     }
     
     func resetToCurrentTime() {
@@ -214,4 +284,15 @@ class ClockViewModel: ObservableObject {
             rotationAngle = -targetAngle  // Инвертируем, так как поворачиваем контейнер
         }
     }
+    
+    // MARK: - Physics control (for lifecycle/extensions)
+    func suspendPhysics() {
+        physicsTimer?.invalidate()
+        physicsTimer = nil
+    }
+    
+    func resumePhysics() {
+        setupDragPhysics()
+    }
 }
+

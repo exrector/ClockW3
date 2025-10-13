@@ -58,7 +58,6 @@ struct WorldCity: Identifiable, Codable, Equatable {
             // Азия
             "Tokyo": "TYO",
             "Shanghai": "SHA",
-            "Beijing": "BJS",
             "Hong Kong": "HKG",
             "Singapore": "SIN",
             "Dubai": "DXB",
@@ -108,13 +107,9 @@ extension WorldCity {
     }
 
     static var recommendedTimeZoneIdentifiers: [String] {
-        let base = TimeZone.current.identifier
-        let defaults = [
-            base,
-            "Europe/London",
+        let defaults: [String] = [
+            "Europe/Moscow",
             "America/New_York",
-            "Europe/Berlin",
-            "Asia/Tokyo",
             "Asia/Shanghai"
         ]
         var seen = Set<String>()

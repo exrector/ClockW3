@@ -36,24 +36,48 @@ struct SimpleEntry: TimelineEntry {
 // MARK: - Widget View
 struct ClockW3WidgetEntryView: View {
     @Environment(\.widgetFamily) var widgetFamily
+    @Environment(\.colorScheme) var systemColorScheme
     var entry: Provider.Entry
+
+    // Читаем настройку цветовой схемы из SharedUserDefaults
+    private var preferredColorScheme: ColorScheme? {
+        let preference = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
+        switch preference {
+        case "light":
+            return .light
+        case "dark":
+            return .dark
+        default:
+            return nil  // nil означает "использовать системную"
+        }
+    }
+
+    // Выбираем какую схему использовать: настройку пользователя или системную
+    private var effectiveColorScheme: ColorScheme {
+        preferredColorScheme ?? systemColorScheme
+    }
 
     var body: some View {
         GeometryReader { geometry in
             let size = min(geometry.size.width, geometry.size.height)
-            let palette = ClockColorPalette.system()
+            let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
 
             ZStack {
                 // Используем фон из палитры
                 palette.background
 
                 // Наш циферблат
-                ClockFaceView()
-                    .frame(width: size, height: size)
+                ClockFaceView(
+                    interactivityEnabled: false,
+                    overrideTime: entry.date,
+                    overrideColorScheme: effectiveColorScheme  // Передаём выбранную цветовую схему
+                )
+                .frame(width: size, height: size)
+                .allowsHitTesting(false)
             }
         }
         .containerBackground(for: .widget) {
-            ClockColorPalette.system().background
+            ClockColorPalette.system(colorScheme: effectiveColorScheme).background
         }
     }
 }

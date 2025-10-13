@@ -128,7 +128,7 @@ struct HourNumbersView: View {
 #Preview {
     StaticBackgroundView(
         size: CGSize(width: 400, height: 400),
-        colors: ClockColorPalette.system(),
+        colors: ClockColorPalette.system(colorScheme: .light),
         currentTime: Date()
     )
 }

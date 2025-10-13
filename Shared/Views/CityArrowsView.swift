@@ -28,12 +28,14 @@ struct CityArrowsView: View {
             // Глобус временно отключен
             // GlobeView(baseRadius: baseRadius)
             ForEach(snapshots) { snapshot in
+                let isLocal = snapshot.city.timeZoneIdentifier == TimeZone.current.identifier
                 CityArrowView(
                     snapshot: snapshot,
                     baseRadius: baseRadius,
                     center: center,
                     containerRotation: containerRotation,
-                    arrowColor: palette.arrow,
+                    arrowColor: isLocal ? palette.arrow : palette.numbers,
+                    markerColor: isLocal ? palette.arrow : palette.numbers,
                     labelColor: palette.weekdayText,
                     labelBackgroundColor: palette.weekdayBackground,
                     weekdayNumberColor: palette.weekdayText,
@@ -60,20 +62,19 @@ extension CityArrowsView {
 
     static func buildSnapshots(for cities: [WorldCity], currentTime: Date) -> [CitySnapshot] {
         guard !cities.isEmpty else { return [] }
-        let referenceSeconds = currentTime.timeIntervalSince1970
         var calendar = Calendar(identifier: .gregorian)
 
         return cities.compactMap { city in
             guard let timeZone = city.timeZone else { return nil }
-            let offset = TimeInterval(timeZone.secondsFromGMT(for: currentTime))
-            let localSeconds = referenceSeconds + offset
-            let hour24 = localSeconds / 3600.0
-            let angle = ClockConstants.calculateArrowAngle(hour24: hour24)
-
             calendar.timeZone = timeZone
-            let dayOfMonth = calendar.component(.day, from: currentTime)
+            let components = calendar.dateComponents([.hour, .minute, .day], from: currentTime)
+            guard let hour = components.hour, let minute = components.minute, let day = components.day else {
+                return nil
+            }
 
-            return CitySnapshot(city: city, angle: angle, dayOfMonth: dayOfMonth)
+            let angle = ClockConstants.calculateArrowAngle(hour: hour, minute: minute)
+
+            return CitySnapshot(city: city, angle: angle, dayOfMonth: day)
         }
     }
 }
@@ -85,6 +86,7 @@ struct CityArrowView: View {
     let center: CGPoint
     let containerRotation: Double
     let arrowColor: Color
+    let markerColor: Color
     let labelColor: Color
     let labelBackgroundColor: Color
     let weekdayNumberColor: Color
@@ -114,6 +116,14 @@ struct CityArrowView: View {
             angle: arrowAngle
         )
     }
+
+    private var markerPosition: CGPoint {
+        AngleCalculations.pointOnCircle(
+            center: center,
+            radius: baseRadius * ClockConstants.cityMarkerRadius,
+            angle: arrowAngle
+        )
+    }
     
     var body: some View {
         ZStack {
@@ -136,12 +146,14 @@ struct CityArrowView: View {
                 textColor: weekdayNumberColor,
                 backgroundColor: weekdayBackgroundColor
             )
+
+            Circle()
+                .fill(markerColor)
+                .frame(width: baseRadius * 0.03, height: baseRadius * 0.03)
+                .position(markerPosition)
         }
     }
     
-    private var size: CGSize {
-        CGSize(width: baseRadius * 2, height: baseRadius * 2)
-    }
 }
 
 // MARK: - Arrow Line View
@@ -288,7 +300,7 @@ struct MonthDayBubbleView: View {
             displayedAngle = targetAngle
             hasAppeared = true
         }
-        .onChange(of: targetAngle) { newValue in
+        .onChange(of: targetAngle) { _, newValue in
             let continuous = displayedAngle + normalizePi(newValue - displayedAngle)
             if hasAppeared {
                 withAnimation(.easeInOut(duration: 0.28)) {
@@ -379,7 +391,7 @@ struct SimpleContinentsView: View {
         size: CGSize(width: 400, height: 400),
         cities: WorldCity.defaultCities,
         currentTime: Date(),
-        palette: ClockColorPalette.system(),
+        palette: ClockColorPalette.system(colorScheme: .light),
         containerRotation: 0
     )
 }

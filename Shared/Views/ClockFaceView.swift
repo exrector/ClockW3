@@ -8,41 +8,56 @@ import AppKit
 // MARK: - Clock Face View (основной компонент циферблата)
 struct ClockFaceView: View {
     @StateObject private var viewModel = ClockViewModel()
+    @State private var isDragBlocked = false
+    @Environment(\.colorScheme) private var environmentColorScheme
 
     // Выбор городов (используем общий UserDefaults для синхронизации с виджетом)
     @AppStorage(
         SharedUserDefaults.selectedCitiesKey,
         store: SharedUserDefaults.shared
     ) private var selectedCityIdentifiers: String = ""
-    
+    @AppStorage(
+        SharedUserDefaults.seededDefaultsKey,
+        store: SharedUserDefaults.shared
+    ) private var hasSeededDefaults: Bool = false
+    var interactivityEnabled: Bool = true
+    var overrideTime: Date? = nil  // Для виджетов - передаем время из timeline entry
+    var overrideColorScheme: ColorScheme? = nil  // Для виджетов - передаем цветовую схему
+
+    // Используем переданную схему или системную
+    private var colorScheme: ColorScheme {
+        overrideColorScheme ?? environmentColorScheme
+    }
+
     var body: some View {
         GeometryReader { geometry in
-            let size = CGSize(
-                width: min(geometry.size.width, geometry.size.height),
-                height: min(geometry.size.width, geometry.size.height)
-            )
-            
-            let palette = ClockColorPalette.system()
+            let minSide = min(geometry.size.width, geometry.size.height)
+            let size = CGSize(width: minSide, height: minSide)
+            let baseRadius = minSide / 2.0 * ClockConstants.clockSizeRatio
+            let centerPoint = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            let currentTime = overrideTime ?? viewModel.currentTime
+
+            let palette = ClockColorPalette.system(colorScheme: colorScheme)
 
             ZStack {
                 // Фон приложения
                 palette.background
                     .ignoresSafeArea()
-                
+
                 // Основной циферблат
                 ZStack {
                     // Статический фон (Layer01)
                     StaticBackgroundView(
                         size: size,
                         colors: palette,
-                        currentTime: viewModel.currentTime
+                        currentTime: currentTime
                     )
 
                     // Вращающиеся кольца с подписями городов
                     CityLabelRingsView(
                         size: size,
                         cities: viewModel.cities,
-                        currentTime: viewModel.currentTime,
+                        currentTime: currentTime,
                         palette: palette
                     )
                     .rotationEffect(.radians(viewModel.rotationAngle))
@@ -55,7 +70,7 @@ struct ClockFaceView: View {
                     CityArrowsView(
                         size: size,
                         cities: viewModel.cities,
-                        currentTime: viewModel.currentTime,
+                        currentTime: currentTime,
                         palette: palette,
                         containerRotation: viewModel.rotationAngle
                     )
@@ -65,35 +80,82 @@ struct ClockFaceView: View {
                         value: viewModel.rotationAngle
                     )
                     
-                    // Центральный круг (Layer06)
-                    CenterCircleView(
-                        radius: min(size.width, size.height) * 0.02,
-                        color: palette.centerCircle
-                    )
+                    if interactivityEnabled {
+                        Button {
+                            viewModel.resetRotation()
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.clear)
+                                    .frame(
+                                        width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
+                                        height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
+                                    )
+                                Circle()
+                                    .fill(palette.centerCircle)
+                                    .frame(
+                                        width: baseRadius * 2 * ClockConstants.centerButtonVisualRatio,
+                                        height: baseRadius * 2 * ClockConstants.centerButtonVisualRatio
+                                    )
+                                    .shadow(color: palette.centerCircle.opacity(0.4), radius: baseRadius * 0.02)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .contentShape(Circle())
+                        .frame(
+                            width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
+                            height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
+                        )
+                        .accessibilityLabel("Reset rotation")
+                    } else {
+                        Circle()
+                            .fill(palette.centerCircle)
+                            .frame(
+                                width: baseRadius * 2 * ClockConstants.centerButtonVisualRatio,
+                                height: baseRadius * 2 * ClockConstants.centerButtonVisualRatio
+                            )
+                            .frame(
+                                width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
+                                height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
+                            )
+                    }
                 }
                 .frame(width: size.width, height: size.height)
                 .clipped()
-                .gesture(
-                    DragGesture()
+                .conditionalGesture(
+                    DragGesture(minimumDistance: 0)
                         .onChanged { value in
+                            if isDragBlocked { return }
+                            if !viewModel.isDragging {
+                                let startPoint = value.startLocation
+                                if isInDeadZone(point: startPoint, center: centerPoint, baseRadius: baseRadius) {
+                                    isDragBlocked = true
+                                    return
+                                }
+                                viewModel.startDrag(at: value.location, in: geometry)
+                            }
                             viewModel.updateDrag(at: value.location, in: geometry)
                         }
                         .onEnded { _ in
-                            viewModel.endDrag()
-                        }
-                )
-                .simultaneousGesture(
-                    DragGesture()
-                        .onChanged { value in
-                            if !viewModel.isDragging {
-                                viewModel.startDrag(at: value.startLocation, in: geometry)
+                            if !isDragBlocked {
+                                viewModel.endDrag()
                             }
+                            isDragBlocked = false
                         }
-                )
+                , enabled: interactivityEnabled)
             }
         }
         .onAppear {
             syncCitiesToViewModel()
+            if interactivityEnabled {
+                viewModel.resumePhysics()
+            } else {
+                viewModel.suspendPhysics()
+            }
+        }
+        .onDisappear {
+            // Останавливаем физику, когда экран уходит (особенно важно для виджетов/превью)
+            viewModel.suspendPhysics()
         }
         .onChange(of: selectedCityIdentifiers) { _, _ in
             syncCitiesToViewModel()
@@ -103,24 +165,26 @@ struct ClockFaceView: View {
     private func syncCitiesToViewModel() {
         let ids = selectedCityIdentifiers.split(separator: ",").map { String($0) }
         if ids.isEmpty {
-            viewModel.cities = WorldCity.defaultCities
+            if hasSeededDefaults {
+                viewModel.cities = []
+            } else {
+                let defaults = WorldCity.recommendedTimeZoneIdentifiers
+                viewModel.cities = WorldCity.cities(from: defaults)
+                hasSeededDefaults = true
+            }
         } else {
             let cities = WorldCity.cities(from: ids)
-            viewModel.cities = cities.isEmpty ? WorldCity.defaultCities : cities
+            viewModel.cities = cities
+            if !cities.isEmpty {
+                hasSeededDefaults = true
+            }
         }
     }
-}
-
-// MARK: - Center Circle View
-struct CenterCircleView: View {
-    let radius: CGFloat
-    let color: Color
-
-    var body: some View {
-        Circle()
-            .fill(color)
-            .frame(width: radius * 2, height: radius * 2)
-            .shadow(color: color.opacity(0.5), radius: radius * 0.5)
+    
+    private func isInDeadZone(point: CGPoint, center: CGPoint, baseRadius: CGFloat) -> Bool {
+        let dx = point.x - center.x
+        let dy = point.y - center.y
+        return hypot(dx, dy) <= baseRadius * ClockConstants.deadZoneRadiusRatio
     }
 }
 
@@ -139,28 +203,22 @@ struct ClockColorPalette {
     let arrow: Color
     let secondaryColor: Color  // Для сегментов и IATA кодов
 
-    static func system() -> ClockColorPalette {
-        // Проверяем доступность Color Assets, если нет - используем fallback
-        let backgroundFallback: Color = .black
-        let primaryFallback: Color = .white
-        let secondaryFallback: Color = .gray
-        let accentTextFallback: Color = .white
-        let accentBackgroundFallback: Color = .gray.opacity(0.3)
-        let centerFallback: Color = .red
+    static func system(colorScheme: ColorScheme) -> ClockColorPalette {
+        let fallback = fallbackPalette(for: colorScheme)
 
         return ClockColorPalette(
-            background: colorOrFallback("ClockBackground", fallback: backgroundFallback),
-            numbers: colorOrFallback("ClockPrimary", fallback: primaryFallback),
-            hourTicks: colorOrFallback("ClockPrimary", fallback: primaryFallback),
-            minorTicks: colorOrFallback("ClockSecondary", fallback: secondaryFallback),
-            monthDayText: colorOrFallback("ClockAccentText", fallback: accentTextFallback),
-            monthDayBackground: colorOrFallback("ClockAccentBackground", fallback: accentBackgroundFallback),
-            currentDayText: colorOrFallback("ClockPrimary", fallback: primaryFallback),
-            weekdayText: colorOrFallback("ClockAccentText", fallback: accentTextFallback),
-            weekdayBackground: colorOrFallback("ClockAccentBackground", fallback: accentBackgroundFallback),
-            centerCircle: colorOrFallback("ClockCenter", fallback: centerFallback),
-            arrow: colorOrFallback("ClockPrimary", fallback: primaryFallback),
-            secondaryColor: colorOrFallback("ClockSecondary", fallback: secondaryFallback)
+            background: colorOrFallback("ClockBackground", fallback: fallback.background),
+            numbers: colorOrFallback("ClockPrimary", fallback: fallback.primary),
+            hourTicks: colorOrFallback("ClockPrimary", fallback: fallback.primary),
+            minorTicks: colorOrFallback("ClockSecondary", fallback: fallback.secondary),
+            monthDayText: colorOrFallback("ClockAccentText", fallback: fallback.monthDayText),
+            monthDayBackground: colorOrFallback("ClockAccentBackground", fallback: fallback.monthDayBackground),
+            currentDayText: colorOrFallback("ClockPrimary", fallback: fallback.primary),
+            weekdayText: colorOrFallback("ClockAccentText", fallback: fallback.weekdayText),
+            weekdayBackground: colorOrFallback("ClockAccentBackground", fallback: fallback.weekdayBackground),
+            centerCircle: colorOrFallback("ClockCenter", fallback: fallback.center),
+            arrow: colorOrFallback("ClockPrimary", fallback: fallback.arrow),
+            secondaryColor: colorOrFallback("ClockSecondary", fallback: fallback.secondary)
         )
     }
 
@@ -176,6 +234,47 @@ struct ClockColorPalette {
         }
         #endif
         return fallback
+    }
+
+    private static func fallbackPalette(for colorScheme: ColorScheme) -> FallbackPalette {
+        switch colorScheme {
+        case .light:
+            return FallbackPalette(
+                background: .white,
+                primary: .black,
+                secondary: .black,
+                monthDayText: .white,
+                monthDayBackground: .black,
+                weekdayText: .white,
+                weekdayBackground: .black,
+                center: .black,
+                arrow: .red
+            )
+        default:
+            return FallbackPalette(
+                background: .black,
+                primary: .white,
+                secondary: .white,
+                monthDayText: .black,
+                monthDayBackground: .white,
+                weekdayText: .black,
+                weekdayBackground: .white,
+                center: .white,
+                arrow: .red
+            )
+        }
+    }
+
+    private struct FallbackPalette {
+        let background: Color
+        let primary: Color
+        let secondary: Color
+        let monthDayText: Color
+        let monthDayBackground: Color
+        let weekdayText: Color
+        let weekdayBackground: Color
+        let center: Color
+        let arrow: Color
     }
 
 }
@@ -427,6 +526,9 @@ struct CityLabelRingsView: View {
 
         let font = Font.system(size: fontSize, weight: .regular, design: .default)
 
+        let isLocalCity = city.timeZoneIdentifier == TimeZone.current.identifier
+        let textColor = isLocalCity ? palette.arrow : palette.numbers
+
         for (index, letter) in letters.enumerated() {
             let letterAngle = startAngle + (CGFloat(index) * letterSpacing) / radius
             let position = AngleCalculations.pointOnCircle(
@@ -443,9 +545,20 @@ struct CityLabelRingsView: View {
 
             let text = Text(letter)
                 .font(font)
-                .foregroundColor(palette.secondaryColor)
+                .foregroundColor(textColor)
 
             letterContext.draw(text, at: .zero, anchor: .center)
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func conditionalGesture<G: Gesture>(_ gesture: G, enabled: Bool) -> some View {
+        if enabled {
+            self.gesture(gesture)
+        } else {
+            self
         }
     }
 }
@@ -454,3 +567,4 @@ struct CityLabelRingsView: View {
 #Preview {
     ClockFaceView()
 }
+
