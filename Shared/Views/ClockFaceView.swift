@@ -53,6 +53,10 @@ struct ClockFaceView: View {
                         currentTime: currentTime
                     )
 
+                    // Декоративные винты в углах
+                    CornerScrewDecorationView(size: size, colorScheme: colorScheme)
+                        .allowsHitTesting(false)
+
                     // Вращающиеся кольца с подписями городов
                     CityLabelRingsView(
                         size: size,
@@ -192,6 +196,106 @@ struct ClockFaceView: View {
         let dx = point.x - center.x
         let dy = point.y - center.y
         return hypot(dx, dy) <= baseRadius * ClockConstants.deadZoneRadiusRatio
+    }
+}
+
+// MARK: - Corner Decorations
+private struct CornerScrewDecorationView: View {
+    let size: CGSize
+    let colorScheme: ColorScheme
+
+    private struct CornerDescriptor {
+        let rotation: Angle
+        let position: CGPoint
+    }
+
+    private static let baseAngles: [Double] = [-10, 10, -170, 170]
+    private let randomOffsets: [Double]
+
+    init(size: CGSize, colorScheme: ColorScheme) {
+        self.size = size
+        self.colorScheme = colorScheme
+
+        if let stored = CornerScrewDecorationView.cachedOffsets {
+            self.randomOffsets = stored
+        } else {
+            let offsets = (0..<4).map { _ in Double.random(in: -18...18) }
+            CornerScrewDecorationView.cachedOffsets = offsets
+            self.randomOffsets = offsets
+        }
+    }
+
+    private static var cachedOffsets: [Double]? = nil
+
+    private var minDimension: CGFloat {
+        min(size.width, size.height)
+    }
+
+    private var nutSize: CGFloat {
+        minDimension * 0.095 * 0.7
+    }
+
+    private var cornerDescriptors: [CornerDescriptor] {
+        let diameter = minDimension * ClockConstants.clockSizeRatio
+        let baseRadius = diameter / 2
+        let centerX = size.width / 2
+        let centerY = size.height / 2
+        let desiredDistance = baseRadius * 1.2
+        let maxDistance = max(0, (minDimension / 2 - nutSize / 2) * CGFloat(sqrt(2.0)))
+        let radialDistance = min(desiredDistance, maxDistance)
+        let diagonal = radialDistance / CGFloat(sqrt(2.0))
+
+        return (0..<4).map { index in
+            let baseAngle = CornerScrewDecorationView.baseAngles[index]
+            let randomOffset = randomOffsets[index]
+            let rotation = Angle.degrees(baseAngle + randomOffset)
+
+            let dx = (index % 2 == 0) ? -diagonal : diagonal
+            let dy = (index < 2) ? -diagonal : diagonal
+
+            return CornerDescriptor(
+                rotation: rotation,
+                position: CGPoint(x: centerX + dx, y: centerY + dy)
+            )
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            ForEach(Array(cornerDescriptors.enumerated()), id: \.offset) { descriptor in
+                cornerScrew(rotation: descriptor.element.rotation)
+                    .position(descriptor.element.position)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+    }
+
+    @ViewBuilder
+    private func cornerScrew(rotation: Angle) -> some View {
+        let isLight = colorScheme == .light
+        let faceFill: Color = isLight ? .black : .white
+        let slotColor: Color = isLight ? .white : .black
+
+        let slotLength = nutSize * 0.56
+        let slotThickness = nutSize * 0.16
+        let slotCorner = slotThickness * 0.45
+
+        let slotHorizontal = RoundedRectangle(cornerRadius: slotCorner)
+            .fill(slotColor)
+            .frame(width: slotLength, height: slotThickness)
+
+        let slotVertical = RoundedRectangle(cornerRadius: slotCorner)
+            .fill(slotColor)
+            .frame(width: slotThickness, height: slotLength)
+
+        ZStack {
+            Circle()
+                .fill(faceFill)
+            slotHorizontal
+            slotVertical
+        }
+        .frame(width: nutSize, height: nutSize)
+        .rotationEffect(rotation)
     }
 }
 
