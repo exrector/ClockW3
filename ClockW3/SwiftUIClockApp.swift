@@ -35,6 +35,9 @@ struct SettingsView: View {
         store: SharedUserDefaults.shared
     ) private var colorSchemePreference: String = "system"
 
+    // Напоминание
+    @StateObject private var reminderManager = ReminderManager.shared
+
     var body: some View {
         ScrollView {
             VStack(spacing: 32) {
@@ -51,6 +54,22 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
 
                 VStack(spacing: 16) {
+                    // Слот напоминания (если есть)
+                    if let reminder = reminderManager.currentReminder {
+                        ReminderRow(
+                            reminder: reminder,
+                            onToggle: {
+                                Task {
+                                    await reminderManager.toggleReminder()
+                                }
+                            },
+                            onRemove: {
+                                reminderManager.deleteReminder()
+                            }
+                        )
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    }
+
                     if selectedEntries.isEmpty {
                         Text("No cities selected")
                             .font(.caption)
@@ -206,6 +225,47 @@ extension SettingsView {
     private func removeCity(_ identifier: String) {
         guard identifier != localCityIdentifier else { return }
         selectedIds.remove(identifier)
+    }
+}
+
+private struct ReminderRow: View {
+    let reminder: ClockReminder
+    let onToggle: () -> Void
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 16) {
+            VStack(alignment: .center, spacing: 4) {
+                Text("Reminder")
+                    .font(.headline)
+                Text(reminder.formattedTime)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+
+            Toggle("", isOn: Binding(
+                get: { reminder.isEnabled },
+                set: { _ in onToggle() }
+            ))
+            .labelsHidden()
+            .frame(width: 50)
+
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.primary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove reminder")
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color.primary, lineWidth: 1)
+        )
+        .frame(maxWidth: 360)
     }
 }
 

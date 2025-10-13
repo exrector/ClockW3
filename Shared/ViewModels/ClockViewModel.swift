@@ -556,12 +556,34 @@ class ClockViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Reminder Management
+
+    /// Создаёт напоминание на основе текущего положения локальной стрелки
+    func createReminderAtCurrentRotation() async {
+        let reminder = ClockReminder.fromRotationAngle(rotationAngle, currentTime: currentTime)
+
+        // Запрашиваем разрешение если нужно
+        let hasPermission = await ReminderManager.shared.requestPermission()
+        guard hasPermission else {
+            print("Notification permission denied")
+            return
+        }
+
+        // Создаём напоминание
+        await ReminderManager.shared.setReminder(reminder)
+
+        #if os(iOS)
+        // Хаптический отклик о создании напоминания
+        HapticFeedback.shared.playImpact(intensity: .heavy)
+        #endif
+    }
+
     // MARK: - Physics control (for lifecycle/extensions)
     func suspendPhysics() {
         physicsTimer?.invalidate()
         physicsTimer = nil
     }
-    
+
     func resumePhysics() {
         setupDragPhysics()
     }

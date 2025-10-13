@@ -114,6 +114,11 @@ struct ClockFaceView: View {
                             height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
                         )
                         .accessibilityLabel("Reset rotation")
+                        .onLongPressGesture(minimumDuration: 0.7) {
+                            Task {
+                                await viewModel.createReminderAtCurrentRotation()
+                            }
+                        }
                     } else {
                         Circle()
                             .fill(palette.centerCircle)
