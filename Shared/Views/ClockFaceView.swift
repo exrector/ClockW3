@@ -86,7 +86,9 @@ struct ClockFaceView: View {
                     
                     if interactivityEnabled {
                         Button {
-                            HapticFeedback.impact(.medium)
+                            #if os(iOS)
+                            HapticFeedback.shared.playImpact(intensity: .medium)
+                            #endif
                             viewModel.resetRotation()
                         } label: {
                             ZStack {
@@ -270,7 +272,6 @@ private struct CornerScrewDecorationView: View {
         .frame(width: size.width, height: size.height)
     }
 
-    @ViewBuilder
     private func cornerScrew(rotation: Angle) -> some View {
         let isLight = colorScheme == .light
         let faceFill: Color = isLight ? .black : .white
@@ -287,8 +288,7 @@ private struct CornerScrewDecorationView: View {
         let slotVertical = RoundedRectangle(cornerRadius: slotCorner)
             .fill(slotColor)
             .frame(width: slotThickness, height: slotLength)
-
-        ZStack {
+        return ZStack {
             Circle()
                 .fill(faceFill)
             slotHorizontal
