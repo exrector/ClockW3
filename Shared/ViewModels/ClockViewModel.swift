@@ -72,6 +72,10 @@ class ClockViewModel: ObservableObject {
     
     func removeCity(at index: Int) {
         guard index < cities.count else { return }
+        let localIdentifier = TimeZone.current.identifier
+        if cities[index].timeZoneIdentifier == localIdentifier {
+            return
+        }
         cities.remove(at: index)
     }
     

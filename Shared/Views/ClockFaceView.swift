@@ -163,22 +163,28 @@ struct ClockFaceView: View {
     }
 
     private func syncCitiesToViewModel() {
-        let ids = selectedCityIdentifiers.split(separator: ",").map { String($0) }
-        if ids.isEmpty {
-            if hasSeededDefaults {
-                viewModel.cities = []
-            } else {
-                let defaults = WorldCity.recommendedTimeZoneIdentifiers
-                viewModel.cities = WorldCity.cities(from: defaults)
-                hasSeededDefaults = true
-            }
+        var identifiers = selectedCityIdentifiers
+            .split(separator: ",")
+            .map { String($0) }
+
+        if identifiers.isEmpty {
+            let seeded = WorldCity.initialSelectionIdentifiers()
+            identifiers = seeded
+            selectedCityIdentifiers = seeded.joined(separator: ",")
+            hasSeededDefaults = true
         } else {
-            let cities = WorldCity.cities(from: ids)
-            viewModel.cities = cities
-            if !cities.isEmpty {
+            let ensured = WorldCity.ensureLocalIdentifier(in: identifiers)
+            if ensured != identifiers {
+                identifiers = ensured
+                selectedCityIdentifiers = ensured.joined(separator: ",")
+            }
+            if !identifiers.isEmpty {
                 hasSeededDefaults = true
             }
         }
+
+        let cities = WorldCity.cities(from: identifiers)
+        viewModel.cities = cities
     }
     
     private func isInDeadZone(point: CGPoint, center: CGPoint, baseRadius: CGFloat) -> Bool {
@@ -567,4 +573,3 @@ private extension View {
 #Preview {
     ClockFaceView()
 }
-

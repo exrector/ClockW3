@@ -98,7 +98,7 @@ struct WorldCity: Identifiable, Codable, Equatable {
 // MARK: - Default Cities
 extension WorldCity {
     static var defaultCities: [WorldCity] {
-        recommendedTimeZoneIdentifiers.compactMap { WorldCity.make(identifier: $0) }
+        initialSelectionIdentifiers().compactMap { WorldCity.make(identifier: $0) }
     }
 
     static func make(identifier: String) -> WorldCity {
@@ -107,13 +107,11 @@ extension WorldCity {
     }
 
     static var recommendedTimeZoneIdentifiers: [String] {
-        let defaults: [String] = [
+        [
             "Europe/Moscow",
             "America/New_York",
             "Asia/Shanghai"
         ]
-        var seen = Set<String>()
-        return defaults.filter { seen.insert($0).inserted }
     }
 
     static func cities(from identifiers: [String]) -> [WorldCity] {
@@ -121,6 +119,46 @@ extension WorldCity {
             guard TimeZone(identifier: identifier) != nil else { return nil }
             return WorldCity.make(identifier: identifier)
         }
+    }
+
+    static func initialSelectionIdentifiers(currentTimeZone: TimeZone = .current) -> [String] {
+        let preferred = [
+            currentTimeZone.identifier,
+            "Europe/Moscow",
+            "Asia/Shanghai",
+            "America/New_York"
+        ]
+        var seen = Set<String>()
+        var result: [String] = []
+        for identifier in preferred {
+            guard TimeZone(identifier: identifier) != nil else { continue }
+            if seen.insert(identifier).inserted {
+                result.append(identifier)
+            }
+        }
+        return result
+    }
+
+    static func ensureLocalIdentifier(
+        in identifiers: [String],
+        currentTimeZone: TimeZone = .current
+    ) -> [String] {
+        let localIdentifier = currentTimeZone.identifier
+        var seen = Set<String>()
+        var result: [String] = []
+
+        if TimeZone(identifier: localIdentifier) != nil {
+            seen.insert(localIdentifier)
+            result.append(localIdentifier)
+        }
+
+        for identifier in identifiers {
+            guard TimeZone(identifier: identifier) != nil else { continue }
+            if seen.insert(identifier).inserted {
+                result.append(identifier)
+            }
+        }
+        return result
     }
 }
 

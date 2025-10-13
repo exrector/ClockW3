@@ -59,7 +59,10 @@ struct SettingsView: View {
                     } else {
                         LazyVStack(spacing: 12) {
                             ForEach(selectedEntries, id: \.id) { entry in
-                                CityRow(entry: entry) {
+                                CityRow(
+                                    entry: entry,
+                                    isRemovable: entry.id != localCityIdentifier
+                                ) {
                                     removeCity(entry.id)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .center)
@@ -124,47 +127,91 @@ struct SettingsView: View {
 
 // MARK: - Cities selection helpers
 extension SettingsView {
+    private var localCityIdentifier: String {
+        TimeZone.current.identifier
+    }
+
     private func loadSelection() {
-        let ids = selectedCityIdentifiers.split(separator: ",").map { String($0) }
-        if ids.isEmpty && !hasSeededDefaults {
-            let defaults = WorldCity.recommendedTimeZoneIdentifiers
-            selectedIds = Set(defaults)
+        var identifiers = selectedCityIdentifiers
+            .split(separator: ",")
+            .map { String($0) }
+
+        if identifiers.isEmpty && !hasSeededDefaults {
+            let defaults = WorldCity.initialSelectionIdentifiers()
+            identifiers = defaults
+            selectedCityIdentifiers = defaults.joined(separator: ",")
             hasSeededDefaults = true
-            persistSelection()
         } else {
-            selectedIds = Set(ids)
+            let ensured = WorldCity.ensureLocalIdentifier(in: identifiers)
+            if ensured != identifiers {
+                identifiers = ensured
+                selectedCityIdentifiers = ensured.joined(separator: ",")
+            }
+            if !identifiers.isEmpty {
+                hasSeededDefaults = true
+            }
+        }
+
+        let newSet = Set(identifiers)
+        if newSet != selectedIds {
+            selectedIds = newSet
         }
     }
 
     private func persistSelection() {
-        let sorted = selectedIds.sorted { lhs, rhs in
-            TimeZoneDirectory.displayName(forIdentifier: lhs)
-                .localizedCaseInsensitiveCompare(TimeZoneDirectory.displayName(forIdentifier: rhs)) == .orderedAscending
+        if !selectedIds.contains(localCityIdentifier) {
+            selectedIds.insert(localCityIdentifier)
         }
-        selectedCityIdentifiers = sorted.joined(separator: ",")
-        if !sorted.isEmpty {
+
+        let validIds = selectedIds.filter { TimeZone(identifier: $0) != nil }
+        let others = validIds
+            .filter { $0 != localCityIdentifier }
+            .sorted {
+                TimeZoneDirectory.displayName(forIdentifier: $0)
+                    .localizedCaseInsensitiveCompare(TimeZoneDirectory.displayName(forIdentifier: $1)) == .orderedAscending
+            }
+
+        var ordered: [String] = []
+        if TimeZone(identifier: localCityIdentifier) != nil {
+            ordered.append(localCityIdentifier)
+        }
+        ordered.append(contentsOf: others)
+
+        let sanitized = Set(ordered)
+        if sanitized != selectedIds {
+            selectedIds = sanitized
+            return
+        }
+
+        selectedCityIdentifiers = ordered.joined(separator: ",")
+        if !ordered.isEmpty {
             hasSeededDefaults = true
         }
         reloadWidgets()
     }
 
     private var selectedEntries: [TimeZoneDirectory.Entry] {
-        selectedIds.compactMap { id -> TimeZoneDirectory.Entry? in
+        return selectedIds.compactMap { id -> TimeZoneDirectory.Entry? in
             let name = TimeZoneDirectory.displayName(forIdentifier: id)
             let offset = TimeZoneDirectory.gmtOffsetString(for: id)
             return TimeZoneDirectory.Entry(id: id, name: name, gmtOffset: offset)
         }
-        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        .sorted { lhs, rhs in
+            if lhs.id == localCityIdentifier { return true }
+            if rhs.id == localCityIdentifier { return false }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
     }
 
     private func removeCity(_ identifier: String) {
+        guard identifier != localCityIdentifier else { return }
         selectedIds.remove(identifier)
-        persistSelection()
     }
 }
 
 private struct CityRow: View {
     let entry: TimeZoneDirectory.Entry
+    let isRemovable: Bool
     let onRemove: () -> Void
 
     var body: some View {
@@ -178,13 +225,20 @@ private struct CityRow: View {
             }
             .frame(maxWidth: .infinity)
 
-            Button(action: onRemove) {
-                Image(systemName: "xmark.circle.fill")
+            if isRemovable {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(entry.name)")
+            } else {
+                Image(systemName: "location.fill")
                     .font(.title3)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("\(entry.name) pinned")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove \(entry.name)")
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 16)
@@ -254,6 +308,7 @@ struct TimeZoneSelectionView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") {
+                    selection.insert(localCityIdentifier)
                     onConfirm(selection)
                     dismiss()
                 }
@@ -261,7 +316,8 @@ struct TimeZoneSelectionView: View {
 #if os(iOS)
             ToolbarItem(placement: .bottomBar) {
                 Button("Reset") {
-                    selection = Set(WorldCity.recommendedTimeZoneIdentifiers)
+                    selection = Set(WorldCity.initialSelectionIdentifiers())
+                    selection.insert(localCityIdentifier)
                 }
             }
 #endif
@@ -270,10 +326,15 @@ struct TimeZoneSelectionView: View {
 
     private func toggle(_ identifier: String) {
         if selection.contains(identifier) {
+            if identifier == localCityIdentifier { return }
             selection.remove(identifier)
         } else {
             selection.insert(identifier)
         }
+    }
+
+    private var localCityIdentifier: String {
+        TimeZone.current.identifier
     }
 }
 
@@ -331,11 +392,16 @@ struct TimeZoneSelectionInlineView: View {
 
     private func toggle(_ identifier: String) {
         if selection.contains(identifier) {
+            if identifier == localCityIdentifier { return }
             selection.remove(identifier)
         } else {
             selection.insert(identifier)
         }
         onChanged()
+    }
+
+    private var localCityIdentifier: String {
+        TimeZone.current.identifier
     }
 }
 
