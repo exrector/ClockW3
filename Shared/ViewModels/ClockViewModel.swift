@@ -29,6 +29,10 @@ class ClockViewModel: ObservableObject {
     private var dragSamples: [DragSample] = []
     private let maxDragSamples = 6
     private let snapVelocityThreshold: Double = 0.03
+    private var lastRotationDirection: Double = 0
+    private let zeroSnapThreshold: Double = 10.0 * .pi / 180.0
+    private let directionEpsilon: Double = 1e-4
+    private let magnetHardSnapEpsilon: Double = 0.12 * .pi / 180.0
     
     // MARK: - Initialization
     init() {
@@ -117,6 +121,7 @@ class ClockViewModel: ObservableObject {
         angleDelta = ClockConstants.normalizeAngle(angleDelta)
 
         rotationAngle += angleDelta
+        updateLastRotationDirection(with: angleDelta)
         let nowReference = Date().timeIntervalSinceReferenceDate
         dragSamples.append(DragSample(time: nowReference, angle: rotationAngle))
         if dragSamples.count > maxDragSamples {
@@ -133,6 +138,9 @@ class ClockViewModel: ObservableObject {
 
         lastDragAngle = currentAngle
         lastDragTime = now
+        if abs(dragVelocity) > directionEpsilon {
+            updateLastRotationDirection(with: dragVelocity)
+        }
 
         // Во время драга НЕ притягиваемся, чтобы не ломать естественное движение
     }
@@ -144,6 +152,9 @@ class ClockViewModel: ObservableObject {
         let inferredVelocity = velocityFromSamples()
         dragVelocity = inferredVelocity
         dragSamples.removeAll()
+        if abs(inferredVelocity) > directionEpsilon {
+            updateLastRotationDirection(with: inferredVelocity)
+        }
         applyInertiaAndSnap()
     }
     
@@ -171,6 +182,7 @@ class ClockViewModel: ObservableObject {
         dragVelocity *= 0.985
 
         if abs(dragVelocity) > snapVelocityThreshold {
+            updateLastRotationDirection(with: dragVelocity)
             rotationAngle += dragVelocity / 60.0
             applyMagnetWhileCoasting()
             return
@@ -260,16 +272,109 @@ class ClockViewModel: ObservableObject {
         let target = round(rotationAngle / step) * step
         var delta = target - rotationAngle
         delta = ClockConstants.normalizeAngle(delta)
-        if abs(delta) < threshold {
-            rotationAngle += delta * lerp
+        let distance = abs(delta)
+        guard distance < threshold else { return false }
+
+        if distance <= magnetHardSnapEpsilon {
+            setRotationNoAnimation(target)
             return true
         }
-        return false
+
+        let clamped = max(0.0, min(1.0, 1.0 - distance / threshold))
+        let easing = pow(clamped, 1.6)
+        let adaptiveLerp = min(1.0, lerp + (1.0 - lerp) * easing)
+        rotationAngle += delta * adaptiveLerp
+        return true
+    }
+
+    private func updateLastRotationDirection(with value: Double) {
+        guard abs(value) > directionEpsilon else { return }
+        lastRotationDirection = value > 0 ? 1 : -1
+    }
+
+    private func setRotationNoAnimation(_ value: Double) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            rotationAngle = value
+        }
     }
 
     // MARK: - Reset Functions
     func resetRotation() {
-        // TODO: Implement reset rotation logic
+        let currentVelocity = dragVelocity
+        dragVelocity = 0
+        dragSamples.removeAll()
+        isDragging = false
+
+        let normalizedOffset = ClockConstants.normalizeAngle(rotationAngle)
+        if abs(normalizedOffset) <= zeroSnapThreshold {
+            let targetAngle = rotationAngle - normalizedOffset
+            let duration = 0.12
+            isSnapping = true
+            withAnimation(.easeOut(duration: duration)) {
+                rotationAngle = targetAngle
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+                guard let self else { return }
+                self.setRotationNoAnimation(0)
+                self.dragVelocity = 0
+                self.isSnapping = false
+            }
+            return
+        }
+
+        var direction = lastRotationDirection
+        if abs(direction) <= directionEpsilon {
+            if abs(currentVelocity) > directionEpsilon {
+                direction = currentVelocity > 0 ? 1 : -1
+            } else if abs(normalizedOffset) > directionEpsilon {
+                direction = normalizedOffset > 0 ? 1 : -1
+            } else {
+                direction = 1
+            }
+        }
+
+        let twoPi = Double.pi * 2
+        let baseAngle = rotationAngle - normalizedOffset
+        var delta = baseAngle - rotationAngle
+        if direction >= 0 {
+            while delta <= 0 {
+                delta += twoPi
+            }
+        } else {
+            while delta >= 0 {
+                delta -= twoPi
+            }
+        }
+
+        if abs(delta) <= directionEpsilon {
+            setRotationNoAnimation(baseAngle)
+            dragVelocity = 0
+            lastRotationDirection = direction
+            isSnapping = false
+            setRotationNoAnimation(0)
+            return
+        }
+
+        direction = delta > 0 ? 1 : -1
+        lastRotationDirection = direction
+
+        let targetAngle = rotationAngle + delta
+        let angularDistance = abs(delta)
+        let duration = min(0.75, max(0.2, (angularDistance / twoPi) * 0.45 + 0.18))
+
+        isSnapping = true
+        withAnimation(.easeOut(duration: duration)) {
+            rotationAngle = targetAngle
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+            guard let self else { return }
+            self.setRotationNoAnimation(0)
+            self.dragVelocity = 0
+            self.isSnapping = false
+        }
     }
     
     func resetToCurrentTime() {
@@ -295,4 +400,3 @@ class ClockViewModel: ObservableObject {
         setupDragPhysics()
     }
 }
-

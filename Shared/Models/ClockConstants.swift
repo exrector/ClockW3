@@ -45,7 +45,7 @@ enum ClockConstants {
     static let weekdayNumberRadius: CGFloat = 0.51  // Пузыри с днями месяца
     static let weekdayBubbleRadiusRatio: CGFloat = 0.05
     static let cityMarkerRadius: CGFloat = 0.76      // Точки между тиками и подписями
-    static let deadZoneRadiusRatio: CGFloat = 0.20   // Радиус зоны, блокирующей drag
+    static let deadZoneRadiusRatio: CGFloat = 0.25   // Радиус зоны, блокирующей drag
     static let centerButtonVisualRatio: CGFloat = 0.035
 
     // Параметры дней месяца
