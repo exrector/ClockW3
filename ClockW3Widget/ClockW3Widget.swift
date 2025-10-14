@@ -93,8 +93,8 @@ struct ClockW3Widget: Widget {
         let configuration = StaticConfiguration(kind: kind, provider: Provider()) { entry in
             ClockW3WidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("World Clock")
-        .description("24-hour world clock with time zones")
+        .configurationDisplayName("MOW time")
+        .description("M.O.W TIME - 24-hour world clock with time zones")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
 
         if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, *) {
