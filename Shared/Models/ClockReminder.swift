@@ -48,7 +48,7 @@ struct ClockReminder: Codable, Identifiable {
     /// - Parameters:
     ///   - rotationAngle: Угол поворота в радианах
     ///   - currentTime: Текущее время для определения локального времени
-    /// - Returns: ClockReminder с округлённым временем
+    /// - Returns: ClockReminder с округлением до 15 минут
     static func fromRotationAngle(_ rotationAngle: Double, currentTime: Date = Date()) -> ClockReminder {
         // Получаем текущее локальное время
         let calendar = Calendar.current
@@ -66,12 +66,35 @@ struct ClockReminder: Codable, Identifiable {
         let degrees = targetAngle * 180.0 / .pi
         let hourFloat = (degrees / ClockConstants.degreesPerHour + ClockConstants.referenceHour).truncatingRemainder(dividingBy: 24.0)
         
-        // Округляем до ближайших 15 минут для точности
+        // Вычисляем общее количество минут и округляем до 15 минут
         let totalMinutes = hourFloat * 60.0
         let roundedMinutes = round(totalMinutes / 15.0) * 15.0
         
-        let targetHour = Int(roundedMinutes / 60.0) % 24
-        let targetMinute = Int(roundedMinutes.truncatingRemainder(dividingBy: 60.0))
+        // Нормализуем значения в диапазоне 0-23 часов и 0-59 минут
+        var targetHour = Int(roundedMinutes / 60.0)
+        var targetMinute = Int(roundedMinutes.truncatingRemainder(dividingBy: 60.0))
+        
+        // Убираем отрицательные значения
+        while targetHour < 0 {
+            targetHour += 24
+        }
+        while targetMinute < 0 {
+            targetMinute += 60
+            targetHour -= 1
+        }
+        
+        // Приводим к диапазону 0-23
+        targetHour = targetHour % 24
+        if targetHour < 0 {
+            targetHour += 24
+        }
+        
+        // Приводим минуты к диапазону 0-59 и округляем до 15 минут
+        targetMinute = targetMinute % 60
+        if targetMinute < 0 {
+            targetMinute += 60
+        }
+        targetMinute = roundToQuarter(targetMinute)
 
         return ClockReminder(hour: targetHour, minute: targetMinute, date: nil)
     }

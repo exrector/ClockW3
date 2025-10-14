@@ -26,14 +26,13 @@ class ReminderManager: ObservableObject {
     private func createDefaultPreview() {
         let calendar = Calendar.current
         let now = Date()
-        var hour = calendar.component(.hour, from: now) + 1
+        let hour = calendar.component(.hour, from: now)
         let minute = calendar.component(.minute, from: now)
         
-        if hour >= 24 {
-            hour -= 24
-        }
+        // Создаем следующую дату для one-time напоминания
+        let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
         
-        previewReminder = ClockReminder(hour: hour, minute: minute)
+        previewReminder = ClockReminder(hour: hour, minute: minute, date: nextDate)
     }
 
     // MARK: - Storage

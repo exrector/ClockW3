@@ -73,10 +73,8 @@ struct ContentView: View {
             .preferredColorScheme(preferredColorScheme)
         }
         .onAppear {
-            // Автоматически показываем настройки через 0.5 сек
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                showSettings = true
-            }
+            // Показываем настройки сразу
+            showSettings = true
         }
     }
 }

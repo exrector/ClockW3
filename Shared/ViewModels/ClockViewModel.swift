@@ -619,8 +619,11 @@ class ClockViewModel: ObservableObject {
             return
         }
 
-        // Создаём временное напоминание
-        let reminder = ClockReminder.fromRotationAngle(rotationAngle, currentTime: currentTime)
+        // Создаём временное напоминание как one-time
+        var reminder = ClockReminder.fromRotationAngle(rotationAngle, currentTime: currentTime)
+        // Добавляем дату для one-time напоминания
+        let nextDate = ClockReminder.nextTriggerDate(hour: reminder.hour, minute: reminder.minute, from: currentTime)
+        reminder = ClockReminder(id: reminder.id, hour: reminder.hour, minute: reminder.minute, date: nextDate, isEnabled: reminder.isEnabled)
         ReminderManager.shared.setPreviewReminder(reminder)
     }
 

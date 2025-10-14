@@ -23,6 +23,7 @@ struct SettingsView: View {
         store: SharedUserDefaults.shared
     ) private var selectedCityIdentifiers: String = ""
     @State private var selectedIds: Set<String> = []
+    @State private var selectedEntries: [TimeZoneDirectory.Entry] = []
     @State private var showTimeZonePicker = false
     @AppStorage(
         SharedUserDefaults.seededDefaultsKey,
@@ -255,6 +256,22 @@ extension SettingsView {
         if newSet != selectedIds {
             selectedIds = newSet
         }
+        
+        // Обновляем список городов
+        updateSelectedEntries()
+    }
+    
+    private func updateSelectedEntries() {
+        selectedEntries = selectedIds.compactMap { id -> TimeZoneDirectory.Entry? in
+            let name = TimeZoneDirectory.displayName(forIdentifier: id)
+            let offset = TimeZoneDirectory.gmtOffsetString(for: id)
+            return TimeZoneDirectory.Entry(id: id, name: name, gmtOffset: offset)
+        }
+        .sorted { lhs, rhs in
+            if lhs.id == localCityIdentifier { return true }
+            if rhs.id == localCityIdentifier { return false }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
     }
 
     private func persistSelection() {
@@ -286,25 +303,14 @@ extension SettingsView {
         if !ordered.isEmpty {
             hasSeededDefaults = true
         }
+        updateSelectedEntries()
         reloadWidgets()
-    }
-
-    private var selectedEntries: [TimeZoneDirectory.Entry] {
-        return selectedIds.compactMap { id -> TimeZoneDirectory.Entry? in
-            let name = TimeZoneDirectory.displayName(forIdentifier: id)
-            let offset = TimeZoneDirectory.gmtOffsetString(for: id)
-            return TimeZoneDirectory.Entry(id: id, name: name, gmtOffset: offset)
-        }
-        .sorted { lhs, rhs in
-            if lhs.id == localCityIdentifier { return true }
-            if rhs.id == localCityIdentifier { return false }
-            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-        }
     }
 
     private func removeCity(_ identifier: String) {
         guard identifier != localCityIdentifier else { return }
         selectedIds.remove(identifier)
+        updateSelectedEntries()
     }
 }
 
@@ -342,6 +348,7 @@ private struct ReminderRow: View {
             VStack(alignment: .center, spacing: 4) {
                 Text(reminder.formattedTime)
                     .font(.headline)
+                    .foregroundColor(isPreview ? .primary : .red)
                 if let subtitle = subtitleText {
                     Text(subtitle)
                         .font(.footnote)
@@ -363,12 +370,12 @@ private struct ReminderRow: View {
                             : .clear
                         Circle()
                             .fill(fillColor)
-                            .frame(width: 28, height: 28)
+                            .frame(width: 20, height: 20)
                             .overlay(
                                 Circle()
-                                    .stroke(borderColor, lineWidth: 2)
+                                    .stroke(borderColor, lineWidth: 1.5)
                             )
-                            .shadow(color: isDailyMode ? borderColor.opacity(0.25) : .clear, radius: 4)
+                            .shadow(color: isDailyMode ? borderColor.opacity(0.25) : .clear, radius: 3)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Toggle reminder repeat mode")
