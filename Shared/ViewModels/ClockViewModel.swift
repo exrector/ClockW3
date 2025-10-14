@@ -25,15 +25,7 @@ class ClockViewModel: ObservableObject {
     @Published var cities: [WorldCity] = WorldCity.defaultCities
     
     // Интерактивность
-    @Published var rotationAngle: Double = 0 {
-        didSet {
-            #if DEBUG
-            if abs(rotationAngle - oldValue) > 0.001 && !isDragging && !isSnapping {
-                print("⚠️ ROTATION CHANGED: \(oldValue) → \(rotationAngle), delta=\(rotationAngle - oldValue)")
-            }
-            #endif
-        }
-    }
+    @Published var rotationAngle: Double = 0
     @Published var isDragging = false
     @Published var isSnapping = false
     
@@ -505,9 +497,6 @@ class ClockViewModel: ObservableObject {
     private func updateMagnetReferenceAngle() {
         // НЕ обновляем если пользователь покрутил стрелку
         if hasUserInteracted {
-            #if DEBUG
-            print("⏸️ MAGNET REF FROZEN: user interacted, rotationAngle=\(rotationAngle)")
-            #endif
             return
         }
         
@@ -516,16 +505,8 @@ class ClockViewModel: ObservableObject {
         let components = calendar.dateComponents([.hour, .minute], from: currentTime)
         let hour = components.hour ?? 0
         let minute = components.minute ?? 0
-        // НЕ учитываем секунды для стабильного магнетизма
         let hour24 = Double(hour) + Double(minute) / 60.0
-        let oldReference = magnetReferenceAngle
         magnetReferenceAngle = ClockConstants.calculateArrowAngle(hour24: hour24)
-        
-        #if DEBUG
-        if abs(oldReference - magnetReferenceAngle) > 0.001 {
-            print("🧲 MAGNET REF CHANGED: \(oldReference) → \(magnetReferenceAngle), rotationAngle=\(rotationAngle)")
-        }
-        #endif
     }
 
     // MARK: - Haptic Feedback
