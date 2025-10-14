@@ -34,15 +34,15 @@ struct ContentView: View {
                     if isLandscape {
                         HStack(spacing: 0) {
                             ClockFaceView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .frame(width: height, height: height)
+                                .frame(maxHeight: .infinity)
 
                             if showSettings {
                                 SettingsView()
-                                    .frame(maxWidth: width * 0.4)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             } else {
                                 Button("Settings") { showSettings = true }
-                                    .frame(maxWidth: width * 0.4)
+                                    .frame(maxWidth: .infinity)
                             }
                         }
                     } else {

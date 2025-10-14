@@ -315,31 +315,8 @@ private struct ReminderRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 16) {
-            if let onModeChange = onModeChange {
-                Button {
-                    isDailyMode.toggle()
-                    onModeChange(isDailyMode)
-                } label: {
-                    let borderColor: Color = colorScheme == .light ? .black : .white
-                    let fillColor: Color = isDailyMode
-                        ? (colorScheme == .light ? .black : .white)
-                        : .clear
-                    Circle()
-                        .fill(fillColor)
-                        .frame(width: 28, height: 28)
-                        .overlay(
-                            Circle()
-                                .stroke(borderColor, lineWidth: 2)
-                        )
-                        .shadow(color: isDailyMode ? borderColor.opacity(0.25) : .clear, radius: 4)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Toggle reminder repeat mode")
-            } else {
-                Spacer().frame(width: 28)
-            }
-
+        ZStack {
+            // Центральный текст - строго по центру
             VStack(alignment: .center, spacing: 4) {
                 Text(reminder.formattedTime)
                     .font(.headline)
@@ -349,34 +326,61 @@ private struct ReminderRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(maxWidth: .infinity)
-
-            if isPreview {
-                // Preview режим: показываем кнопку подтверждения
-                if let onConfirm = onConfirm {
-                    Button(action: onConfirm) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.green)
+            
+            // Кнопки поверх
+            HStack(spacing: 0) {
+                // Левая кнопка
+                if let onModeChange = onModeChange {
+                    Button {
+                        isDailyMode.toggle()
+                        onModeChange(isDailyMode)
+                    } label: {
+                        let borderColor: Color = colorScheme == .light ? .black : .white
+                        let fillColor: Color = isDailyMode
+                            ? (colorScheme == .light ? .black : .white)
+                            : .clear
+                        Circle()
+                            .fill(fillColor)
+                            .frame(width: 28, height: 28)
+                            .overlay(
+                                Circle()
+                                    .stroke(borderColor, lineWidth: 2)
+                            )
+                            .shadow(color: isDailyMode ? borderColor.opacity(0.25) : .clear, radius: 4)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Confirm reminder")
+                    .accessibilityLabel("Toggle reminder repeat mode")
+                }
+                
+                Spacer()
+                
+                // Правые кнопки
+                HStack(spacing: 8) {
+                    if isPreview, let onConfirm = onConfirm {
+                        Button(action: onConfirm) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.green)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Confirm reminder")
+                    }
+                    
+                    Button(action: onRemove) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(isPreview ? "Cancel reminder" : "Remove reminder")
                 }
             }
-
-            Button(action: onRemove) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.primary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isPreview ? "Cancel reminder" : "Remove reminder")
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(isPreview ? Color.secondary.opacity(0.5) : Color.primary, lineWidth: 1)
+                .strokeBorder(Color.primary, lineWidth: 1)
         )
         .frame(maxWidth: 360)
         .contentShape(Rectangle())
@@ -404,7 +408,8 @@ private struct CityRow: View {
     let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 16) {
+        ZStack {
+            // Центральный текст - строго по центру
             VStack(alignment: .center, spacing: 4) {
                 Text(entry.name)
                     .font(.headline)
@@ -412,21 +417,25 @@ private struct CityRow: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity)
-
-            if isRemovable {
-                Button(action: onRemove) {
-                    Image(systemName: "xmark.circle.fill")
+            
+            // Кнопка справа поверх
+            HStack {
+                Spacer()
+                
+                if isRemovable {
+                    Button(action: onRemove) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Remove \(entry.name)")
+                } else {
+                    Image(systemName: "location.fill")
                         .font(.title3)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("\(entry.name) pinned")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Remove \(entry.name)")
-            } else {
-                Image(systemName: "location.fill")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("\(entry.name) pinned")
             }
         }
         .padding(.vertical, 10)

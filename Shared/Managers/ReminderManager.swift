@@ -17,6 +17,23 @@ class ReminderManager: ObservableObject {
 
     private init() {
         loadReminder()
+        // Создаем дефолтный preview при старте если нет сохраненного
+        if currentReminder == nil {
+            createDefaultPreview()
+        }
+    }
+    
+    private func createDefaultPreview() {
+        let calendar = Calendar.current
+        let now = Date()
+        var hour = calendar.component(.hour, from: now) + 1
+        let minute = calendar.component(.minute, from: now)
+        
+        if hour >= 24 {
+            hour -= 24
+        }
+        
+        previewReminder = ClockReminder(hour: hour, minute: minute)
     }
 
     // MARK: - Storage
@@ -62,6 +79,10 @@ class ReminderManager: ObservableObject {
     /// Очищает временное напоминание
     func clearPreviewReminder() {
         previewReminder = nil
+        // Если нет сохраненного напоминания, сразу создаем новый preview
+        if currentReminder == nil {
+            createDefaultPreview()
+        }
     }
 
     /// Подтверждает preview и создаёт реальное напоминание
@@ -124,6 +145,8 @@ class ReminderManager: ObservableObject {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
         currentReminder = nil
         saveReminder()
+        // Сразу создаем новый preview
+        createDefaultPreview()
     }
 
     // MARK: - Notification Scheduling

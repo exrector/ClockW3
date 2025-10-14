@@ -71,7 +71,7 @@ struct ClockW3WidgetEntryView: View {
                     overrideColorScheme: effectiveColorScheme
                 )
                 .frame(width: frameSize.width, height: frameSize.height)
-                .scaleEffect(1.06)
+                .scaleEffect(0.98)
                 .allowsHitTesting(false)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
