@@ -18,6 +18,10 @@ struct ClockReminder: Codable, Identifiable {
         self.isEnabled = isEnabled
     }
 
+    var isDaily: Bool {
+        date == nil
+    }
+
     /// Округляет минуты до ближайших 15 минут (0, 15, 30, 45)
     static func roundToQuarter(_ minute: Int) -> Int {
         return (minute / 15) * 15
@@ -44,9 +48,8 @@ struct ClockReminder: Codable, Identifiable {
     /// - Parameters:
     ///   - rotationAngle: Угол поворота в радианах
     ///   - currentTime: Текущее время для определения локального времени
-    ///   - targetDate: Целевая дата (nil = ежедневное напоминание)
     /// - Returns: ClockReminder с округлённым временем
-    static func fromRotationAngle(_ rotationAngle: Double, currentTime: Date = Date(), targetDate: Date? = nil) -> ClockReminder {
+    static func fromRotationAngle(_ rotationAngle: Double, currentTime: Date = Date()) -> ClockReminder {
         // Получаем текущее локальное время
         let calendar = Calendar.current
         let currentHour = calendar.component(.hour, from: currentTime)
@@ -70,21 +73,25 @@ struct ClockReminder: Codable, Identifiable {
         let targetHour = Int(roundedMinutes / 60.0) % 24
         let targetMinute = Int(roundedMinutes.truncatingRemainder(dividingBy: 60.0))
 
-        // Определяем дату: если целевое время уже прошло сегодня, ставим на завтра
-        let currentTotalMinutes = currentHour * 60 + currentMinute
-        let targetTotalMinutes = targetHour * 60 + targetMinute
-        
-        let finalDate: Date?
-        if targetDate != nil {
-            finalDate = targetDate
-        } else if targetTotalMinutes <= currentTotalMinutes {
-            // Время уже прошло сегодня, ставим на завтра
-            finalDate = calendar.date(byAdding: .day, value: 1, to: currentTime)
-        } else {
-            // Время ещё не наступило сегодня
-            finalDate = nil
+        return ClockReminder(hour: targetHour, minute: targetMinute, date: nil)
+    }
+
+    /// Возвращает следующую дату с указанным временем относительно опорного времени.
+    static func nextTriggerDate(hour: Int, minute: Int, from referenceDate: Date = Date()) -> Date {
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day], from: referenceDate)
+        components.hour = hour
+        components.minute = minute
+        components.second = 0
+
+        guard let sameDay = calendar.date(from: components) else {
+            return referenceDate
         }
 
-        return ClockReminder(hour: targetHour, minute: targetMinute, date: finalDate)
+        if sameDay > referenceDate {
+            return sameDay
+        }
+
+        return calendar.date(byAdding: .day, value: 1, to: sameDay) ?? sameDay
     }
 }

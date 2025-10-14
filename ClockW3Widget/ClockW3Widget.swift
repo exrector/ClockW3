@@ -59,23 +59,26 @@ struct ClockW3WidgetEntryView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let size = min(geometry.size.width, geometry.size.height)
             let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
+            let frameSize = geometry.size
 
             ZStack {
-                // Используем фон из палитры
                 palette.background
 
-                // Наш циферблат
                 ClockFaceView(
                     interactivityEnabled: false,
                     overrideTime: entry.date,
-                    overrideColorScheme: effectiveColorScheme  // Передаём выбранную цветовую схему
+                    overrideColorScheme: effectiveColorScheme
                 )
-                .frame(width: size, height: size)
+                .frame(width: frameSize.width, height: frameSize.height)
+                .scaleEffect(1.06)
                 .allowsHitTesting(false)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .aspectRatio(contentMode: .fill)
+            .clipped()
         }
+        .ignoresSafeArea()
         .containerBackground(for: .widget) {
             ClockColorPalette.system(colorScheme: effectiveColorScheme).background
         }
@@ -87,12 +90,18 @@ struct ClockW3Widget: Widget {
     let kind: String = "ClockW3Widget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: Provider()) { entry in
+        let configuration = StaticConfiguration(kind: kind, provider: Provider()) { entry in
             ClockW3WidgetEntryView(entry: entry)
         }
         .configurationDisplayName("World Clock")
         .description("24-hour world clock with time zones")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+
+        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, *) {
+            return configuration.contentMarginsDisabled()
+        } else {
+            return configuration
+        }
     }
 }
 

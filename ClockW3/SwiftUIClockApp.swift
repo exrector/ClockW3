@@ -37,7 +37,19 @@ struct SettingsView: View {
 
     // Напоминание
     @StateObject private var reminderManager = ReminderManager.shared
-    @State private var showEditReminder = false
+    @State private var editContext: ReminderEditContext?
+
+    private struct ReminderEditContext: Identifiable {
+        enum Kind {
+            case current
+            case preview
+        }
+
+        let kind: Kind
+        let reminder: ClockReminder
+
+        var id: UUID { reminder.id }
+    }
 
     var body: some View {
         ScrollView {
@@ -61,13 +73,13 @@ struct SettingsView: View {
                         ReminderRow(
                             reminder: reminder,
                             isPreview: false,
-                            onToggle: {
+                            onModeChange: { isDaily in
                                 Task {
-                                    await reminderManager.toggleReminder()
+                                    await reminderManager.updateReminderRepeat(isDaily: isDaily)
                                 }
                             },
                             onEdit: {
-                                showEditReminder = true
+                                editContext = ReminderEditContext(kind: .current, reminder: reminder)
                             },
                             onRemove: {
                                 reminderManager.deleteReminder()
@@ -80,8 +92,10 @@ struct SettingsView: View {
                         ReminderRow(
                             reminder: preview,
                             isPreview: true,
-                            onToggle: nil,
-                            onEdit: nil,
+                            onModeChange: nil,
+                            onEdit: {
+                                editContext = ReminderEditContext(kind: .preview, reminder: preview)
+                            },
                             onRemove: {
                                 reminderManager.clearPreviewReminder()
                             },
@@ -165,13 +179,23 @@ struct SettingsView: View {
             .presentationDetents([.fraction(0.55)])
 #endif
         }
-        .sheet(isPresented: $showEditReminder) {
-            if let reminder = reminderManager.currentReminder {
-                EditReminderView(reminder: reminder) { hour, minute in
-                    Task {
+        .sheet(item: $editContext) { context in
+            EditReminderView(reminder: context.reminder) { hour, minute in
+                Task { @MainActor in
+                    switch context.kind {
+                    case .current:
                         await reminderManager.updateReminderTime(hour: hour, minute: minute)
+                    case .preview:
+                        let updatedReminder = ClockReminder(
+                            id: context.reminder.id,
+                            hour: hour,
+                            minute: minute,
+                            date: context.reminder.date,
+                            isEnabled: context.reminder.isEnabled
+                        )
+                        reminderManager.setPreviewReminder(updatedReminder)
                     }
-                    showEditReminder = false
+                    editContext = nil
                 }
             }
         }
@@ -265,31 +289,65 @@ extension SettingsView {
 private struct ReminderRow: View {
     let reminder: ClockReminder
     let isPreview: Bool
-    let onToggle: (() -> Void)?
+    let onModeChange: ((Bool) -> Void)?
     let onEdit: (() -> Void)?
     let onRemove: () -> Void
     let onConfirm: (() -> Void)?
 
+    @State private var isDailyMode: Bool
+    @Environment(\.colorScheme) private var colorScheme
+
+    init(
+        reminder: ClockReminder,
+        isPreview: Bool,
+        onModeChange: ((Bool) -> Void)?,
+        onEdit: (() -> Void)?,
+        onRemove: @escaping () -> Void,
+        onConfirm: (() -> Void)?
+    ) {
+        self.reminder = reminder
+        self.isPreview = isPreview
+        self.onModeChange = onModeChange
+        self.onEdit = onEdit
+        self.onRemove = onRemove
+        self.onConfirm = onConfirm
+        _isDailyMode = State(initialValue: reminder.isDaily)
+    }
+
     var body: some View {
         HStack(spacing: 16) {
-            // Edit button moved to the left
-            if !isPreview, let onEdit = onEdit {
+            if let onModeChange = onModeChange {
                 Button {
-                    onEdit()
+                    isDailyMode.toggle()
+                    onModeChange(isDailyMode)
                 } label: {
-                    Image(systemName: "pencil")
-                        .foregroundStyle(.blue)
+                    let borderColor: Color = colorScheme == .light ? .black : .white
+                    let fillColor: Color = isDailyMode
+                        ? (colorScheme == .light ? .black : .white)
+                        : .clear
+                    Circle()
+                        .fill(fillColor)
+                        .frame(width: 28, height: 28)
+                        .overlay(
+                            Circle()
+                                .stroke(borderColor, lineWidth: 2)
+                        )
+                        .shadow(color: isDailyMode ? borderColor.opacity(0.25) : .clear, radius: 4)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Edit reminder")
+                .accessibilityLabel("Toggle reminder repeat mode")
+            } else {
+                Spacer().frame(width: 28)
             }
-            
+
             VStack(alignment: .center, spacing: 4) {
                 Text(reminder.formattedTime)
                     .font(.headline)
-                Text(reminder.typeDescription)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                if let subtitle = subtitleText {
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity)
 
@@ -303,16 +361,6 @@ private struct ReminderRow: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Confirm reminder")
-                }
-            } else {
-                // Обычный режим: показываем только toggle
-                if let onToggle = onToggle {
-                    Toggle("", isOn: Binding(
-                        get: { reminder.isEnabled },
-                        set: { _ in onToggle() }
-                    ))
-                    .labelsHidden()
-                    .frame(width: 50)
                 }
             }
 
@@ -331,6 +379,22 @@ private struct ReminderRow: View {
                 .strokeBorder(isPreview ? Color.secondary.opacity(0.5) : Color.primary, lineWidth: 1)
         )
         .frame(maxWidth: 360)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onEdit?()
+        }
+        .onChange(of: reminder.isDaily) { _, newValue in
+            if newValue != isDailyMode {
+                isDailyMode = newValue
+            }
+        }
+    }
+
+    private var subtitleText: String? {
+        if isPreview {
+            return "Preview"
+        }
+        return isDailyMode ? "Every day" : "One time"
     }
 }
 

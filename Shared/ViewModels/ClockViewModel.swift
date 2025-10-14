@@ -45,15 +45,12 @@ class ClockViewModel: ObservableObject {
     private let magnetHardSnapEpsilon: Double = 0.12 * .pi / 180.0
     private var rotationAnimation: RotationAnimation?
     private var magnetReferenceAngle: Double = 0
+    private var magnetsEnabled: Bool = true
 
     // Haptic feedback
     private let hapticFeedback = HapticFeedback.shared
     private var lastHapticTickIndex: Int?
 
-    // Day offset tracking (90° = midnight crossing)
-    @Published var dayOffset: Int = 0
-    private var lastMidnightCrossing: Double = 0
-    private let midnightAngle: Double = .pi / 2  // 90° = 0:00/24:00
     
     // MARK: - Initialization
     init() {
@@ -147,6 +144,7 @@ class ClockViewModel: ObservableObject {
     func startDrag(at location: CGPoint, in geometry: GeometryProxy) {
         isDragging = true
         isSnapping = false
+        magnetsEnabled = true
 
         let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
         lastDragAngle = atan2(location.y - center.y, location.x - center.x)
@@ -173,11 +171,7 @@ class ClockViewModel: ObservableObject {
         let smoothingFactor: Double = 0.7
         angleDelta *= smoothingFactor
 
-        let oldRotation = rotationAngle
         rotationAngle += angleDelta
-
-        // Проверяем пересечение полуночи для подсчёта дней
-        checkMidnightCrossing(oldAngle: oldRotation, newAngle: rotationAngle)
 
         // Обновляем preview напоминания
         updatePreviewReminder()
@@ -261,11 +255,7 @@ class ClockViewModel: ObservableObject {
             }
 
             if abs(interpolated - rotationAngle) > 1e-9 {
-                let oldRotation = rotationAngle
                 rotationAngle = interpolated
-
-                // Проверяем пересечение полуночи во время анимации
-                checkMidnightCrossing(oldAngle: oldRotation, newAngle: rotationAngle)
 
                 // Проверяем пересечение рисок во время анимации
                 checkAndPlayTickHaptic(for: rotationAngle)
@@ -290,11 +280,7 @@ class ClockViewModel: ObservableObject {
 
         if abs(dragVelocity) > snapVelocityThreshold {
             updateLastRotationDirection(with: dragVelocity)
-            let oldRotation = rotationAngle
             rotationAngle += dragVelocity / 60.0
-
-            // Проверяем пересечение полуночи при инерции
-            checkMidnightCrossing(oldAngle: oldRotation, newAngle: rotationAngle)
 
             applyMagnetWhileCoasting()
 
@@ -345,6 +331,7 @@ class ClockViewModel: ObservableObject {
     }
     
     private func snapToNearestTick() {
+        guard magnetsEnabled else { return }
         guard !isSnapping else { return }
 
         let nearestTick = quantizedRotation(angle: rotationAngle, step: ClockConstants.quarterTickStepRadians)
@@ -391,6 +378,7 @@ class ClockViewModel: ObservableObject {
     }
 
     private func applyMagnetDuringDrag() {
+        guard magnetsEnabled else { return }
         if applyMagnet(step: ClockConstants.hourTickStepRadians,
                        threshold: ClockConstants.hourMagneticThreshold,
                        lerp: 0.18) {  // Увеличено с 0.12 до 0.18
@@ -407,6 +395,7 @@ class ClockViewModel: ObservableObject {
     }
 
     private func applyMagnetWhileCoasting() {
+        guard magnetsEnabled else { return }
         if applyMagnet(step: ClockConstants.hourTickStepRadians,
                        threshold: ClockConstants.hourMagneticThreshold,
                        lerp: 0.10) {  // Увеличено с 0.06 до 0.10
@@ -424,6 +413,7 @@ class ClockViewModel: ObservableObject {
 
     @discardableResult
     private func applyMagnet(step: Double, threshold: Double, lerp: Double) -> Bool {
+        guard magnetsEnabled else { return false }
         guard step > 0 else { return false }
         let target = quantizedRotation(angle: rotationAngle, step: step)
         var delta = target - rotationAngle
@@ -508,54 +498,13 @@ class ClockViewModel: ObservableObject {
         hapticFeedback.reset()
     }
 
-    // MARK: - Day Offset Tracking
-
-    /// Проверяет пересечение полуночи (90°) и обновляет счётчик дней
-    private func checkMidnightCrossing(oldAngle: Double, newAngle: Double) {
-        // Нормализуем углы к [0, 2π]
-        func normalize(_ angle: Double) -> Double {
-            var result = angle.truncatingRemainder(dividingBy: 2 * .pi)
-            if result < 0 { result += 2 * .pi }
-            return result
-        }
-
-        let oldNorm = normalize(oldAngle)
-        let newNorm = normalize(newAngle)
-
-        // Определяем направление движения
-        let delta = newAngle - oldAngle
-        let isClockwise = delta > 0
-
-        // Проверяем пересечение 90° (полночь)
-        if isClockwise {
-            // По часовой: если старый угол < 90° и новый >= 90°
-            // или если произошёл переход через 0° (старый > новый в нормализованном виде)
-            if (oldNorm < midnightAngle && newNorm >= midnightAngle) ||
-               (oldNorm > newNorm && newNorm >= midnightAngle) {
-                dayOffset += 1
-            }
-        } else {
-            // Против часовой: если старый угол >= 90° и новый < 90°
-            if (oldNorm >= midnightAngle && newNorm < midnightAngle) ||
-               (oldNorm < newNorm && oldNorm >= midnightAngle) {
-                dayOffset -= 1
-            }
-        }
-    }
-
-    /// Вычисляет текущую дату с учётом оборотов
-    var currentDisplayDate: Date {
-        let calendar = Calendar.current
-        return calendar.date(byAdding: .day, value: dayOffset, to: currentTime) ?? currentTime
-    }
-
     // MARK: - Reset Functions
     func resetRotation() {
+        magnetsEnabled = false
         let currentVelocity = dragVelocity
         dragVelocity = 0
         dragSamples.removeAll()
         isDragging = false
-        dayOffset = 0  // Сбрасываем счётчик дней
         ReminderManager.shared.clearPreviewReminder()  // Очищаем preview при сбросе
         // НЕ сбрасываем хаптику здесь — даём ей работать во время анимации возврата
 
@@ -665,14 +614,13 @@ class ClockViewModel: ObservableObject {
         }
 
         // Если вращение близко к нулю, очищаем preview
-        if abs(rotationAngle) < ClockConstants.quarterTickStepRadians && dayOffset == 0 {
+        if abs(rotationAngle) < ClockConstants.quarterTickStepRadians {
             ReminderManager.shared.clearPreviewReminder()
             return
         }
 
         // Создаём временное напоминание
-        let targetDate: Date? = (dayOffset != 0) ? currentDisplayDate : nil
-        let reminder = ClockReminder.fromRotationAngle(rotationAngle, currentTime: currentTime, targetDate: targetDate)
+        let reminder = ClockReminder.fromRotationAngle(rotationAngle, currentTime: currentTime)
         ReminderManager.shared.setPreviewReminder(reminder)
     }
 
@@ -698,9 +646,7 @@ class ClockViewModel: ObservableObject {
 
     /// Создаёт напоминание на основе текущего положения локальной стрелки
     func createReminderAtCurrentRotation() async {
-        // Если dayOffset != 0, создаём напоминание на конкретную дату
-        let targetDate: Date? = (dayOffset != 0) ? currentDisplayDate : nil
-        let reminder = ClockReminder.fromRotationAngle(rotationAngle, currentTime: currentTime, targetDate: targetDate)
+        let reminder = ClockReminder.fromRotationAngle(rotationAngle, currentTime: currentTime)
 
         // Запрашиваем разрешение если нужно
         let hasPermission = await ReminderManager.shared.requestPermission()

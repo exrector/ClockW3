@@ -87,13 +87,6 @@ class ReminderManager: ObservableObject {
         }
     }
 
-    /// Включает/выключает напоминание
-    func toggleReminder() async {
-        guard var reminder = currentReminder else { return }
-        reminder.isEnabled.toggle()
-        await setReminder(reminder)
-    }
-
     /// Обновляет время существующего напоминания
     func updateReminderTime(hour: Int, minute: Int) async {
         guard var reminder = currentReminder else { return }
@@ -102,6 +95,25 @@ class ReminderManager: ObservableObject {
             hour: hour,
             minute: minute,
             date: reminder.date,
+            isEnabled: reminder.isEnabled
+        )
+        await setReminder(reminder)
+    }
+
+    /// Обновляет режим повторения: ежедневно или один раз
+    func updateReminderRepeat(isDaily: Bool, referenceDate: Date = Date()) async {
+        guard var reminder = currentReminder else { return }
+        guard reminder.isDaily != isDaily else { return }
+
+        let nextDate = isDaily
+            ? nil
+            : ClockReminder.nextTriggerDate(hour: reminder.hour, minute: reminder.minute, from: referenceDate)
+
+        reminder = ClockReminder(
+            id: reminder.id,
+            hour: reminder.hour,
+            minute: reminder.minute,
+            date: nextDate,
             isEnabled: reminder.isEnabled
         )
         await setReminder(reminder)
