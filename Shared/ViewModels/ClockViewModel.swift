@@ -25,9 +25,19 @@ class ClockViewModel: ObservableObject {
     @Published var cities: [WorldCity] = WorldCity.defaultCities
     
     // Интерактивность
-    @Published var rotationAngle: Double = 0
+    @Published var rotationAngle: Double = 0 {
+        didSet {
+            #if DEBUG
+            if abs(rotationAngle - oldValue) > 0.001 && !isDragging && !isSnapping {
+                print("⚠️ ROTATION CHANGED: \(oldValue) → \(rotationAngle), delta=\(rotationAngle - oldValue)")
+            }
+            #endif
+        }
+    }
     @Published var isDragging = false
     @Published var isSnapping = false
+    
+    private var hasUserInteracted = false  // Флаг взаимодействия
 
     // MARK: - Private Properties
     private var timer: Timer?
@@ -38,7 +48,7 @@ class ClockViewModel: ObservableObject {
     private var lastDragTime: Date = Date()
     private var dragSamples: [DragSample] = []
     private let maxDragSamples = 6
-    private let snapVelocityThreshold: Double = 0.03
+    private let snapVelocityThreshold: Double = 0.05  // Увеличено с 0.03 для более ранней остановки
     private var lastRotationDirection: Double = 0
     private let zeroSnapThreshold: Double = 10.0 * .pi / 180.0
     private let directionEpsilon: Double = 1e-4
@@ -145,6 +155,7 @@ class ClockViewModel: ObservableObject {
         isDragging = true
         isSnapping = false
         magnetsEnabled = true
+        hasUserInteracted = true  // Пользователь начал взаимодействие
 
         let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
         lastDragAngle = atan2(location.y - center.y, location.x - center.x)
@@ -295,7 +306,7 @@ class ClockViewModel: ObservableObject {
 
         dragVelocity = 0
 
-        if !isSnapping {
+        if !isSnapping && hasUserInteracted {
             snapToNearestTick()
         }
     }
@@ -333,29 +344,51 @@ class ClockViewModel: ObservableObject {
     private func snapToNearestTick() {
         guard magnetsEnabled else { return }
         guard !isSnapping else { return }
+        guard hasUserInteracted else { return }  // Только если пользователь взаимодействовал
+        
+        // НЕ снэпим если пользователь не вращал (rotationAngle близок к 0)
+        if abs(rotationAngle) < ClockConstants.quarterTickStepRadians / 2 {
+            return
+        }
 
         let nearestTick = quantizedRotation(angle: rotationAngle, step: ClockConstants.quarterTickStepRadians)
         var delta = nearestTick - rotationAngle
-        delta = ClockConstants.normalizeAngle(delta)
+        
+        // Нормализуем delta к кратчайшему пути
+        while delta > .pi {
+            delta -= 2 * .pi
+        }
+        while delta < -.pi {
+            delta += 2 * .pi
+        }
+        
+        #if DEBUG
+        print("📍 SNAP: current=\(rotationAngle), target=\(nearestTick), delta=\(delta), direction=\(delta > 0 ? "→" : "←")")
+        #endif
+        
         if abs(delta) < 1e-4 {
             setRotationNoAnimation(nearestTick)
             dragVelocity = 0
+            hasUserInteracted = false  // Сбрасываем сразу
             if abs(delta) > directionEpsilon {
                 lastRotationDirection = delta > 0 ? 1 : -1
             }
-            // Сбрасываем хаптику после завершения снэпа
             resetHapticState()
             return
         }
 
         lastRotationDirection = delta > 0 ? 1 : -1
+        
+        // Останавливаем инерцию перед началом анимации snap
+        dragVelocity = 0
 
         startRotationAnimation(
             to: nearestTick,
             duration: ClockConstants.snapDuration
         ) { [weak self] in
-            // Сбрасываем хаптику после завершения снэпа
             self?.resetHapticState()
+            self?.hasUserInteracted = false  // Сбрасываем после завершения snap
+            self?.dragVelocity = 0  // Убеждаемся что инерция остановлена
         }
     }
 
@@ -469,7 +502,14 @@ class ClockViewModel: ObservableObject {
         let minute = components.minute ?? 0
         // НЕ учитываем секунды для стабильного магнетизма
         let hour24 = Double(hour) + Double(minute) / 60.0
+        let oldReference = magnetReferenceAngle
         magnetReferenceAngle = ClockConstants.calculateArrowAngle(hour24: hour24)
+        
+        #if DEBUG
+        if abs(oldReference - magnetReferenceAngle) > 0.001 {
+            print("🧲 MAGNET REF CHANGED: \(oldReference) → \(magnetReferenceAngle), rotationAngle=\(rotationAngle)")
+        }
+        #endif
     }
 
     // MARK: - Haptic Feedback
