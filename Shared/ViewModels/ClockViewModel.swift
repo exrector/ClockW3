@@ -293,9 +293,10 @@ class ClockViewModel: ObservableObject {
             updateLastRotationDirection(with: dragVelocity)
             rotationAngle += dragVelocity / 60.0
 
-            if hasUserInteracted {
-                applyMagnetWhileCoasting()
-            }
+            // Магниты во время инерции ОТКЛЮЧЕНЫ - они вызывают микро-откат
+            // if hasUserInteracted {
+            //     applyMagnetWhileCoasting()
+            // }
 
             // Проверяем пересечение рисок при инерционном вращении
             checkAndPlayTickHaptic(for: rotationAngle)
@@ -381,17 +382,13 @@ class ClockViewModel: ObservableObject {
 
         lastRotationDirection = delta > 0 ? 1 : -1
         
-        // Останавливаем инерцию перед началом анимации snap
+        // Останавливаем инерцию перед snap
         dragVelocity = 0
-
-        startRotationAnimation(
-            to: nearestTick,
-            duration: ClockConstants.snapDuration
-        ) { [weak self] in
-            self?.resetHapticState()
-            self?.hasUserInteracted = false
-            self?.dragVelocity = 0
-        }
+        
+        // Мгновенный snap - анимация вызывает микро-откат
+        setRotationNoAnimation(nearestTick)
+        hasUserInteracted = false
+        resetHapticState()
     }
 
     private func velocityFromSamples() -> Double {
