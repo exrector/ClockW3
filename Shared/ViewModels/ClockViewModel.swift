@@ -64,13 +64,17 @@ class ClockViewModel: ObservableObject {
     }
     
     private func initializeAsync() async {
-        startTimeUpdates()
-        updateMagnetReferenceAngle()
-        
-        // Отложенная инициализация физики и хаптики
-        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 сек
-        setupDragPhysics()
-        hapticFeedback.prepare()
+        do {
+            startTimeUpdates()
+            updateMagnetReferenceAngle()
+            
+            // Отложенная инициализация физики и хаптики
+            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 сек
+            setupDragPhysics()
+            hapticFeedback.prepare()
+        } catch {
+            print("Initialization error: \(error)")
+        }
     }
     
     deinit {
@@ -78,18 +82,22 @@ class ClockViewModel: ObservableObject {
         physicsTimer?.invalidate()
         timer = nil
         physicsTimer = nil
+        dragSamples.removeAll()
     }
     
     // MARK: - Time Management
     private func startTimeUpdates() {
+        timer?.invalidate()
+        
         Task { @MainActor in
             refreshCurrentTime()
         }
 
         // Обновляем время каждую минуту
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.refreshCurrentTime()
+            guard let self = self else { return }
+            Task { @MainActor in
+                self.refreshCurrentTime()
             }
         }
         timer?.tolerance = 0.2
@@ -160,6 +168,10 @@ class ClockViewModel: ObservableObject {
 
         var angleDelta = currentAngle - lastDragAngle
         angleDelta = ClockConstants.normalizeAngle(angleDelta)
+
+        // Применяем сглаживание для более плавного драга
+        let smoothingFactor: Double = 0.7
+        angleDelta *= smoothingFactor
 
         let oldRotation = rotationAngle
         rotationAngle += angleDelta

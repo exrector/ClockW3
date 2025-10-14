@@ -29,36 +29,44 @@ struct ContentView: View {
             let height = geometry.size.height
             let isLandscape = width >= height
 
-            Group {
-                if isLandscape {
-                    HStack(spacing: 0) {
-                        ClockFaceView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 0) {
+                Group {
+                    if isLandscape {
+                        HStack(spacing: 0) {
+                            ClockFaceView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                        if showSettings {
-                            SettingsView()
-                                .frame(maxWidth: width * 0.4)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        } else {
-                            Button("Settings") { showSettings = true }
-                                .frame(maxWidth: width * 0.4)
+                            if showSettings {
+                                SettingsView()
+                                    .frame(maxWidth: width * 0.4)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            } else {
+                                Button("Settings") { showSettings = true }
+                                    .frame(maxWidth: width * 0.4)
+                            }
                         }
-                    }
-                } else {
-                    VStack(spacing: 0) {
-                        ClockFaceView()
-                            .frame(maxWidth: .infinity, maxHeight: height * 0.6)
+                    } else {
+                        VStack(spacing: 0) {
+                            ClockFaceView()
+                                .frame(maxWidth: .infinity, maxHeight: height * 0.6)
 
-                        if showSettings {
-                            SettingsView()
-                                .frame(maxWidth: .infinity)
-                                .frame(maxHeight: .infinity, alignment: .topLeading)
-                        } else {
-                            Button("Settings") { showSettings = true }
-                                .frame(maxHeight: .infinity)
+                            if showSettings {
+                                SettingsView()
+                                    .frame(maxWidth: .infinity)
+                                    .frame(maxHeight: .infinity, alignment: .topLeading)
+                            } else {
+                                Button("Settings") { showSettings = true }
+                                    .frame(maxHeight: .infinity)
+                            }
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                
+                Text("Designed by Exrector")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 8)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color("ClockBackground"))

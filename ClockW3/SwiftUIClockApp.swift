@@ -37,6 +37,7 @@ struct SettingsView: View {
 
     // Напоминание
     @StateObject private var reminderManager = ReminderManager.shared
+    @State private var showEditReminder = false
 
     var body: some View {
         ScrollView {
@@ -65,6 +66,9 @@ struct SettingsView: View {
                                     await reminderManager.toggleReminder()
                                 }
                             },
+                            onEdit: {
+                                showEditReminder = true
+                            },
                             onRemove: {
                                 reminderManager.deleteReminder()
                             },
@@ -77,6 +81,7 @@ struct SettingsView: View {
                             reminder: preview,
                             isPreview: true,
                             onToggle: nil,
+                            onEdit: nil,
                             onRemove: {
                                 reminderManager.clearPreviewReminder()
                             },
@@ -159,6 +164,16 @@ struct SettingsView: View {
 #elseif os(macOS)
             .presentationDetents([.fraction(0.55)])
 #endif
+        }
+        .sheet(isPresented: $showEditReminder) {
+            if let reminder = reminderManager.currentReminder {
+                EditReminderView(reminder: reminder) { hour, minute in
+                    Task {
+                        await reminderManager.updateReminderTime(hour: hour, minute: minute)
+                    }
+                    showEditReminder = false
+                }
+            }
         }
     }
 }
@@ -251,11 +266,24 @@ private struct ReminderRow: View {
     let reminder: ClockReminder
     let isPreview: Bool
     let onToggle: (() -> Void)?
+    let onEdit: (() -> Void)?
     let onRemove: () -> Void
     let onConfirm: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 16) {
+            // Edit button moved to the left
+            if !isPreview, let onEdit = onEdit {
+                Button {
+                    onEdit()
+                } label: {
+                    Image(systemName: "pencil")
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Edit reminder")
+            }
+            
             VStack(alignment: .center, spacing: 4) {
                 Text(reminder.formattedTime)
                     .font(.headline)
@@ -277,7 +305,7 @@ private struct ReminderRow: View {
                     .accessibilityLabel("Confirm reminder")
                 }
             } else {
-                // Обычный режим: показываем toggle
+                // Обычный режим: показываем только toggle
                 if let onToggle = onToggle {
                     Toggle("", isOn: Binding(
                         get: { reminder.isEnabled },
@@ -499,6 +527,93 @@ struct TimeZoneSelectionInlineView: View {
 
     private var localCityIdentifier: String {
         TimeZone.current.identifier
+    }
+}
+
+// MARK: - Edit Reminder View
+private struct EditReminderView: View {
+    let reminder: ClockReminder
+    let onSave: (Int, Int) -> Void
+    
+    @State private var selectedHour: Int
+    @State private var selectedMinute: Int
+    @Environment(\.dismiss) private var dismiss
+    
+    init(reminder: ClockReminder, onSave: @escaping (Int, Int) -> Void) {
+        self.reminder = reminder
+        self.onSave = onSave
+        self._selectedHour = State(initialValue: reminder.hour)
+        self._selectedMinute = State(initialValue: reminder.minute)
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                Text("Редактировать напоминание")
+                    .font(.title2)
+                    .padding(.top)
+                
+                HStack {
+                    Picker("Час", selection: $selectedHour) {
+                        ForEach(0..<24, id: \.self) { hour in
+                            Text(String(format: "%02d", hour)).tag(hour)
+                        }
+                    }
+                    #if os(iOS)
+                    .pickerStyle(.wheel)
+                    #endif
+                    .frame(width: 80)
+                    
+                    Text(":")
+                        .font(.title)
+                    
+                    Picker("Минута", selection: $selectedMinute) {
+                        ForEach([0, 15, 30, 45], id: \.self) { minute in
+                            Text(String(format: "%02d", minute)).tag(minute)
+                        }
+                    }
+                    #if os(iOS)
+                    .pickerStyle(.wheel)
+                    #endif
+                    .frame(width: 80)
+                }
+                .padding()
+                
+                Spacer()
+            }
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                #if os(iOS)
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Отмена") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Сохранить") {
+                        onSave(selectedHour, selectedMinute)
+                    }
+                    .fontWeight(.semibold)
+                }
+                #else
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Отмена") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Сохранить") {
+                        onSave(selectedHour, selectedMinute)
+                    }
+                    .fontWeight(.semibold)
+                }
+                #endif
+            }
+        }
     }
 }
 

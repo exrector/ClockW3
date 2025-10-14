@@ -94,6 +94,19 @@ class ReminderManager: ObservableObject {
         await setReminder(reminder)
     }
 
+    /// Обновляет время существующего напоминания
+    func updateReminderTime(hour: Int, minute: Int) async {
+        guard var reminder = currentReminder else { return }
+        reminder = ClockReminder(
+            id: reminder.id,
+            hour: hour,
+            minute: minute,
+            date: reminder.date,
+            isEnabled: reminder.isEnabled
+        )
+        await setReminder(reminder)
+    }
+
     /// Удаляет напоминание
     func deleteReminder() {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
