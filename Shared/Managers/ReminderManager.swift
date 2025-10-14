@@ -43,6 +43,15 @@ class ReminderManager: ObservableObject {
             currentReminder = nil
             return
         }
+        
+        // Проверяем не истекло ли one-time напоминание
+        if let reminderDate = reminder.date, reminderDate < Date() {
+            // Напоминание истекло, удаляем
+            currentReminder = nil
+            userDefaults.removeObject(forKey: reminderKey)
+            return
+        }
+        
         currentReminder = reminder
     }
 
