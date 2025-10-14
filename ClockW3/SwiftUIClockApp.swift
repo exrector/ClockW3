@@ -143,6 +143,20 @@ struct SettingsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 
+                // Кнопка тестирования уведомления
+                #if DEBUG
+                Button {
+                    Task {
+                        await testNotification()
+                    }
+                } label: {
+                    Label("Test Notification", systemImage: "bell.badge")
+                }
+                .buttonStyle(.bordered)
+                .frame(maxWidth: 360)
+                .padding(.top, 8)
+                #endif
+                
                 // Три пузыря для выбора темы внизу
                 HStack(spacing: 16) {
                     ColorSchemeButton(
@@ -311,6 +325,24 @@ extension SettingsView {
         guard identifier != localCityIdentifier else { return }
         selectedIds.remove(identifier)
         updateSelectedEntries()
+    }
+    
+    private func testNotification() async {
+        let content = UNMutableNotificationContent()
+        content.title = "Напоминание"
+        content.body = "Время \(Date().formatted(date: .omitted, time: .shortened))"
+        content.sound = .default
+        
+        // Триггер через 5 секунд
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+        let request = UNNotificationRequest(identifier: "test_notification", content: content, trigger: trigger)
+        
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+            print("Тестовое уведомление будет показано через 5 секунд")
+        } catch {
+            print("Ошибка тестового уведомления: \(error)")
+        }
     }
 }
 
