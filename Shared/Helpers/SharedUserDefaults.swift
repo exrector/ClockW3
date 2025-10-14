@@ -9,7 +9,6 @@ enum SharedUserDefaults {
     /// Общий UserDefaults для приложения и виджета
     static let shared: UserDefaults = {
         guard let userDefaults = UserDefaults(suiteName: appGroupID) else {
-            print("⚠️ WARNING: App Group '\(appGroupID)' not configured. Using standard UserDefaults.")
             return UserDefaults.standard
         }
         return userDefaults

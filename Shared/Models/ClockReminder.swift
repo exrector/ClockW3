@@ -6,13 +6,15 @@ struct ClockReminder: Codable, Identifiable {
     let id: UUID
     let hour: Int        // 0-23
     let minute: Int      // округлено до 15 минут (0, 15, 30, 45)
+    let date: Date?      // nil = ежедневное, не nil = однократное на конкретную дату
     var isEnabled: Bool
 
-    init(id: UUID = UUID(), hour: Int, minute: Int, isEnabled: Bool = true) {
+    init(id: UUID = UUID(), hour: Int, minute: Int, date: Date? = nil, isEnabled: Bool = true) {
         self.id = id
         self.hour = hour
         // Округляем минуты до ближайших 15 минут
         self.minute = Self.roundToQuarter(minute)
+        self.date = date
         self.isEnabled = isEnabled
     }
 
@@ -26,12 +28,25 @@ struct ClockReminder: Codable, Identifiable {
         String(format: "%02d:%02d", hour, minute)
     }
 
+    /// Тип напоминания для отображения
+    var typeDescription: String {
+        if let date = date {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none
+            return formatter.string(from: date)
+        } else {
+            return "Daily"
+        }
+    }
+
     /// Вычисляет время напоминания из угла поворота циферблата
     /// - Parameters:
     ///   - rotationAngle: Угол поворота в радианах
     ///   - currentTime: Текущее время для определения локального времени
+    ///   - targetDate: Целевая дата (nil = ежедневное напоминание)
     /// - Returns: ClockReminder с округлённым временем
-    static func fromRotationAngle(_ rotationAngle: Double, currentTime: Date = Date()) -> ClockReminder {
+    static func fromRotationAngle(_ rotationAngle: Double, currentTime: Date = Date(), targetDate: Date? = nil) -> ClockReminder {
         // Получаем текущее локальное время
         let calendar = Calendar.current
         let currentHour = calendar.component(.hour, from: currentTime)
@@ -44,21 +59,32 @@ struct ClockReminder: Codable, Identifiable {
         // Вычисляем целевой угол (текущий + поворот)
         let targetAngle = currentArrowAngle + rotationAngle
 
-        // Нормализуем угол к диапазону [0, 2π]
-        var normalizedAngle = targetAngle.truncatingRemainder(dividingBy: 2.0 * .pi)
-        if normalizedAngle < 0 {
-            normalizedAngle += 2.0 * .pi
+        // Конвертируем угол обратно в час (учитывая опорный час 18:00)
+        let degrees = targetAngle * 180.0 / .pi
+        let hourFloat = (degrees / ClockConstants.degreesPerHour + ClockConstants.referenceHour).truncatingRemainder(dividingBy: 24.0)
+        
+        // Округляем до ближайших 15 минут для точности
+        let totalMinutes = hourFloat * 60.0
+        let roundedMinutes = round(totalMinutes / 15.0) * 15.0
+        
+        let targetHour = Int(roundedMinutes / 60.0) % 24
+        let targetMinute = Int(roundedMinutes.truncatingRemainder(dividingBy: 60.0))
+
+        // Определяем дату: если целевое время уже прошло сегодня, ставим на завтра
+        let currentTotalMinutes = currentHour * 60 + currentMinute
+        let targetTotalMinutes = targetHour * 60 + targetMinute
+        
+        let finalDate: Date?
+        if targetDate != nil {
+            finalDate = targetDate
+        } else if targetTotalMinutes <= currentTotalMinutes {
+            // Время уже прошло сегодня, ставим на завтра
+            finalDate = calendar.date(byAdding: .day, value: 1, to: currentTime)
+        } else {
+            // Время ещё не наступило сегодня
+            finalDate = nil
         }
 
-        // Конвертируем угол обратно в час (учитывая опорный час 18:00)
-        // Формула обратная к ClockConstants.calculateArrowAngle
-        let degrees = normalizedAngle * 180.0 / .pi
-        let hourFloat = (degrees / ClockConstants.degreesPerHour + ClockConstants.referenceHour).truncatingRemainder(dividingBy: 24.0)
-
-        let hour = Int(hourFloat)
-        let minuteFloat = (hourFloat - Double(hour)) * 60.0
-        let minute = Int(minuteFloat)
-
-        return ClockReminder(hour: hour, minute: minute)
+        return ClockReminder(hour: targetHour, minute: targetMinute, date: finalDate)
     }
 }

@@ -12,6 +12,8 @@ struct ContentView: View {
         SharedUserDefaults.colorSchemeKey,
         store: SharedUserDefaults.shared
     ) private var colorSchemePreference: String = "system"
+    
+    @State private var showSettings = false
 
     private var preferredColorScheme: ColorScheme? {
         switch colorSchemePreference {
@@ -33,24 +35,40 @@ struct ContentView: View {
                         ClockFaceView()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                        SettingsView()
-                            .frame(maxWidth: width * 0.4)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        if showSettings {
+                            SettingsView()
+                                .frame(maxWidth: width * 0.4)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        } else {
+                            Button("Settings") { showSettings = true }
+                                .frame(maxWidth: width * 0.4)
+                        }
                     }
                 } else {
                     VStack(spacing: 0) {
                         ClockFaceView()
                             .frame(maxWidth: .infinity, maxHeight: height * 0.6)
 
-                        SettingsView()
-                            .frame(maxWidth: .infinity)
-                            .frame(maxHeight: .infinity, alignment: .topLeading)
+                        if showSettings {
+                            SettingsView()
+                                .frame(maxWidth: .infinity)
+                                .frame(maxHeight: .infinity, alignment: .topLeading)
+                        } else {
+                            Button("Settings") { showSettings = true }
+                                .frame(maxHeight: .infinity)
+                        }
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color("ClockBackground"))
             .preferredColorScheme(preferredColorScheme)
+        }
+        .onAppear {
+            // Автоматически показываем настройки через 0.5 сек
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showSettings = true
+            }
         }
     }
 }

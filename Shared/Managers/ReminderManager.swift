@@ -9,6 +9,7 @@ class ReminderManager: ObservableObject {
     static let shared = ReminderManager()
 
     @Published var currentReminder: ClockReminder?
+    @Published var previewReminder: ClockReminder?  // Временное напоминание (не сохраняется)
 
     private let userDefaults = SharedUserDefaults.shared
     private let reminderKey = "clock_reminder"
@@ -51,6 +52,25 @@ class ReminderManager: ObservableObject {
         }
     }
 
+    // MARK: - Preview Management
+
+    /// Устанавливает временное напоминание (для предпросмотра)
+    func setPreviewReminder(_ reminder: ClockReminder) {
+        previewReminder = reminder
+    }
+
+    /// Очищает временное напоминание
+    func clearPreviewReminder() {
+        previewReminder = nil
+    }
+
+    /// Подтверждает preview и создаёт реальное напоминание
+    func confirmPreview() async {
+        guard let preview = previewReminder else { return }
+        await setReminder(preview)
+        clearPreviewReminder()
+    }
+
     // MARK: - Reminder Management
 
     /// Создаёт или обновляет напоминание
@@ -90,12 +110,24 @@ class ReminderManager: ObservableObject {
         content.sound = .default
         content.categoryIdentifier = "CLOCK_REMINDER"
 
-        // Создаём триггер для ежедневного срабатывания
-        var dateComponents = DateComponents()
-        dateComponents.hour = reminder.hour
-        dateComponents.minute = reminder.minute
+        let trigger: UNNotificationTrigger
 
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        if let targetDate = reminder.date {
+            // Однократное напоминание на конкретную дату
+            let calendar = Calendar.current
+            var dateComponents = calendar.dateComponents([.year, .month, .day], from: targetDate)
+            dateComponents.hour = reminder.hour
+            dateComponents.minute = reminder.minute
+
+            trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+        } else {
+            // Ежедневное повторяющееся напоминание
+            var dateComponents = DateComponents()
+            dateComponents.hour = reminder.hour
+            dateComponents.minute = reminder.minute
+
+            trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        }
 
         let request = UNNotificationRequest(
             identifier: notificationIdentifier,
@@ -105,7 +137,11 @@ class ReminderManager: ObservableObject {
 
         do {
             try await UNUserNotificationCenter.current().add(request)
-            print("Notification scheduled for \(reminder.formattedTime)")
+            if reminder.date != nil {
+                print("One-time notification scheduled for \(reminder.formattedTime) on \(reminder.typeDescription)")
+            } else {
+                print("Daily notification scheduled for \(reminder.formattedTime)")
+            }
         } catch {
             print("Failed to schedule notification: \(error)")
         }

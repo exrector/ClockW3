@@ -63,8 +63,8 @@ enum ClockConstants {
     static let hourTickStepRadians: Double = degreesPerHour * .pi / 180.0
     static let halfHourTickStepRadians: Double = hourTickStepRadians / 2.0
     static let quarterTickStepRadians: Double = degreesPerTick * .pi / 180.0
-    static let hourMagneticThreshold: Double = 1.5 * .pi / 180.0
-    static let halfHourMagneticThreshold: Double = 1.2 * .pi / 180.0
+    static let hourMagneticThreshold: Double = 2.5 * .pi / 180.0      // Увеличено с 1.5 до 2.5
+    static let halfHourMagneticThreshold: Double = 1.5 * .pi / 180.0  // Увеличено с 1.2 до 1.5
     static let quarterHourMagneticThreshold: Double = 1.0 * .pi / 180.0
 }
 

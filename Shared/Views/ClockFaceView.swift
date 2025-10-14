@@ -85,40 +85,44 @@ struct ClockFaceView: View {
                     )
                     
                     if interactivityEnabled {
-                        Button {
-                            #if os(iOS)
-                            HapticFeedback.shared.playImpact(intensity: .medium)
-                            #endif
-                            viewModel.resetRotation()
-                        } label: {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.clear)
-                                    .frame(
-                                        width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
-                                        height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
-                                    )
-                                Circle()
-                                    .fill(palette.centerCircle)
-                                    .frame(
-                                        width: baseRadius * 2 * ClockConstants.centerButtonVisualRatio,
-                                        height: baseRadius * 2 * ClockConstants.centerButtonVisualRatio
-                                    )
-                                    .shadow(color: palette.centerCircle.opacity(0.4), radius: baseRadius * 0.02)
-                            }
+                        ZStack {
+                            Circle()
+                                .fill(Color.clear)
+                                .frame(
+                                    width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
+                                    height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
+                                )
+                            Circle()
+                                .fill(palette.centerCircle)
+                                .frame(
+                                    width: baseRadius * 2 * ClockConstants.centerButtonVisualRatio,
+                                    height: baseRadius * 2 * ClockConstants.centerButtonVisualRatio
+                                )
+                                .shadow(color: palette.centerCircle.opacity(0.4), radius: baseRadius * 0.02)
                         }
-                        .buttonStyle(.plain)
                         .contentShape(Circle())
                         .frame(
                             width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
                             height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
                         )
-                        .accessibilityLabel("Reset rotation")
-                        .onLongPressGesture(minimumDuration: 0.7) {
-                            Task {
-                                await viewModel.createReminderAtCurrentRotation()
-                            }
-                        }
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.7)
+                                .onEnded { _ in
+                                    Task {
+                                        await viewModel.confirmPreviewReminder()
+                                    }
+                                }
+                        )
+                        .simultaneousGesture(
+                            TapGesture()
+                                .onEnded { _ in
+                                    #if os(iOS)
+                                    HapticFeedback.shared.playImpact(intensity: .medium)
+                                    #endif
+                                    viewModel.resetRotation()
+                                }
+                        )
+                        .accessibilityLabel("Reset rotation or hold to confirm reminder")
                     } else {
                         Circle()
                             .fill(palette.centerCircle)
@@ -134,28 +138,28 @@ struct ClockFaceView: View {
                 }
                 .frame(width: size.width, height: size.height)
                 .clipped()
-                .conditionalGesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            if isDragBlocked { return }
-                            if !viewModel.isDragging {
-                                let startPoint = value.startLocation
-                                if isInDeadZone(point: startPoint, center: centerPoint, baseRadius: baseRadius) {
-                                    isDragBlocked = true
-                                    return
-                                }
-                                viewModel.startDrag(at: value.location, in: geometry)
-                            }
-                            viewModel.updateDrag(at: value.location, in: geometry)
-                        }
-                        .onEnded { _ in
-                            if !isDragBlocked {
-                                viewModel.endDrag()
-                            }
-                            isDragBlocked = false
-                        }
-                , enabled: interactivityEnabled)
             }
+            .conditionalGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if isDragBlocked { return }
+                        if !viewModel.isDragging {
+                            let startPoint = value.startLocation
+                            if isInDeadZone(point: startPoint, center: centerPoint, baseRadius: baseRadius) {
+                                isDragBlocked = true
+                                return
+                            }
+                            viewModel.startDrag(at: value.location, in: geometry)
+                        }
+                        viewModel.updateDrag(at: value.location, in: geometry)
+                    }
+                    .onEnded { _ in
+                        if !isDragBlocked {
+                            viewModel.endDrag()
+                        }
+                        isDragBlocked = false
+                    }
+            , enabled: interactivityEnabled)
         }
         .onAppear {
             syncCitiesToViewModel()

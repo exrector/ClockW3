@@ -54,10 +54,12 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
 
                 VStack(spacing: 16) {
-                    // Слот напоминания (если есть)
+                    // Слот напоминания (реальное или preview)
                     if let reminder = reminderManager.currentReminder {
+                        // Показываем реальное напоминание
                         ReminderRow(
                             reminder: reminder,
+                            isPreview: false,
                             onToggle: {
                                 Task {
                                     await reminderManager.toggleReminder()
@@ -65,6 +67,23 @@ struct SettingsView: View {
                             },
                             onRemove: {
                                 reminderManager.deleteReminder()
+                            },
+                            onConfirm: nil
+                        )
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    } else if let preview = reminderManager.previewReminder {
+                        // Показываем preview напоминание
+                        ReminderRow(
+                            reminder: preview,
+                            isPreview: true,
+                            onToggle: nil,
+                            onRemove: {
+                                reminderManager.clearPreviewReminder()
+                            },
+                            onConfirm: {
+                                Task {
+                                    await reminderManager.confirmPreview()
+                                }
                             }
                         )
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -230,26 +249,44 @@ extension SettingsView {
 
 private struct ReminderRow: View {
     let reminder: ClockReminder
-    let onToggle: () -> Void
+    let isPreview: Bool
+    let onToggle: (() -> Void)?
     let onRemove: () -> Void
+    let onConfirm: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 16) {
             VStack(alignment: .center, spacing: 4) {
-                Text("Reminder")
-                    .font(.headline)
                 Text(reminder.formattedTime)
+                    .font(.headline)
+                Text(reminder.typeDescription)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
 
-            Toggle("", isOn: Binding(
-                get: { reminder.isEnabled },
-                set: { _ in onToggle() }
-            ))
-            .labelsHidden()
-            .frame(width: 50)
+            if isPreview {
+                // Preview режим: показываем кнопку подтверждения
+                if let onConfirm = onConfirm {
+                    Button(action: onConfirm) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.green)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Confirm reminder")
+                }
+            } else {
+                // Обычный режим: показываем toggle
+                if let onToggle = onToggle {
+                    Toggle("", isOn: Binding(
+                        get: { reminder.isEnabled },
+                        set: { _ in onToggle() }
+                    ))
+                    .labelsHidden()
+                    .frame(width: 50)
+                }
+            }
 
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
@@ -257,13 +294,13 @@ private struct ReminderRow: View {
                     .foregroundStyle(.primary)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Remove reminder")
+            .accessibilityLabel(isPreview ? "Cancel reminder" : "Remove reminder")
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color.primary, lineWidth: 1)
+                .strokeBorder(isPreview ? Color.secondary.opacity(0.5) : Color.primary, lineWidth: 1)
         )
         .frame(maxWidth: 360)
     }
