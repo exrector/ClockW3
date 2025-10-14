@@ -34,6 +34,8 @@ struct SettingsView: View {
         SharedUserDefaults.colorSchemeKey,
         store: SharedUserDefaults.shared
     ) private var colorSchemePreference: String = "system"
+    
+    @Environment(\.colorScheme) private var colorScheme
 
     // Напоминание
     @StateObject private var reminderManager = ReminderManager.shared
@@ -54,18 +56,6 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 32) {
-                VStack(spacing: 12) {
-                    Picker("", selection: $colorSchemePreference) {
-                        Text("System").tag("system")
-                        Text("Light").tag("light")
-                        Text("Dark").tag("dark")
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 260)
-                    .accessibilityLabel("Color scheme")
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-
                 VStack(spacing: 16) {
                     // Слот напоминания (реальное или preview)
                     if let reminder = reminderManager.currentReminder {
@@ -151,6 +141,38 @@ struct SettingsView: View {
 #endif
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
+                
+                // Три пузыря для выбора темы внизу
+                HStack(spacing: 16) {
+                    ColorSchemeButton(
+                        title: "System",
+                        systemImage: "circle.lefthalf.filled",
+                        isSelected: colorSchemePreference == "system",
+                        colorScheme: colorScheme
+                    ) {
+                        colorSchemePreference = "system"
+                    }
+                    
+                    ColorSchemeButton(
+                        title: "Light",
+                        systemImage: "sun.max.fill",
+                        isSelected: colorSchemePreference == "light",
+                        colorScheme: colorScheme
+                    ) {
+                        colorSchemePreference = "light"
+                    }
+                    
+                    ColorSchemeButton(
+                        title: "Dark",
+                        systemImage: "moon.fill",
+                        isSelected: colorSchemePreference == "dark",
+                        colorScheme: colorScheme
+                    ) {
+                        colorSchemePreference = "dark"
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 16)
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 36)
@@ -687,6 +709,43 @@ private struct EditReminderView: View {
                 #endif
             }
         }
+    }
+}
+
+// MARK: - Color Scheme Button
+private struct ColorSchemeButton: View {
+    let title: String
+    let systemImage: String
+    let isSelected: Bool
+    let colorScheme: ColorScheme
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(isSelected ? (colorScheme == .light ? Color.black : Color.white) : Color.clear)
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            Circle()
+                                .stroke(colorScheme == .light ? Color.black : Color.white, lineWidth: 2)
+                        )
+                        .shadow(color: isSelected ? (colorScheme == .light ? Color.black.opacity(0.25) : Color.white.opacity(0.25)) : .clear, radius: 4)
+                    
+                    Image(systemName: systemImage)
+                        .font(.title2)
+                        .foregroundColor(isSelected ? (colorScheme == .light ? .white : .black) : (colorScheme == .light ? .black : .white))
+                }
+                
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(colorScheme == .light ? .black : .white)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title) color scheme")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 
