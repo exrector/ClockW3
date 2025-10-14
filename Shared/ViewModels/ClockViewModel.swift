@@ -464,11 +464,11 @@ class ClockViewModel: ObservableObject {
     private func updateMagnetReferenceAngle() {
         var calendar = Calendar.current
         calendar.timeZone = TimeZone.current
-        let components = calendar.dateComponents([.hour, .minute, .second], from: currentTime)
+        let components = calendar.dateComponents([.hour, .minute], from: currentTime)
         let hour = components.hour ?? 0
         let minute = components.minute ?? 0
-        let second = components.second ?? 0
-        let hour24 = Double(hour) + Double(minute) / 60.0 + Double(second) / 3600.0
+        // НЕ учитываем секунды для стабильного магнетизма
+        let hour24 = Double(hour) + Double(minute) / 60.0
         magnetReferenceAngle = ClockConstants.calculateArrowAngle(hour24: hour24)
     }
 
