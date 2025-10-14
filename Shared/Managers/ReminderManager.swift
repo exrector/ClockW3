@@ -161,7 +161,7 @@ class ReminderManager: ObservableObject {
 
     private func scheduleNotification(for reminder: ClockReminder) async {
         let content = UNMutableNotificationContent()
-        content.title = "REMINDER NOW TIME"
+        content.title = "THE M.O.W TIME"
         content.body = "Check the world time \(reminder.formattedTime)"
         content.sound = .default
         content.categoryIdentifier = "CLOCK_REMINDER"
