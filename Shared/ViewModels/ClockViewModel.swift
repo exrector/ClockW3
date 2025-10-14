@@ -154,7 +154,7 @@ class ClockViewModel: ObservableObject {
     func startDrag(at location: CGPoint, in geometry: GeometryProxy) {
         isDragging = true
         isSnapping = false
-        magnetsEnabled = true
+        magnetsEnabled = true  // Включаем магниты обратно
         hasUserInteracted = true  // Пользователь начал взаимодействие
 
         let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
@@ -293,7 +293,9 @@ class ClockViewModel: ObservableObject {
             updateLastRotationDirection(with: dragVelocity)
             rotationAngle += dragVelocity / 60.0
 
-            applyMagnetWhileCoasting()
+            if hasUserInteracted {
+                applyMagnetWhileCoasting()
+            }
 
             // Проверяем пересечение рисок при инерционном вращении
             checkAndPlayTickHaptic(for: rotationAngle)
@@ -387,8 +389,8 @@ class ClockViewModel: ObservableObject {
             duration: ClockConstants.snapDuration
         ) { [weak self] in
             self?.resetHapticState()
-            self?.hasUserInteracted = false  // Сбрасываем после завершения snap
-            self?.dragVelocity = 0  // Убеждаемся что инерция остановлена
+            self?.hasUserInteracted = false
+            self?.dragVelocity = 0
         }
     }
 
@@ -429,6 +431,7 @@ class ClockViewModel: ObservableObject {
 
     private func applyMagnetWhileCoasting() {
         guard magnetsEnabled else { return }
+        guard hasUserInteracted else { return }  // Не применяем если пользователь не крутил
         if applyMagnet(step: ClockConstants.hourTickStepRadians,
                        threshold: ClockConstants.hourMagneticThreshold,
                        lerp: 0.10) {  // Увеличено с 0.06 до 0.10
@@ -490,11 +493,27 @@ class ClockViewModel: ObservableObject {
         let base = angle + magnetReferenceAngle
         let quantizedBase = round(base / step) * step
         var result = quantizedBase - magnetReferenceAngle
-        result = ClockConstants.normalizeAngle(result)
+        
+        // Нормализуем к кратчайшему пути от текущего угла
+        while result - angle > .pi {
+            result -= 2 * .pi
+        }
+        while result - angle < -.pi {
+            result += 2 * .pi
+        }
+        
         return result
     }
 
     private func updateMagnetReferenceAngle() {
+        // НЕ обновляем если пользователь покрутил стрелку
+        if hasUserInteracted {
+            #if DEBUG
+            print("⏸️ MAGNET REF FROZEN: user interacted, rotationAngle=\(rotationAngle)")
+            #endif
+            return
+        }
+        
         var calendar = Calendar.current
         calendar.timeZone = TimeZone.current
         let components = calendar.dateComponents([.hour, .minute], from: currentTime)
