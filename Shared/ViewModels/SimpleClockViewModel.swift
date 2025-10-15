@@ -55,15 +55,7 @@ class SimpleClockViewModel: ObservableObject {
     
     // MARK: - Initialization
     init() {
-        Task { @MainActor in
-            await initializeAsync()
-        }
-    }
-    
-    private func initializeAsync() async {
         startTimeUpdates()
-        
-        try? await Task.sleep(nanoseconds: 100_000_000)
         setupPhysics()
         hapticFeedback.prepare()
     }
@@ -223,8 +215,11 @@ class SimpleClockViewModel: ObservableObject {
         var calendar = Calendar.current
         calendar.timeZone = timeZone
         
-        let hour = calendar.component(.hour, from: offsetTime)
-        let minute = calendar.component(.minute, from: offsetTime)
+        // ВАЖНО: используем currentTime, а не offsetTime!
+        // offsetTime используется только для отображения времени в плитке напоминания
+        // Стрелки вращаются вместе с контейнером через rotationEffect
+        let hour = calendar.component(.hour, from: currentTime)
+        let minute = calendar.component(.minute, from: currentTime)
         
         return ClockConstants.calculateArrowAngle(hour: hour, minute: minute)
     }
@@ -235,6 +230,7 @@ class SimpleClockViewModel: ObservableObject {
         var calendar = Calendar.current
         calendar.timeZone = timeZone
         
-        return calendar.component(.weekday, from: offsetTime)
+        // ВАЖНО: используем currentTime для синхронизации со стрелками
+        return calendar.component(.weekday, from: currentTime)
     }
 }
