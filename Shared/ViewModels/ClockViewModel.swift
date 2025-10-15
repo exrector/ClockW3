@@ -77,7 +77,6 @@ class ClockViewModel: ObservableObject {
             setupDragPhysics()
             hapticFeedback.prepare()
         } catch {
-            print("Initialization error: \(error)")
         }
     }
     
@@ -384,7 +383,6 @@ class ClockViewModel: ObservableObject {
         }
         
         #if DEBUG
-        print("📍 SNAP: current=\(rotationAngle), target=\(nearestTick), delta=\(delta), direction=\(delta > 0 ? "→" : "←")")
         #endif
         
         if abs(delta) < 1e-4 {
@@ -699,7 +697,6 @@ class ClockViewModel: ObservableObject {
             // Запрашиваем разрешение если нужно
             let hasPermission = await ReminderManager.shared.requestPermission()
             guard hasPermission else {
-                print("Notification permission denied")
                 return
             }
 
@@ -719,7 +716,6 @@ class ClockViewModel: ObservableObject {
         // Запрашиваем разрешение если нужно
         let hasPermission = await ReminderManager.shared.requestPermission()
         guard hasPermission else {
-            print("Notification permission denied")
             return
         }
 

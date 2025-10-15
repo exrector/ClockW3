@@ -72,7 +72,6 @@ class ReminderManager: ObservableObject {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
             return granted
         } catch {
-            print("Failed to request notification permission: \(error)")
             return false
         }
     }
@@ -194,12 +193,9 @@ class ReminderManager: ObservableObject {
         do {
             try await UNUserNotificationCenter.current().add(request)
             if reminder.date != nil {
-                print("One-time notification scheduled for \(reminder.formattedTime) on \(reminder.typeDescription)")
             } else {
-                print("Daily notification scheduled for \(reminder.formattedTime)")
             }
         } catch {
-            print("Failed to schedule notification: \(error)")
         }
     }
 }

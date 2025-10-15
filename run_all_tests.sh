@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🧪 Запуск полного набора тестов ClockW3..."
+echo "🧪 Запуск полного набора тестов MOW..."
 
 # Цвета для вывода
 RED='\033[0;31m'
@@ -39,12 +39,12 @@ run_test() {
     fi
 }
 
-echo -e "${BLUE}📋 Полный чек-лист для ClockW3${NC}"
+echo -e "${BLUE}📋 Полный чек-лист для MOW${NC}"
 echo ""
 
 # 1. Компиляция проекта
 echo -e "${YELLOW}🔨 Компиляция проекта...${NC}"
-xcodebuild -project ClockW3.xcodeproj -scheme ClockW3 -configuration Debug build > /dev/null 2>&1
+xcodebuild -project ClockW3.xcodeproj -scheme MOW -configuration Debug build > /dev/null 2>&1
 check_result "Компиляция"
 echo ""
 
@@ -90,7 +90,7 @@ echo ""
 
 # 4. Проверка размера приложения
 echo -e "${YELLOW}📏 Проверка размера приложения...${NC}"
-APP_PATH="$(find ~/Library/Developer/Xcode/DerivedData -name "ClockW3.app" -type d | head -1)"
+APP_PATH="$(find ~/Library/Developer/Xcode/DerivedData -name "MOW.app" -type d | head -1)"
 if [ -n "$APP_PATH" ]; then
     SIZE=$(du -sh "$APP_PATH" | cut -f1)
     echo "Размер приложения: $SIZE"
@@ -144,7 +144,7 @@ echo "════════════════════════�
 
 if [ $passed_tests -eq $total_tests ]; then
     echo -e "${GREEN}🎉 ВСЕ ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО!${NC}"
-    echo -e "${GREEN}🚀 ClockW3 готов к использованию!${NC}"
+    echo -e "${GREEN}🚀 MOW готов к использованию!${NC}"
     exit 0
 else
     echo -e "${RED}💥 НЕКОТОРЫЕ ТЕСТЫ НЕ ПРОЙДЕНЫ${NC}"

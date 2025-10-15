@@ -5,7 +5,6 @@ import Foundation
 struct PerformanceTests {
     
     static func runTests() -> Bool {
-        print("🧪 Тестирование производительности...")
         
         var passed = 0
         var total = 0
@@ -21,9 +20,7 @@ struct PerformanceTests {
         let duration1 = CFAbsoluteTimeGetCurrent() - startTime1
         if duration1 < 0.1 { // Должно выполняться менее чем за 100мс
             passed += 1
-            print("✅ Тест 1: Расчёт углов за \(String(format: "%.3f", duration1))с")
         } else {
-            print("❌ Тест 1: Расчёт углов слишком медленный: \(String(format: "%.3f", duration1))с")
         }
         
         // Тест 2: Производительность нормализации углов
@@ -35,9 +32,7 @@ struct PerformanceTests {
         let duration2 = CFAbsoluteTimeGetCurrent() - startTime2
         if duration2 < 0.05 { // Должно выполняться менее чем за 50мс
             passed += 1
-            print("✅ Тест 2: Нормализация углов за \(String(format: "%.3f", duration2))с")
         } else {
-            print("❌ Тест 2: Нормализация углов слишком медленная: \(String(format: "%.3f", duration2))с")
         }
         
         // Тест 3: Производительность создания дат
@@ -49,12 +44,9 @@ struct PerformanceTests {
         let duration3 = CFAbsoluteTimeGetCurrent() - startTime3
         if duration3 < 0.01 { // Должно выполняться менее чем за 10мс
             passed += 1
-            print("✅ Тест 3: Создание дат за \(String(format: "%.3f", duration3))с")
         } else {
-            print("❌ Тест 3: Создание дат слишком медленное: \(String(format: "%.3f", duration3))с")
         }
         
-        print("📊 Результат: \(passed)/\(total) тестов пройдено")
         return passed == total
     }
     

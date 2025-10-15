@@ -2,10 +2,135 @@ import SwiftUI
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
+import UserNotifications
+#if os(macOS)
+import AppKit
+#endif
+
+// MARK: - Async compatibility helpers for UNUserNotificationCenter
+private extension UNUserNotificationCenter {
+    func notificationSettingsCompat() async -> UNNotificationSettings {
+        #if os(macOS)
+        if #available(macOS 12.0, *) {
+            return await self.notificationSettings()
+        } else {
+            return await withCheckedContinuation { continuation in
+                self.getNotificationSettings { settings in
+                    continuation.resume(returning: settings)
+                }
+            }
+        }
+        #else
+        if #available(iOS 15.0, *) {
+            return await self.notificationSettings()
+        } else {
+            return await withCheckedContinuation { continuation in
+                self.getNotificationSettings { settings in
+                    continuation.resume(returning: settings)
+                }
+            }
+        }
+        #endif
+    }
+
+    func pendingNotificationRequestsCompat() async -> [UNNotificationRequest] {
+        #if os(macOS)
+        if #available(macOS 12.0, *) {
+            return await self.pendingNotificationRequests()
+        } else {
+            return await withCheckedContinuation { continuation in
+                self.getPendingNotificationRequests { requests in
+                    continuation.resume(returning: requests)
+                }
+            }
+        }
+        #else
+        if #available(iOS 15.0, *) {
+            return await self.pendingNotificationRequests()
+        } else {
+            return await withCheckedContinuation { continuation in
+                self.getPendingNotificationRequests { requests in
+                    continuation.resume(returning: requests)
+                }
+            }
+        }
+        #endif
+    }
+}
+
+// MARK: - AppDelegate with Notifications setup
+#if os(macOS)
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        setupNotifications()
+    }
+
+    private func setupNotifications() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+
+        Task { @MainActor in
+            _ = await ReminderManager.shared.requestPermission()
+
+            // Если пользователь только что дал разрешение и у нас уже есть сохранённое напоминание — пересоздадим расписание
+            if let reminder = ReminderManager.shared.currentReminder, reminder.isEnabled {
+                await ReminderManager.shared.setReminder(reminder)
+            }
+        }
+    }
+
+    // Показывать баннер/звук, даже если приложение активно
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        if #available(macOS 11.0, *) {
+            completionHandler([.banner, .list, .sound])
+        } else {
+            completionHandler([.alert, .sound])
+        }
+    }
+}
+#else
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        setupNotifications()
+        return true
+    }
+
+    private func setupNotifications() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+
+        Task { @MainActor in
+            _ = await ReminderManager.shared.requestPermission()
+            if let reminder = ReminderManager.shared.currentReminder, reminder.isEnabled {
+                await ReminderManager.shared.setReminder(reminder)
+            }
+        }
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        if #available(iOS 14.0, *) {
+            completionHandler([.banner, .list, .sound])
+        } else {
+            completionHandler([.alert, .sound])
+        }
+    }
+}
+#endif
 
 // MARK: - SwiftUI Clock App
 @main
 struct SwiftUIClockApp: App {
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #else
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #endif
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -331,7 +456,7 @@ extension SettingsView {
         let content = UNMutableNotificationContent()
         content.title = "Напоминание"
         content.body = "Время \(Date().formatted(date: .omitted, time: .shortened))"
-        content.sound = .default
+        content.sound = UNNotificationSound.default
         
         // Триггер через 5 секунд
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
@@ -339,9 +464,8 @@ extension SettingsView {
         
         do {
             try await UNUserNotificationCenter.current().add(request)
-            print("Тестовое уведомление будет показано через 5 секунд")
         } catch {
-            print("Ошибка тестового уведомления: \(error)")
+            // Error handling for notification
         }
     }
 }
@@ -376,19 +500,15 @@ private struct ReminderRow: View {
 
     var body: some View {
         ZStack {
-            // Центральный текст - строго по центру
-            VStack(alignment: .center, spacing: 4) {
-                Text(reminder.formattedTime)
-                    .font(.headline)
-                    .foregroundColor(isPreview ? .primary : .red)
-                if let subtitle = subtitleText {
-                    Text(subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+            // Фоновая кнопка для редактирования (занимает все пространство)
+            Button {
+                onEdit?()
+            } label: {
+                Color.clear
             }
+            .buttonStyle(.plain)
             
-            // Кнопки поверх
+            // Содержимое
             HStack(spacing: 0) {
                 // Левая кнопка
                 if let onModeChange = onModeChange {
@@ -412,6 +532,21 @@ private struct ReminderRow: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Toggle reminder repeat mode")
                 }
+                
+                Spacer()
+                
+                // Центральный текст (не кликабельный, клики проходят через него к фоновой кнопке)
+                VStack(alignment: .center, spacing: 4) {
+                    Text(reminder.formattedTime)
+                        .font(.headline)
+                        .foregroundColor(isPreview ? .primary : .red)
+                    if let subtitle = subtitleText {
+                        Text(subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .allowsHitTesting(false)
                 
                 Spacer()
                 
@@ -444,10 +579,6 @@ private struct ReminderRow: View {
                 .strokeBorder(Color.primary, lineWidth: 1)
         )
         .frame(maxWidth: 360)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onEdit?()
-        }
         .onChange(of: reminder.isDaily) { _, newValue in
             if newValue != isDailyMode {
                 isDailyMode = newValue
@@ -512,7 +643,19 @@ private struct CityRow: View {
 #if canImport(WidgetKit)
 private extension SettingsView {
     func reloadWidgets() {
-        WidgetCenter.shared.reloadTimelines(ofKind: "ClockW3Widget")
+        // Проверяем что значение действительно записалось в SharedUserDefaults
+        if SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) != nil {
+        } else {
+        }
+        
+        // Принудительно синхронизируем
+        SharedUserDefaults.shared.synchronize()
+        
+        // Перезагружаем виджеты
+        WidgetCenter.shared.reloadAllTimelines()
+        
+        // Также попробуем перезагрузить конкретный kind
+        WidgetCenter.shared.reloadTimelines(ofKind: "MOWWidget")
     }
 }
 #else

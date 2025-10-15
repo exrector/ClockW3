@@ -92,7 +92,7 @@ struct TicksView: View {
                     width: dotDiameter,
                     height: dotDiameter
                 )
-                var path = Path(ellipseIn: rect)
+                let path = Path(ellipseIn: rect)
                 context.fill(path, with: .color(color))
             }
         }

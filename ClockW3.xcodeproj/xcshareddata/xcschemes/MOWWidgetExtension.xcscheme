@@ -17,8 +17,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "AD2AE4312E9C09AC003A9381"
-               BuildableName = "ClockW3WidgetExtension.appex"
-               BlueprintName = "ClockW3WidgetExtension"
+               BuildableName = "MOWWidgetExtension.appex"
+               BlueprintName = "MOWWidgetExtension"
                ReferencedContainer = "container:ClockW3.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -31,8 +31,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "ADD4DAEC2E97D4D700439B5F"
-               BuildableName = "ClockW3.app"
-               BlueprintName = "ClockW3"
+               BuildableName = "MOW.app"
+               BlueprintName = "MOW"
                ReferencedContainer = "container:ClockW3.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -64,8 +64,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "AD2AE4312E9C09AC003A9381"
-            BuildableName = "ClockW3WidgetExtension.appex"
-            BlueprintName = "ClockW3WidgetExtension"
+            BuildableName = "MOWWidgetExtension.appex"
+            BlueprintName = "MOWWidgetExtension"
             ReferencedContainer = "container:ClockW3.xcodeproj">
          </BuildableReference>
       </RemoteRunnable>
@@ -73,8 +73,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "ADD4DAEC2E97D4D700439B5F"
-            BuildableName = "ClockW3.app"
-            BlueprintName = "ClockW3"
+            BuildableName = "MOW.app"
+            BlueprintName = "MOW"
             ReferencedContainer = "container:ClockW3.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -109,8 +109,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "ADD4DAEC2E97D4D700439B5F"
-            BuildableName = "ClockW3.app"
-            BlueprintName = "ClockW3"
+            BuildableName = "MOW.app"
+            BlueprintName = "MOW"
             ReferencedContainer = "container:ClockW3.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

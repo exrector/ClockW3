@@ -5,7 +5,6 @@ import Foundation
 struct IntegrationTests {
     
     static func runTests() -> Bool {
-        print("🧪 Интеграционные тесты...")
         
         var passed = 0
         var total = 0
@@ -15,9 +14,7 @@ struct IntegrationTests {
         let success1 = testFullTimeCalculationCycle()
         if success1 {
             passed += 1
-            print("✅ Тест 1: Полный цикл расчёта времени")
         } else {
-            print("❌ Тест 1: Ошибка в цикле расчёта времени")
         }
         
         // Тест 2: Интеграция с системными настройками
@@ -25,9 +22,7 @@ struct IntegrationTests {
         let success2 = testSystemIntegration()
         if success2 {
             passed += 1
-            print("✅ Тест 2: Интеграция с системой")
         } else {
-            print("❌ Тест 2: Ошибка интеграции с системой")
         }
         
         // Тест 3: Обработка граничных случаев
@@ -35,12 +30,9 @@ struct IntegrationTests {
         let success3 = testEdgeCases()
         if success3 {
             passed += 1
-            print("✅ Тест 3: Граничные случаи")
         } else {
-            print("❌ Тест 3: Ошибка в граничных случаях")
         }
         
-        print("📊 Результат: \(passed)/\(total) тестов пройдено")
         return passed == total
     }
     

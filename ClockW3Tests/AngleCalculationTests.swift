@@ -5,7 +5,6 @@ import Foundation
 struct AngleCalculationTests {
     
     static func runTests() -> Bool {
-        print("🧪 Тестирование расчёта углов...")
         
         var passed = 0
         var total = 0
@@ -15,9 +14,7 @@ struct AngleCalculationTests {
         let angle18 = calculateArrowAngle(hour: 18, minute: 0)
         if abs(angle18 - 0) < 0.001 {
             passed += 1
-            print("✅ Тест 1: 18:00 = 0°")
         } else {
-            print("❌ Тест 1: 18:00 ≠ 0° (получено: \(angle18))")
         }
         
         // Тест 2: 00:00 = -270° = -3π/2
@@ -26,9 +23,7 @@ struct AngleCalculationTests {
         let expected00 = -3 * Double.pi / 2
         if abs(angle00 - expected00) < 0.001 {
             passed += 1
-            print("✅ Тест 2: 00:00 = -3π/2")
         } else {
-            print("❌ Тест 2: 00:00 ≠ -3π/2 (получено: \(angle00))")
         }
         
         // Тест 3: 12:00 = -90° = -π/2
@@ -37,9 +32,7 @@ struct AngleCalculationTests {
         let expected12 = -Double.pi / 2
         if abs(angle12 - expected12) < 0.001 {
             passed += 1
-            print("✅ Тест 3: 12:00 = -π/2")
         } else {
-            print("❌ Тест 3: 12:00 ≠ -π/2 (получено: \(angle12))")
         }
         
         // Тест 4: 06:00 = -180° = -π
@@ -48,12 +41,9 @@ struct AngleCalculationTests {
         let expected06 = -Double.pi
         if abs(angle06 - expected06) < 0.001 {
             passed += 1
-            print("✅ Тест 4: 06:00 = -π")
         } else {
-            print("❌ Тест 4: 06:00 ≠ -π (получено: \(angle06))")
         }
         
-        print("📊 Результат: \(passed)/\(total) тестов пройдено")
         return passed == total
     }
     

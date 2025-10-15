@@ -5,7 +5,6 @@ import Foundation
 struct TimeConversionTests {
     
     static func runTests() -> Bool {
-        print("🧪 Тестирование точности преобразования время ↔ угол...")
         
         var passed = 0
         var total = 0
@@ -15,9 +14,7 @@ struct TimeConversionTests {
         let success1 = testExactHours()
         if success1 {
             passed += 1
-            print("✅ Тест 1: Точность для ровных часов")
         } else {
-            print("❌ Тест 1: Ошибка точности для ровных часов")
         }
         
         // Тест 2: Точность для получасовых значений
@@ -25,9 +22,7 @@ struct TimeConversionTests {
         let success2 = testHalfHours()
         if success2 {
             passed += 1
-            print("✅ Тест 2: Точность для получасовых значений")
         } else {
-            print("❌ Тест 2: Ошибка точности для получасовых значений")
         }
         
         // Тест 3: Точность для четвертьчасовых значений
@@ -35,9 +30,7 @@ struct TimeConversionTests {
         let success3 = testQuarterHours()
         if success3 {
             passed += 1
-            print("✅ Тест 3: Точность для четвертьчасовых значений")
         } else {
-            print("❌ Тест 3: Ошибка точности для четвертьчасовых значений")
         }
         
         // Тест 4: Полный цикл преобразования
@@ -45,12 +38,9 @@ struct TimeConversionTests {
         let success4 = testFullCycle()
         if success4 {
             passed += 1
-            print("✅ Тест 4: Полный цикл преобразования")
         } else {
-            print("❌ Тест 4: Ошибка полного цикла")
         }
         
-        print("📊 Результат: \(passed)/\(total) тестов пройдено")
         return passed == total
     }
     
@@ -67,7 +57,6 @@ struct TimeConversionTests {
             let diff = abs(actualMinutes - expectedMinutes)
             
             if diff > 15 && diff < (24 * 60 - 15) { // Учитываем переход через полночь
-                print("  ❌ Час \(hour): ожидали \(hour):00, получили \(reminder.hour):\(String(format: "%02d", reminder.minute))")
                 return false
             }
         }
@@ -88,7 +77,6 @@ struct TimeConversionTests {
             let diff = abs(actualMinutes - expectedMinutes)
             
             if diff > 15 && diff < (24 * 60 - 15) {
-                print("  ❌ Время \(hour):\(minute): получили \(reminder.hour):\(String(format: "%02d", reminder.minute))")
                 return false
             }
         }
@@ -109,7 +97,6 @@ struct TimeConversionTests {
             let diff = abs(actualMinutes - expectedMinutes)
             
             if diff > 0 && diff < (24 * 60) {
-                print("  ❌ Время \(hour):\(minute): получили \(reminder.hour):\(String(format: "%02d", reminder.minute))")
                 return false
             }
         }
@@ -137,7 +124,6 @@ struct TimeConversionTests {
             // Проверяем точность (для ровных часов должно быть точно)
             if originalMinute == 0 {
                 if reminder.hour != originalHour || reminder.minute != 0 {
-                    print("  ❌ Цикл \(originalHour):00: получили \(reminder.hour):\(String(format: "%02d", reminder.minute))")
                     return false
                 }
             }

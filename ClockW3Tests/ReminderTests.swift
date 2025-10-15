@@ -5,7 +5,6 @@ import Foundation
 struct ReminderTests {
     
     static func runTests() -> Bool {
-        print("🧪 Тестирование системы напоминаний...")
         
         var passed = 0
         var total = 0
@@ -20,9 +19,7 @@ struct ReminderTests {
         )
         if reminder.isEnabled && reminder.isToday {
             passed += 1
-            print("✅ Тест 1: Создание напоминания")
         } else {
-            print("❌ Тест 1: Ошибка создания напоминания")
         }
         
         // Тест 2: Форматирование времени
@@ -35,12 +32,9 @@ struct ReminderTests {
             let formatted = formatter.string(from: testDate)
             if !formatted.isEmpty {
                 passed += 1
-                print("✅ Тест 2: Форматирование времени: \(formatted)")
             } else {
-                print("❌ Тест 2: Ошибка форматирования времени")
             }
         } else {
-            print("❌ Тест 2: Ошибка создания даты")
         }
         
         // Тест 3: Типы напоминаний
@@ -49,9 +43,7 @@ struct ReminderTests {
         let tomorrowReminder = MockReminder(id: UUID(), targetTime: Date(), isEnabled: true, type: .tomorrow)
         if todayReminder.typeDescription != tomorrowReminder.typeDescription {
             passed += 1
-            print("✅ Тест 3: Различные типы напоминаний")
         } else {
-            print("❌ Тест 3: Типы напоминаний не различаются")
         }
         
         // Тест 4: Создание напоминания из угла поворота
@@ -61,12 +53,9 @@ struct ReminderTests {
         let reminderFromAngle = createReminderFromAngle(angle, currentTime: currentTime)
         if reminderFromAngle != nil {
             passed += 1
-            print("✅ Тест 4: Создание напоминания из угла")
         } else {
-            print("❌ Тест 4: Ошибка создания напоминания из угла")
         }
         
-        print("📊 Результат: \(passed)/\(total) тестов пройдено")
         return passed == total
     }
     

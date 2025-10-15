@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		AD2AE4332E9C09AC003A9381 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADDCD5762E9813910032583D /* WidgetKit.framework */; };
 		AD2AE4342E9C09AC003A9381 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADDCD5782E9813910032583D /* SwiftUI.framework */; };
-		AD2AE4412E9C09AD003A9381 /* ClockW3WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AD2AE4322E9C09AC003A9381 /* ClockW3WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AD2AE4412E9C09AD003A9381 /* MOWWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AD2AE4322E9C09AC003A9381 /* MOWWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -20,6 +20,13 @@
 			remoteGlobalIDString = AD2AE4312E9C09AC003A9381;
 			remoteInfo = ClockW3WidgetExtension;
 		};
+		ADDF46E62EA01C3800432593 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = ADD4DAE52E97D4D700439B5F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AD2AE4312E9C09AC003A9381;
+			remoteInfo = MOWWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -29,7 +36,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				AD2AE4412E9C09AD003A9381 /* ClockW3WidgetExtension.appex in Embed Foundation Extensions */,
+				AD2AE4412E9C09AD003A9381 /* MOWWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -37,20 +44,20 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		AD2AE4322E9C09AC003A9381 /* ClockW3WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ClockW3WidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AD2AE4322E9C09AC003A9381 /* MOWWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MOWWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AD2AE4E22E9C1422003A9381 /* ClockW3WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ClockW3WidgetExtension.entitlements; sourceTree = "<group>"; };
-		ADD4DAED2E97D4D700439B5F /* ClockW3.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClockW3.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		ADD4DAED2E97D4D700439B5F /* MOW.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MOW.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ADDCD5762E9813910032583D /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = /System/Library/Frameworks/WidgetKit.framework; sourceTree = "<absolute>"; };
 		ADDCD5782E9813910032583D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = /System/Library/Frameworks/SwiftUI.framework; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		AD2AE4422E9C09AD003A9381 /* Exceptions for "ClockW3Widget" folder in "ClockW3WidgetExtension" target */ = {
+		AD2AE4422E9C09AD003A9381 /* Exceptions for "ClockW3Widget" folder in "MOWWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = AD2AE4312E9C09AC003A9381 /* ClockW3WidgetExtension */;
+			target = AD2AE4312E9C09AC003A9381 /* MOWWidgetExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -58,7 +65,7 @@
 		AD2AE4352E9C09AC003A9381 /* ClockW3Widget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				AD2AE4422E9C09AD003A9381 /* Exceptions for "ClockW3Widget" folder in "ClockW3WidgetExtension" target */,
+				AD2AE4422E9C09AD003A9381 /* Exceptions for "ClockW3Widget" folder in "MOWWidgetExtension" target */,
 			);
 			path = ClockW3Widget;
 			sourceTree = "<group>";
@@ -110,8 +117,8 @@
 		ADD4DAEE2E97D4D700439B5F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				ADD4DAED2E97D4D700439B5F /* ClockW3.app */,
-				AD2AE4322E9C09AC003A9381 /* ClockW3WidgetExtension.appex */,
+				ADD4DAED2E97D4D700439B5F /* MOW.app */,
+				AD2AE4322E9C09AC003A9381 /* MOWWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -128,9 +135,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		AD2AE4312E9C09AC003A9381 /* ClockW3WidgetExtension */ = {
+		AD2AE4312E9C09AC003A9381 /* MOWWidgetExtension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AD2AE4432E9C09AD003A9381 /* Build configuration list for PBXNativeTarget "ClockW3WidgetExtension" */;
+			buildConfigurationList = AD2AE4432E9C09AD003A9381 /* Build configuration list for PBXNativeTarget "MOWWidgetExtension" */;
 			buildPhases = (
 				AD2AE42E2E9C09AC003A9381 /* Sources */,
 				AD2AE42F2E9C09AC003A9381 /* Frameworks */,
@@ -144,16 +151,16 @@
 				AD2AE4352E9C09AC003A9381 /* ClockW3Widget */,
 				AD2AE4E32E9C1500003A9381 /* Shared */,
 			);
-			name = ClockW3WidgetExtension;
+			name = MOWWidgetExtension;
 			packageProductDependencies = (
 			);
 			productName = ClockW3WidgetExtension;
-			productReference = AD2AE4322E9C09AC003A9381 /* ClockW3WidgetExtension.appex */;
+			productReference = AD2AE4322E9C09AC003A9381 /* MOWWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		ADD4DAEC2E97D4D700439B5F /* ClockW3 */ = {
+		ADD4DAEC2E97D4D700439B5F /* MOW */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = ADD4DAF82E97D4D800439B5F /* Build configuration list for PBXNativeTarget "ClockW3" */;
+			buildConfigurationList = ADD4DAF82E97D4D800439B5F /* Build configuration list for PBXNativeTarget "MOW" */;
 			buildPhases = (
 				ADD4DAE92E97D4D700439B5F /* Sources */,
 				ADD4DAEA2E97D4D700439B5F /* Frameworks */,
@@ -164,16 +171,17 @@
 			);
 			dependencies = (
 				AD2AE4402E9C09AD003A9381 /* PBXTargetDependency */,
+				ADDF46E72EA01C3800432593 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				AD2AE4E32E9C1500003A9381 /* Shared */,
 				ADD4DAEF2E97D4D700439B5F /* ClockW3 */,
 			);
-			name = ClockW3;
+			name = MOW;
 			packageProductDependencies = (
 			);
 			productName = ClockW3;
-			productReference = ADD4DAED2E97D4D700439B5F /* ClockW3.app */;
+			productReference = ADD4DAED2E97D4D700439B5F /* MOW.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -208,8 +216,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				ADD4DAEC2E97D4D700439B5F /* ClockW3 */,
-				AD2AE4312E9C09AC003A9381 /* ClockW3WidgetExtension */,
+				ADD4DAEC2E97D4D700439B5F /* MOW */,
+				AD2AE4312E9C09AC003A9381 /* MOWWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -251,8 +259,13 @@
 /* Begin PBXTargetDependency section */
 		AD2AE4402E9C09AD003A9381 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = AD2AE4312E9C09AC003A9381 /* ClockW3WidgetExtension */;
+			target = AD2AE4312E9C09AC003A9381 /* MOWWidgetExtension */;
 			targetProxy = AD2AE43F2E9C09AD003A9381 /* PBXContainerItemProxy */;
+		};
+		ADDF46E72EA01C3800432593 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AD2AE4312E9C09AC003A9381 /* MOWWidgetExtension */;
+			targetProxy = ADDF46E62EA01C3800432593 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -263,11 +276,22 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = ClockW3WidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K3Q8WG53V3;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClockW3Widget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ClockW3Widget;
@@ -287,6 +311,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Exrector.ClockW3.ClockW3Widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
@@ -307,11 +332,22 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = ClockW3WidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K3Q8WG53V3;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClockW3Widget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ClockW3Widget;
@@ -331,6 +367,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Exrector.ClockW3.ClockW3Widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
@@ -466,15 +503,24 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				AUTOMATION_APPLE_EVENTS = NO;
 				CODE_SIGN_ENTITLEMENTS = ClockW3/ClockW3.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K3Q8WG53V3;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -483,8 +529,7 @@
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
@@ -492,7 +537,14 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Exrector.ClockW3;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
@@ -511,15 +563,24 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				AUTOMATION_APPLE_EVENTS = NO;
 				CODE_SIGN_ENTITLEMENTS = ClockW3/ClockW3.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K3Q8WG53V3;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -528,8 +589,7 @@
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
@@ -537,7 +597,14 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Exrector.ClockW3;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
@@ -554,7 +621,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		AD2AE4432E9C09AD003A9381 /* Build configuration list for PBXNativeTarget "ClockW3WidgetExtension" */ = {
+		AD2AE4432E9C09AD003A9381 /* Build configuration list for PBXNativeTarget "MOWWidgetExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AD2AE4442E9C09AD003A9381 /* Debug */,
@@ -572,7 +639,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		ADD4DAF82E97D4D800439B5F /* Build configuration list for PBXNativeTarget "ClockW3" */ = {
+		ADD4DAF82E97D4D800439B5F /* Build configuration list for PBXNativeTarget "MOW" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				ADD4DAF92E97D4D800439B5F /* Debug */,
