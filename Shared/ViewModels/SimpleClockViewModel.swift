@@ -30,7 +30,12 @@ class SimpleClockViewModel: ObservableObject {
     // Вычисляемый угол для View
     // tickIndex → угол вращения циферблата (стрелки НЕПОДВИЖНЫ)
     var rotationAngle: Double {
-        Double(tickIndex) * ClockConstants.degreesPerTick * .pi / 180.0
+        let step = ClockConstants.degreesPerTick * .pi / 180.0
+        if isInTimerMode {
+            return Double(tickIndex) * step
+        } else {
+            return Double(tickIndex + phaseOffsetTicks) * step
+        }
     }
     
     // Время для вычисления стрелок
@@ -39,10 +44,17 @@ class SimpleClockViewModel: ObservableObject {
             // РЕЖИМ 1: точное время (игнорируем tickIndex)
             return currentTime
         } else {
-            // РЕЖИМ 2: frozenTime + tickIndex смещение
-            let base = frozenTime ?? currentTime
-            let offset = Double(tickIndex * minutesPerTick * 60)
-            return base.addingTimeInterval(offset)
+            // РЕЖИМ 2: стрелки крутятся контейнером; время для расчёта стрелок фиксируем в момент входа
+            return frozenTime ?? currentTime
+    // Фазовый сдвиг для выравнивания центра точки со средней осью тика
+    private var phaseOffsetTicks: Int {
+        // Учитываем диаметр точки и толщину тика: центр точки должен лежать на оси тика
+        // Геометрически ось не меняется, но визуальный центр смещается из‑за толщин.
+        // Переведем субпиксельный сдвиг в доли тика и округлим к ближайшему 0.
+        // Пока 0; при необходимости калибруем пользователем.
+        return 0
+    }
+
         }
     }
     
@@ -59,6 +71,8 @@ class SimpleClockViewModel: ObservableObject {
     private var dragStartAngle: Double = 0
     private var lastDragAngle: Double = 0
     private var lastDragTime: Double = 0
+    private var prevDragAngle: Double = 0
+    private var prevDragTime: Double = 0
     
     // Инерция (тики в секунду!)
     private var inertiaVelocity: Double = 0
@@ -113,19 +127,28 @@ class SimpleClockViewModel: ObservableObject {
         let elapsed = now - inertiaStartTime
         
         // Затухание
-        let damping = 0.95
-        let currentVelocity = inertiaVelocity * pow(damping, elapsed * 60.0)
+        let damping = 0.92  // Коэффициент затухания per second
+        let decayFactor = pow(damping, elapsed)
+        let currentVelocity = inertiaVelocity * decayFactor
         
         if abs(currentVelocity) > snapVelocityThreshold {
-            // Обновляем индекс от времени
-            let ticksChange = inertiaVelocity * elapsed * (1.0 - pow(damping, elapsed * 60.0)) / (1.0 - damping)
-            tickIndex = inertiaStartIndex + Int(round(ticksChange))
+            // Обновляем индекс от времени (интегрируем скорость)
+            // S = V0 * (1 - e^(-k*t)) / k, где k = -ln(damping)
+            let k = -log(damping)
+            let displacement = inertiaVelocity * (1.0 - decayFactor) / k
             
-            // Хаптика
-            if tickIndex != lastHapticTickIndex {
-                let type = HapticFeedback.tickType(for: tickIndex)
-                hapticFeedback.playTickCrossing(tickType: type, tickIndex: tickIndex)
-                lastHapticTickIndex = tickIndex
+            let newIndex = inertiaStartIndex + Int(round(displacement))
+            
+            // Обновляем tickIndex
+            if newIndex != tickIndex {
+                tickIndex = newIndex
+                
+                // Хаптика
+                if tickIndex != lastHapticTickIndex {
+                    let type = HapticFeedback.tickType(for: tickIndex)
+                    hapticFeedback.playTickCrossing(tickType: type, tickIndex: tickIndex)
+                    lastHapticTickIndex = tickIndex
+                }
             }
         } else {
             inertiaVelocity = 0
@@ -148,6 +171,8 @@ class SimpleClockViewModel: ObservableObject {
         dragStartAngle = atan2(location.y - center.y, location.x - center.x)
         lastDragAngle = dragStartAngle
         lastDragTime = CACurrentMediaTime()
+        prevDragAngle = lastDragAngle
+        prevDragTime = lastDragTime
         
         inertiaVelocity = 0
         hapticFeedback.prepare()
@@ -169,6 +194,13 @@ class SimpleClockViewModel: ObservableObject {
         let ticksDelta = Int(round(rotation * Double(totalTicks)))
         
         tickIndex = dragStartTickIndex + ticksDelta
+
+        // обновляем для расчёта скорости
+        let now = CACurrentMediaTime()
+        prevDragAngle = lastDragAngle
+        prevDragTime = lastDragTime
+        lastDragAngle = currentAngle
+        lastDragTime = now
         
         // Хаптика
         if tickIndex != lastHapticTickIndex {
@@ -185,10 +217,10 @@ class SimpleClockViewModel: ObservableObject {
         
         // Вычисляем скорость (тиков в секунду)
         let now = CACurrentMediaTime()
-        let dt = now - lastDragTime
+        let dt = now - prevDragTime
         
-        if dt > 0 && dt < 0.1 {  // Только если быстрый жест
-            let angleDelta = lastDragAngle - dragStartAngle
+        if dt > 0 {  // скорость по последнему участку, устойчивей к длинным жестам
+            let angleDelta = lastDragAngle - prevDragAngle
             let normalizedDelta = atan2(sin(angleDelta), cos(angleDelta))
             let rotation = normalizedDelta / (2.0 * .pi)
             let ticksDelta = rotation * Double(totalTicks)

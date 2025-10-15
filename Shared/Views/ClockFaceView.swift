@@ -61,7 +61,7 @@ struct ClockFaceView: View {
                     CityLabelRingsView(
                         size: size,
                         cities: viewModel.cities,
-                        currentTime: currentTime,
+                        currentTime: viewModel.timeForArrows,
                         palette: palette
                     )
                     .rotationEffect(.radians(viewModel.rotationAngle))
@@ -74,7 +74,7 @@ struct ClockFaceView: View {
                     CityArrowsView(
                         size: size,
                         cities: viewModel.cities,
-                        currentTime: currentTime,
+                        currentTime: viewModel.timeForArrows,
                         palette: palette,
                         containerRotation: viewModel.rotationAngle
                     )

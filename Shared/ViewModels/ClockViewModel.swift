@@ -367,7 +367,12 @@ class ClockViewModel: ObservableObject {
         let hour24 = Double(hour) + Double(minute) / 60.0
         magnetReferenceAngle = ClockConstants.calculateArrowAngle(hour24: hour24)
 
-        let nearestTick = quantizedRotation(angle: rotationAngle, step: ClockConstants.quarterTickStepRadians)
+        // Используем TickTimeMapper для точного вычисления угла ближайшего тика
+        let absoluteAngle = rotationAngle + magnetReferenceAngle
+        let tickIndex = TickTimeMapper.tickIndex(for: absoluteAngle)
+        let exactTickAngle = TickTimeMapper.angle(for: tickIndex)
+        let nearestTick = exactTickAngle - magnetReferenceAngle
+        
         var delta = nearestTick - rotationAngle
         
         // Нормализуем delta к кратчайшему пути

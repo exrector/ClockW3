@@ -77,7 +77,8 @@ struct TicksView: View {
                 }
                 
                 let outerRadius = baseRadius * ClockConstants.tickOuterRadius
-                let angle = Double(i - 72) * ClockConstants.degreesPerTick * .pi / 180
+                // Тик 0 = 0° (справа, 18:00), тик 72 = 270° (вверху, 12:00)
+                let angle = Double(i) * ClockConstants.degreesPerTick * .pi / 180
                 
                 let startPoint = AngleCalculations.pointOnCircle(
                     center: center,
