@@ -345,6 +345,16 @@ class ClockViewModel: ObservableObject {
         if abs(rotationAngle) < ClockConstants.quarterTickStepRadians / 2 {
             return
         }
+        
+        // ВАЖНО: обновляем magnetReferenceAngle ПЕРЕД расчетом тика
+        // иначе будет сдвиг если минута изменилась во время вращения
+        var calendar = Calendar.current
+        calendar.timeZone = TimeZone.current
+        let components = calendar.dateComponents([.hour, .minute], from: currentTime)
+        let hour = components.hour ?? 0
+        let minute = components.minute ?? 0
+        let hour24 = Double(hour) + Double(minute) / 60.0
+        magnetReferenceAngle = ClockConstants.calculateArrowAngle(hour24: hour24)
 
         let nearestTick = quantizedRotation(angle: rotationAngle, step: ClockConstants.quarterTickStepRadians)
         var delta = nearestTick - rotationAngle
