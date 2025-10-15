@@ -40,7 +40,7 @@ class ClockViewModel: ObservableObject {
     private var lastDragTime: Date = Date()
     private var dragSamples: [DragSample] = []
     private let maxDragSamples = 6
-    private let snapVelocityThreshold: Double = 0.05  // Увеличено с 0.03 для более ранней остановки
+    private let snapVelocityThreshold: Double = 0.05
     private var lastRotationDirection: Double = 0
     private let zeroSnapThreshold: Double = 10.0 * .pi / 180.0
     private let directionEpsilon: Double = 1e-4
@@ -48,6 +48,11 @@ class ClockViewModel: ObservableObject {
     private var rotationAnimation: RotationAnimation?
     private var magnetReferenceAngle: Double = 0
     private var magnetsEnabled: Bool = true
+    
+    // Инерция от времени (правильный подход Apple)
+    private var inertiaStartTime: Double = 0
+    private var inertiaStartAngle: Double = 0
+    private var inertiaVelocity: Double = 0
 
     // Haptic feedback
     private let hapticFeedback = HapticFeedback.shared
@@ -209,19 +214,24 @@ class ClockViewModel: ObservableObject {
     func endDrag() {
         isDragging = false
 
-        // Применяем инерцию и снэп к ближайшему тику
-        let inferredVelocity = velocityFromSamples()
-        dragVelocity = inferredVelocity
-        dragSamples.removeAll()
-        if abs(inferredVelocity) > directionEpsilon {
-            updateLastRotationDirection(with: inferredVelocity)
+        // Запускаем инерцию от времени (Apple подход)
+        let velocity = velocityFromSamples()
+        if abs(velocity) > snapVelocityThreshold {
+            inertiaStartTime = CACurrentMediaTime()
+            inertiaStartAngle = rotationAngle
+            inertiaVelocity = velocity
+        } else {
+            inertiaVelocity = 0
         }
-        applyInertiaAndSnap()
+        
+        dragVelocity = 0  // Больше не используем накопление
+        dragSamples.removeAll()
+        
+        if abs(velocity) > directionEpsilon {
+            updateLastRotationDirection(with: velocity)
+        }
 
-        // Обновляем preview после окончания драга
         updatePreviewReminder()
-
-        // НЕ сбрасываем lastHapticTickIndex здесь, чтобы хаптика работала при инерции
     }
     
     // MARK: - Physics Simulation
@@ -260,10 +270,7 @@ class ClockViewModel: ObservableObject {
             if abs(interpolated - rotationAngle) > 1e-9 {
                 rotationAngle = interpolated
 
-                // Проверяем пересечение рисок во время анимации
                 checkAndPlayTickHaptic(for: rotationAngle)
-
-                // Обновляем preview во время анимации
                 updatePreviewReminder()
             }
 
@@ -271,6 +278,7 @@ class ClockViewModel: ObservableObject {
                 rotationAnimation = nil
                 isSnapping = false
                 dragVelocity = 0
+                inertiaVelocity = 0
                 updateLastRotationDirection(with: animation.direction)
                 animation.completion?()
             }
@@ -279,29 +287,32 @@ class ClockViewModel: ObservableObject {
 
         guard !isSnapping else { return }
 
-        dragVelocity *= 0.985
+        // Инерция от времени (правильный подход Apple)
+        if abs(inertiaVelocity) > snapVelocityThreshold {
+            let now = CACurrentMediaTime()
+            let elapsed = now - inertiaStartTime
+            
+            // Расчет угла от времени с затуханием
+            let damping = 0.985
+            let currentVelocity = inertiaVelocity * pow(damping, elapsed * 60.0)
+            
+            if abs(currentVelocity) > snapVelocityThreshold {
+                updateLastRotationDirection(with: currentVelocity)
+                
+                // Угол = начальный + интеграл скорости с затуханием
+                let angleChange = inertiaVelocity * (1.0 - pow(damping, elapsed * 60.0)) / (1.0 - damping) / 60.0
+                rotationAngle = inertiaStartAngle + angleChange
 
-        if abs(dragVelocity) > snapVelocityThreshold {
-            updateLastRotationDirection(with: dragVelocity)
-            rotationAngle += dragVelocity / 60.0
-
-            // Магниты во время инерции ОТКЛЮЧЕНЫ - они вызывают микро-откат
-            // if hasUserInteracted {
-            //     applyMagnetWhileCoasting()
-            // }
-
-            // Проверяем пересечение рисок при инерционном вращении
-            checkAndPlayTickHaptic(for: rotationAngle)
-
-            // Обновляем preview при инерции
-            updatePreviewReminder()
-
-            return
+                checkAndPlayTickHaptic(for: rotationAngle)
+                updatePreviewReminder()
+                return
+            } else {
+                inertiaVelocity = 0
+            }
         }
 
-        dragVelocity = 0
-
-        if !isSnapping && hasUserInteracted {
+        // Snap к ближайшему тику
+        if !isSnapping {
             snapToNearestTick()
         }
     }
@@ -386,9 +397,10 @@ class ClockViewModel: ObservableObject {
         
         // Останавливаем инерцию перед snap
         dragVelocity = 0
+        inertiaVelocity = 0
         
-        // Нормализуем угол для предотвращения накопления ошибки
-        let normalizedTick = nearestTick.truncatingRemainder(dividingBy: 2 * .pi)
+        // Нормализация через atan2 (правильный подход Apple)
+        let normalizedTick = atan2(sin(nearestTick), cos(nearestTick))
         setRotationNoAnimation(normalizedTick)
         hasUserInteracted = false
         resetHapticState()
