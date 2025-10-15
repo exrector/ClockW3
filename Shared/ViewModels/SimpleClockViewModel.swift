@@ -23,8 +23,8 @@ class SimpleClockViewModel: ObservableObject {
     @Published var tickIndex: Int = 0
     @Published var isDragging = false
     
-    // Вычисляемый угол для View (обратная совместимость)
-    // ВАЖНО: Смещение -72 для совпадения с рисованием тиков (строка 80 в StaticBackgroundView.swift)
+    // Вычисляемый угол для View
+    // tickIndex → угол вращения циферблата (стрелки НЕПОДВИЖНЫ)
     var rotationAngle: Double {
         Double(tickIndex) * ClockConstants.degreesPerTick * .pi / 180.0
     }
