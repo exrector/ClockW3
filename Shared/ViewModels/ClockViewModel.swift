@@ -377,8 +377,9 @@ class ClockViewModel: ObservableObject {
         // Останавливаем инерцию перед snap
         dragVelocity = 0
         
-        // Мгновенный snap - анимация вызывает микро-откат
-        setRotationNoAnimation(nearestTick)
+        // Нормализуем угол для предотвращения накопления ошибки
+        let normalizedTick = nearestTick.truncatingRemainder(dividingBy: 2 * .pi)
+        setRotationNoAnimation(normalizedTick)
         hasUserInteracted = false
         resetHapticState()
     }
