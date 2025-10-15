@@ -24,8 +24,9 @@ class SimpleClockViewModel: ObservableObject {
     @Published var isDragging = false
     
     // Вычисляемый угол для View (обратная совместимость)
+    // ВАЖНО: Смещение -72 для совпадения с рисованием тиков (строка 80 в StaticBackgroundView.swift)
     var rotationAngle: Double {
-        Double(tickIndex) * (2.0 * .pi / 96.0)
+        Double(tickIndex) * ClockConstants.degreesPerTick * .pi / 180.0
     }
     
     private let totalTicks = 96  // 24 часа × 4 = 96 тиков по 15 мин
