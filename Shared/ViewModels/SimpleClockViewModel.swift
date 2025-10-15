@@ -16,37 +16,29 @@ class SimpleClockViewModel: ObservableObject {
     // ============================================
     // АРХИТЕКТУРА: ИНДЕКСЫ ВМЕСТО УГЛОВ
     // ============================================
-    // tickIndex = 0 → текущее время
-    // tickIndex = 4 → +1 час (4 × 15 мин)
-    // tickIndex = -4 → -1 час
-    
     @Published var tickIndex: Int = 0
     @Published var isDragging = false
     
     // РЕЖИМ 1 vs РЕЖИМ 2
-    @Published private(set) var isInTimerMode = true  // true = Режим 1 (точное время), false = Режим 2 (драг)
-    private var frozenTime: Date?  // Зафиксированное время при входе в Режим 2
+    @Published private(set) var isInTimerMode = true  // true = Режим 1, false = Режим 2
+    private var frozenTime: Date?  // Зафиксированное (округлённое) время при входе в Режим 2
     
-    // Вычисляемый угол для View
-    // tickIndex → угол вращения циферблата (стрелки НЕПОДВИЖНЫ)
+    // Вычисляемый угол для View (контейнер)
     var rotationAngle: Double {
         let step = ClockConstants.degreesPerTick * .pi / 180.0
-        return Double(tickIndex) * step
+        return -Double(tickIndex) * step
     }
     
     // Время для вычисления стрелок
     var timeForArrows: Date {
         if isInTimerMode {
-            // РЕЖИМ 1: точное время (игнорируем tickIndex)
             return currentTime
         } else {
-            // РЕЖИМ 2: стрелки крутятся контейнером; время для расчёта стрелок фиксируем в момент входа
             return frozenTime ?? currentTime
-
         }
     }
     
-    private let totalTicks = 96  // 24 часа × 4 = 96 тиков по 15 мин
+    private let totalTicks = 96
     private let minutesPerTick = 15
     
     // MARK: - Private Properties
@@ -61,8 +53,9 @@ class SimpleClockViewModel: ObservableObject {
     private var lastDragTime: Double = 0
     private var prevDragAngle: Double = 0
     private var prevDragTime: Double = 0
+    private var cumulativeDragAngle: Double = 0
     
-    // Инерция (тики в секунду!)
+    // Инерция (тики в секунду)
     private var inertiaVelocity: Double = 0
     private var inertiaStartTime: Double = 0
     private var inertiaStartIndex: Int = 0
@@ -115,28 +108,27 @@ class SimpleClockViewModel: ObservableObject {
         let elapsed = now - inertiaStartTime
         
         // Затухание
-        let damping = 0.92  // Коэффициент затухания per second
+        let damping = 0.92
         let decayFactor = pow(damping, elapsed)
         let currentVelocity = inertiaVelocity * decayFactor
         
         if abs(currentVelocity) > snapVelocityThreshold {
-            // Обновляем индекс от времени (интегрируем скорость)
-            // S = V0 * (1 - e^(-k*t)) / k, где k = -ln(damping)
+            // S = V0 * (1 - e^(-k*t)) / k, k = -ln(damping)
             let k = -log(damping)
             let displacement = inertiaVelocity * (1.0 - decayFactor) / k
             
             let newIndex = inertiaStartIndex + Int(round(displacement))
             
-            // Обновляем tickIndex
             if newIndex != tickIndex {
                 tickIndex = newIndex
                 
-                // Хаптика
                 if tickIndex != lastHapticTickIndex {
                     let type = HapticFeedback.tickType(for: tickIndex)
                     hapticFeedback.playTickCrossing(tickType: type, tickIndex: tickIndex)
                     lastHapticTickIndex = tickIndex
                 }
+                // При инерции также обновляем превью
+                updatePreviewReminder()
             }
         } else {
             inertiaVelocity = 0
@@ -145,11 +137,11 @@ class SimpleClockViewModel: ObservableObject {
     
     // MARK: - Drag Handling (ПРОСТАЯ!)
     func startDrag(at location: CGPoint, in geometry: GeometryProxy) {
-        // ПЕРЕХОД В РЕЖИМ 2: свободное вращение
+        // Переход в Режим 2: фиксируем время, ОКРУГЛЁННОЕ к ближайшей четверти часа
         if isInTimerMode {
             isInTimerMode = false
-            frozenTime = currentTime  // Фиксируем текущее время
-            tickIndex = 0  // Сбрасываем смещение
+            frozenTime = roundToNearestQuarterHour(currentTime)
+            tickIndex = 0
         }
         
         isDragging = true
@@ -162,9 +154,14 @@ class SimpleClockViewModel: ObservableObject {
         prevDragAngle = lastDragAngle
         prevDragTime = lastDragTime
         
+        cumulativeDragAngle = 0
+        
         inertiaVelocity = 0
         hapticFeedback.prepare()
         lastHapticTickIndex = tickIndex
+        
+        // Начинаем показывать превью времени сразу при входе в режим 2
+        updatePreviewReminder()
     }
     
     func updateDrag(at location: CGPoint, in geometry: GeometryProxy) {
@@ -173,45 +170,41 @@ class SimpleClockViewModel: ObservableObject {
         let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
         let currentAngle = atan2(location.y - center.y, location.x - center.x)
 
-        // Разница углов
-        var angleDelta = currentAngle - dragStartAngle
-        angleDelta = atan2(sin(angleDelta), cos(angleDelta))  // Apple нормализация
+        let smallDelta = atan2(sin(currentAngle - lastDragAngle), cos(currentAngle - lastDragAngle))
+        cumulativeDragAngle += smallDelta
 
-        // Конвертируем в индекс
-        let rotation = angleDelta / (2.0 * .pi)
-        let ticksDelta = Int(round(rotation * Double(totalTicks)))
+        let rotationTurns = cumulativeDragAngle / (2.0 * .pi)
+        let ticksDelta = Int(round(-rotationTurns * Double(totalTicks)))
         
         tickIndex = dragStartTickIndex + ticksDelta
 
-        // обновляем для расчёта скорости
         let now = CACurrentMediaTime()
         prevDragAngle = lastDragAngle
         prevDragTime = lastDragTime
         lastDragAngle = currentAngle
         lastDragTime = now
         
-        // Хаптика
         if tickIndex != lastHapticTickIndex {
             let type = HapticFeedback.tickType(for: tickIndex)
             hapticFeedback.playTickCrossing(tickType: type, tickIndex: tickIndex)
             lastHapticTickIndex = tickIndex
         }
         
-        lastDragAngle = currentAngle
+        // Обновляем превью во время драга
+        updatePreviewReminder()
     }
     
     func endDrag() {
         isDragging = false
         
-        // Вычисляем скорость (тиков в секунду)
         let now = CACurrentMediaTime()
         let dt = now - prevDragTime
         
-        if dt > 0 {  // скорость по последнему участку, устойчивей к длинным жестам
+        if dt > 0 {
             let angleDelta = lastDragAngle - prevDragAngle
             let normalizedDelta = atan2(sin(angleDelta), cos(angleDelta))
             let rotation = normalizedDelta / (2.0 * .pi)
-            let ticksDelta = rotation * Double(totalTicks)
+            let ticksDelta = -rotation * Double(totalTicks)
             inertiaVelocity = ticksDelta / dt
             
             if abs(inertiaVelocity) > snapVelocityThreshold {
@@ -223,15 +216,19 @@ class SimpleClockViewModel: ObservableObject {
         } else {
             inertiaVelocity = 0
         }
+        
+        // Финализируем превью после завершения драга
+        updatePreviewReminder()
     }
     
     // MARK: - Tap Center Button
     func resetRotation() {
-        // ВОЗВРАТ В РЕЖИМ 1: точное время
         tickIndex = 0
         inertiaVelocity = 0
         isInTimerMode = true
         frozenTime = nil
+        // Выходим из режима 2 — очищаем превью
+        ReminderManager.shared.clearPreviewReminder()
     }
     
     // Для совместимости с напоминаниями
@@ -239,7 +236,7 @@ class SimpleClockViewModel: ObservableObject {
         await ReminderManager.shared.confirmPreview()
     }
     
-    // Physics control (заглушки для совместимости)
+    // Physics control
     func suspendPhysics() {
         physicsTimer?.invalidate()
         physicsTimer = nil
@@ -251,7 +248,6 @@ class SimpleClockViewModel: ObservableObject {
     }
     
     // MARK: - Computed Properties
-    // Для совместимости с напоминаниями (используем timeForArrows)
     var offsetTime: Date {
         timeForArrows
     }
@@ -262,7 +258,6 @@ class SimpleClockViewModel: ObservableObject {
         var calendar = Calendar.current
         calendar.timeZone = timeZone
         
-        // Используем timeForArrows - автоматически учитывает режим
         let hour = calendar.component(.hour, from: timeForArrows)
         let minute = calendar.component(.minute, from: timeForArrows)
         
@@ -276,5 +271,66 @@ class SimpleClockViewModel: ObservableObject {
         calendar.timeZone = timeZone
         
         return calendar.component(.weekday, from: timeForArrows)
+    }
+    
+    // MARK: - Helpers
+    private func roundToNearestQuarterHour(_ date: Date) -> Date {
+        var calendar = Calendar.current
+        calendar.timeZone = TimeZone.current
+        
+        var comps = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let minute = comps.minute ?? 0
+        let rounded = Int((Double(minute) / 15.0).rounded()) * 15
+        
+        // Перенос часа вперёд, если было 53..59 → 60
+        var carryHour = 0
+        var finalMinute = rounded
+        if rounded == 60 {
+            finalMinute = 0
+            carryHour = 1
+        }
+        
+        comps.minute = finalMinute
+        comps.second = 0
+        
+        var roundedDate = calendar.date(from: comps) ?? date
+        if carryHour == 1 {
+            roundedDate = calendar.date(byAdding: .hour, value: 1, to: roundedDate) ?? roundedDate
+        }
+        return roundedDate
+    }
+    
+    // MARK: - Preview Binding (Режим 2 → превью напоминания)
+    
+    // Выбранное время в режиме 2: frozenTime сдвигаем в ТОМ ЖЕ направлении, что визуальное вращение.
+    // Контейнер крутится так: rotationAngle = -tickIndex * step, поэтому для времени нужен обратный знак.
+    private var selectedTimeForPreview: Date? {
+        guard !isInTimerMode, let base = frozenTime else { return nil }
+        return Calendar.current.date(byAdding: .minute, value: -tickIndex * minutesPerTick, to: base)
+    }
+    
+    // Обновляем ReminderManager.previewReminder для отображения в Settings/Preview
+    private func updatePreviewReminder() {
+        // Показываем превью только если нет сохранённого напоминания
+        if ReminderManager.shared.currentReminder != nil {
+            ReminderManager.shared.clearPreviewReminder()
+            return
+        }
+        
+        // В режиме 1 превью очищаем
+        guard let date = selectedTimeForPreview else {
+            ReminderManager.shared.clearPreviewReminder()
+            return
+        }
+        
+        var calendar = Calendar.current
+        calendar.timeZone = .current
+        let hour = calendar.component(.hour, from: date)
+        let minute = calendar.component(.minute, from: date)
+        
+        // Формируем one-time превью с ближайшей датой
+        let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: currentTime)
+        let reminder = ClockReminder(hour: hour, minute: minute, date: nextDate, isEnabled: true)
+        ReminderManager.shared.setPreviewReminder(reminder)
     }
 }

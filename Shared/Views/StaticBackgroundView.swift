@@ -54,7 +54,7 @@ struct TicksView: View {
     
     var body: some View {
         Canvas { context, size in
-            // ticdods: заменили линии тиков на точки
+            // ticdods: точки тиков
             for i in 0..<ClockConstants.tickCount {
                 let isHourTick = (i % ClockConstants.hourTickSpacing == 0)
                 let isHalfHourTick = (i % ClockConstants.halfHourTickSpacing == 0) && !isHourTick
@@ -73,10 +73,12 @@ struct TicksView: View {
                     color = minorTicksColor
                 }
                 
-                let outerRadius = baseRadius * ClockConstants.tickOuterRadius
-                // Центр точки сдвигаем внутрь на половину диаметра, чтобы край совпадал с прежним внешним концом тика
-                let dotCenterRadius = outerRadius - dotDiameter / 2.0
-                let angle = Double(i) * ClockConstants.degreesPerTick * .pi / 180
+                // Все точки тиков и точка стрелки лежат на одном радиусе
+                let dotCenterRadius = baseRadius * ClockConstants.cityMarkerRadius
+                
+                // ВАЖНО: 18:00 = 0° (вправо). Тики идут равномерно без referenceHour.
+                let angleDegrees = Double(i) * ClockConstants.degreesPerTick
+                let angle = angleDegrees * .pi / 180
                 
                 let centerPoint = AngleCalculations.pointOnCircle(
                     center: center,
