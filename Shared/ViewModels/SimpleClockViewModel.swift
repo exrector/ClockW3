@@ -187,9 +187,25 @@ class SimpleClockViewModel: ObservableObject {
     }
     
     // MARK: - Tap Center Button
-    func resetToCurrentTime() {
+    func resetRotation() {
         tickIndex = 0
         inertiaVelocity = 0
+    }
+    
+    // Для совместимости с напоминаниями
+    func confirmPreviewReminder() async {
+        await ReminderManager.shared.confirmPreview()
+    }
+    
+    // Physics control (заглушки для совместимости)
+    func suspendPhysics() {
+        physicsTimer?.invalidate()
+        physicsTimer = nil
+    }
+    
+    func resumePhysics() {
+        guard physicsTimer == nil else { return }
+        setupPhysics()
     }
     
     // MARK: - Computed Properties

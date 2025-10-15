@@ -7,7 +7,7 @@ import AppKit
 
 // MARK: - Clock Face View (основной компонент циферблата)
 struct ClockFaceView: View {
-    @StateObject private var viewModel = ClockViewModel()
+    @StateObject private var viewModel = SimpleClockViewModel()  // НОВАЯ ПРОСТАЯ ВЕРСИЯ!
     @State private var isDragBlocked = false
     @Environment(\.colorScheme) private var environmentColorScheme
 
