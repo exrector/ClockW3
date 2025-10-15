@@ -54,48 +54,44 @@ struct TicksView: View {
     
     var body: some View {
         Canvas { context, size in
+            // ticdods: заменили линии тиков на точки
             for i in 0..<ClockConstants.tickCount {
                 let isHourTick = (i % ClockConstants.hourTickSpacing == 0)
                 let isHalfHourTick = (i % ClockConstants.halfHourTickSpacing == 0) && !isHourTick
                 
-                let innerRadius: CGFloat
-                let thickness: CGFloat
                 let color: Color
+                let dotDiameter: CGFloat
                 
                 if isHourTick {
-                    innerRadius = baseRadius * ClockConstants.hourTickInnerRadius
-                    thickness = baseRadius * ClockConstants.hourTickThickness
+                    dotDiameter = baseRadius * ClockConstants.hourTickThickness * 2.0
                     color = hourTicksColor
                 } else if isHalfHourTick {
-                    innerRadius = baseRadius * ClockConstants.halfHourTickInnerRadius
-                    thickness = baseRadius * ClockConstants.halfHourTickThickness
+                    dotDiameter = baseRadius * ClockConstants.halfHourTickThickness * 2.0
                     color = minorTicksColor
                 } else {
-                    innerRadius = baseRadius * ClockConstants.quarterTickInnerRadius
-                    thickness = baseRadius * ClockConstants.quarterTickThickness
+                    dotDiameter = baseRadius * ClockConstants.quarterTickThickness * 2.0
                     color = minorTicksColor
                 }
                 
                 let outerRadius = baseRadius * ClockConstants.tickOuterRadius
-                // Тик 0 = 0° (справа, 18:00), тик 72 = 270° (вверху, 12:00)
+                // Центр точки сдвигаем внутрь на половину диаметра, чтобы край совпадал с прежним внешним концом тика
+                let dotCenterRadius = outerRadius - dotDiameter / 2.0
                 let angle = Double(i) * ClockConstants.degreesPerTick * .pi / 180
                 
-                let startPoint = AngleCalculations.pointOnCircle(
+                let centerPoint = AngleCalculations.pointOnCircle(
                     center: center,
-                    radius: innerRadius,
-                    angle: angle
-                )
-                let endPoint = AngleCalculations.pointOnCircle(
-                    center: center,
-                    radius: outerRadius,
+                    radius: dotCenterRadius,
                     angle: angle
                 )
                 
-                var path = Path()
-                path.move(to: startPoint)
-                path.addLine(to: endPoint)
-                
-                context.stroke(path, with: .color(color), lineWidth: thickness)
+                let rect = CGRect(
+                    x: centerPoint.x - dotDiameter / 2.0,
+                    y: centerPoint.y - dotDiameter / 2.0,
+                    width: dotDiameter,
+                    height: dotDiameter
+                )
+                var path = Path(ellipseIn: rect)
+                context.fill(path, with: .color(color))
             }
         }
     }

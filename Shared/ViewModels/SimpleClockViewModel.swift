@@ -31,11 +31,7 @@ class SimpleClockViewModel: ObservableObject {
     // tickIndex → угол вращения циферблата (стрелки НЕПОДВИЖНЫ)
     var rotationAngle: Double {
         let step = ClockConstants.degreesPerTick * .pi / 180.0
-        if isInTimerMode {
-            return Double(tickIndex) * step
-        } else {
-            return Double(tickIndex + phaseOffsetTicks) * step
-        }
+        return Double(tickIndex) * step
     }
     
     // Время для вычисления стрелок
@@ -46,14 +42,6 @@ class SimpleClockViewModel: ObservableObject {
         } else {
             // РЕЖИМ 2: стрелки крутятся контейнером; время для расчёта стрелок фиксируем в момент входа
             return frozenTime ?? currentTime
-    // Фазовый сдвиг для выравнивания центра точки со средней осью тика
-    private var phaseOffsetTicks: Int {
-        // Учитываем диаметр точки и толщину тика: центр точки должен лежать на оси тика
-        // Геометрически ось не меняется, но визуальный центр смещается из‑за толщин.
-        // Переведем субпиксельный сдвиг в доли тика и округлим к ближайшему 0.
-        // Пока 0; при необходимости калибруем пользователем.
-        return 0
-    }
 
         }
     }
