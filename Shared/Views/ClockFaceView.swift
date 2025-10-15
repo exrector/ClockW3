@@ -46,11 +46,16 @@ struct ClockFaceView: View {
 
                 // Основной циферблат
                 ZStack {
-                    // Статический фон (Layer01)
+                    // Статический фон (Layer01) - ВРАЩАЕТСЯ ВМЕСТЕ СО СТРЕЛКАМИ
                     StaticBackgroundView(
                         size: size,
                         colors: palette,
                         currentTime: currentTime
+                    )
+                    .rotationEffect(.radians(viewModel.rotationAngle))
+                    .animation(
+                        viewModel.isDragging ? .none : .easeOut(duration: 0.3),
+                        value: viewModel.rotationAngle
                     )
 
                     // Декоративные винты в углах
