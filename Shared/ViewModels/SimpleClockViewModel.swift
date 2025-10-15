@@ -113,7 +113,8 @@ class SimpleClockViewModel: ObservableObject {
             
             // Хаптика
             if tickIndex != lastHapticTickIndex {
-                hapticFeedback.playTick()
+                let type = HapticFeedback.tickType(for: tickIndex)
+                hapticFeedback.playTickCrossing(tickType: type, tickIndex: tickIndex)
                 lastHapticTickIndex = tickIndex
             }
         } else {
@@ -154,7 +155,8 @@ class SimpleClockViewModel: ObservableObject {
         
         // Хаптика
         if tickIndex != lastHapticTickIndex {
-            hapticFeedback.playTick()
+            let type = HapticFeedback.tickType(for: tickIndex)
+            hapticFeedback.playTickCrossing(tickType: type, tickIndex: tickIndex)
             lastHapticTickIndex = tickIndex
         }
         
