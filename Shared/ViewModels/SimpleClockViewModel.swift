@@ -23,10 +23,27 @@ class SimpleClockViewModel: ObservableObject {
     @Published var tickIndex: Int = 0
     @Published var isDragging = false
     
+    // РЕЖИМ 1 vs РЕЖИМ 2
+    @Published private(set) var isInTimerMode = true  // true = Режим 1 (точное время), false = Режим 2 (драг)
+    private var frozenTime: Date?  // Зафиксированное время при входе в Режим 2
+    
     // Вычисляемый угол для View
     // tickIndex → угол вращения циферблата (стрелки НЕПОДВИЖНЫ)
     var rotationAngle: Double {
         Double(tickIndex) * ClockConstants.degreesPerTick * .pi / 180.0
+    }
+    
+    // Время для вычисления стрелок
+    var timeForArrows: Date {
+        if isInTimerMode {
+            // РЕЖИМ 1: точное время (игнорируем tickIndex)
+            return currentTime
+        } else {
+            // РЕЖИМ 2: frozenTime + tickIndex смещение
+            let base = frozenTime ?? currentTime
+            let offset = Double(tickIndex * minutesPerTick * 60)
+            return base.addingTimeInterval(offset)
+        }
     }
     
     private let totalTicks = 96  // 24 часа × 4 = 96 тиков по 15 мин
@@ -117,6 +134,13 @@ class SimpleClockViewModel: ObservableObject {
     
     // MARK: - Drag Handling (ПРОСТАЯ!)
     func startDrag(at location: CGPoint, in geometry: GeometryProxy) {
+        // ПЕРЕХОД В РЕЖИМ 2: свободное вращение
+        if isInTimerMode {
+            isInTimerMode = false
+            frozenTime = currentTime  // Фиксируем текущее время
+            tickIndex = 0  // Сбрасываем смещение
+        }
+        
         isDragging = true
         dragStartTickIndex = tickIndex
         
@@ -183,8 +207,11 @@ class SimpleClockViewModel: ObservableObject {
     
     // MARK: - Tap Center Button
     func resetRotation() {
+        // ВОЗВРАТ В РЕЖИМ 1: точное время
         tickIndex = 0
         inertiaVelocity = 0
+        isInTimerMode = true
+        frozenTime = nil
     }
     
     // Для совместимости с напоминаниями
@@ -204,9 +231,9 @@ class SimpleClockViewModel: ObservableObject {
     }
     
     // MARK: - Computed Properties
+    // Для совместимости с напоминаниями (используем timeForArrows)
     var offsetTime: Date {
-        let offset = TimeInterval(tickIndex * minutesPerTick * 60)
-        return currentTime.addingTimeInterval(offset)
+        timeForArrows
     }
     
     func arrowAngle(for city: WorldCity) -> Double {
@@ -215,11 +242,9 @@ class SimpleClockViewModel: ObservableObject {
         var calendar = Calendar.current
         calendar.timeZone = timeZone
         
-        // ВАЖНО: используем currentTime, а не offsetTime!
-        // offsetTime используется только для отображения времени в плитке напоминания
-        // Стрелки вращаются вместе с контейнером через rotationEffect
-        let hour = calendar.component(.hour, from: currentTime)
-        let minute = calendar.component(.minute, from: currentTime)
+        // Используем timeForArrows - автоматически учитывает режим
+        let hour = calendar.component(.hour, from: timeForArrows)
+        let minute = calendar.component(.minute, from: timeForArrows)
         
         return ClockConstants.calculateArrowAngle(hour: hour, minute: minute)
     }
@@ -230,7 +255,6 @@ class SimpleClockViewModel: ObservableObject {
         var calendar = Calendar.current
         calendar.timeZone = timeZone
         
-        // ВАЖНО: используем currentTime для синхронизации со стрелками
-        return calendar.component(.weekday, from: currentTime)
+        return calendar.component(.weekday, from: timeForArrows)
     }
 }
