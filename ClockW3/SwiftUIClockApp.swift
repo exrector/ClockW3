@@ -324,7 +324,7 @@ struct SettingsView: View {
         .onChange(of: selectedIds) { _, _ in
             persistSelection()
         }
-        .onChange(of: colorSchemePreference) { _, _ in
+        .onChange(of: colorSchemePreference) { _, newValue in
             reloadWidgets()
         }
         .sheet(isPresented: $showTimeZonePicker) {
@@ -451,6 +451,8 @@ extension SettingsView {
         selectedIds.remove(identifier)
         updateSelectedEntries()
     }
+
+
     
     private func testNotification() async {
         let content = UNMutableNotificationContent()
@@ -506,17 +508,28 @@ private struct ReminderRow: View {
 
     var body: some View {
         ZStack {
-            // Фоновая кнопка для редактирования (занимает все пространство)
-            Button {
-                onEdit?()
-            } label: {
-                Color.clear
+            // Центральный контент всегда строго по центру
+            VStack(alignment: .center, spacing: 4) {
+                Button {
+                    onEdit?()
+                } label: {
+                    Text(reminder.formattedTime)
+                        .font(.headline)
+                        .foregroundColor(isPreview ? .primary : .red)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Edit reminder time")
+                
+                if let subtitle = subtitleText {
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .buttonStyle(.plain)
             
-            // Содержимое
-            HStack(spacing: 0) {
-                // Левая кнопка
+            // Боковые элементы поверх (слева/справа), как в CityRow
+            HStack {
+                // Левая кнопка режима (если доступна)
                 if let onModeChange = onModeChange {
                     Button {
                         isDailyMode.toggle()
@@ -538,21 +551,6 @@ private struct ReminderRow: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Toggle reminder repeat mode")
                 }
-                
-                Spacer()
-                
-                // Центральный текст (не кликабельный, клики проходят через него к фоновой кнопке)
-                VStack(alignment: .center, spacing: 4) {
-                    Text(reminder.formattedTime)
-                        .font(.headline)
-                        .foregroundColor(isPreview ? .primary : .red)
-                    if let subtitle = subtitleText {
-                        Text(subtitle)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .allowsHitTesting(false)
                 
                 Spacer()
                 
