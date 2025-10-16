@@ -141,33 +141,24 @@ struct ClockFaceView: View {
                 }
                 .frame(width: size.width, height: size.height)
                 .clipped()
-                // Ограничиваем область жеста строго кругом часов
-                .contentShape(Circle())
             }
             // Высокий приоритет, но с фильтрацией направления, чтобы не мешать скроллу
             .highPriorityGesture(
-                DragGesture(minimumDistance: 5)
+                DragGesture(minimumDistance: 2)
                     .onChanged { value in
                         if !interactivityEnabled { return }
                         if isDragBlocked { return }
 
-                        // Определяем режим по начальной дельте
+                        // Первый контакт: если вне мёртвой зоны — сразу вращаем
                         if activeMode == nil {
-                            let t = value.translation
-                            // Порог для уверенного определения направления
-                            if abs(t.height) > abs(t.width) && abs(t.height) > 8 {
-                                activeMode = .scroll
-                            } else {
-                                // Проверка на dead zone только когда реально хотим крутить
-                                let startPoint = value.startLocation
-                                if isInDeadZone(point: startPoint, center: centerPoint, baseRadius: baseRadius) {
-                                    isDragBlocked = true
-                                    return
-                                }
-                                activeMode = .rotate
-                                if !viewModel.isDragging {
-                                    viewModel.startDrag(at: value.location, in: geometry)
-                                }
+                            let startPoint = value.startLocation
+                            if isInDeadZone(point: startPoint, center: centerPoint, baseRadius: baseRadius) {
+                                isDragBlocked = true
+                                return
+                            }
+                            activeMode = .rotate
+                            if !viewModel.isDragging {
+                                viewModel.startDrag(at: value.startLocation, in: geometry)
                             }
                         }
 

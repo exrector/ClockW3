@@ -18,6 +18,7 @@ class SimpleClockViewModel: ObservableObject {
     // ============================================
     @Published var tickIndex: Int = 0
     @Published var isDragging = false
+    @Published private(set) var isCoasting = false
     
     // РЕЖИМ 1 vs РЕЖИМ 2
     @Published private(set) var isInTimerMode = true  // true = Режим 1, false = Режим 2
@@ -56,6 +57,8 @@ class SimpleClockViewModel: ObservableObject {
     private var cumulativeDragAngle: Double = 0
     // Последнее реальное событие drag (для авто-перехода в инерцию, если поток оборвался)
     private var lastDragEventTime: Double = 0
+    // Маркер первого шага драга для стабилизации старта
+    private var isFreshDrag: Bool = false
     
     // Инерция (тики в секунду)
     private var inertiaVelocity: Double = 0
@@ -105,20 +108,14 @@ class SimpleClockViewModel: ObservableObject {
     
     // MARK: - Physics (ПРОСТАЯ!)
     private func updatePhysics() {
-        // Если поток drag-событий оборвался (например, из-за скролла), корректно переходим в инерцию
+        // Пока палец на экране (идёт drag) — физика не вмешивается и инерция не запускается
         if isDragging {
-            let now = CACurrentMediaTime()
-            let silence = now - lastDragEventTime
-            if silence > 0.12 { // ~7 кадров при 60fps
-                // Эмулируем мягкое завершение драга и старт инерции
-                performAutoEndDrag()
-            } else {
-                return // пока тянем — физика не трогает состояние
-            }
+            return
         }
         
         guard abs(inertiaVelocity) > snapVelocityThreshold else {
             inertiaVelocity = 0
+            if isCoasting { isCoasting = false }
             return
         }
         
@@ -153,6 +150,7 @@ class SimpleClockViewModel: ObservableObject {
             }
         } else {
             inertiaVelocity = 0
+            if isCoasting { isCoasting = false }
         }
     }
     
@@ -179,8 +177,10 @@ class SimpleClockViewModel: ObservableObject {
         cumulativeDragAngle = 0
         
         inertiaVelocity = 0
+        isCoasting = false
         hapticFeedback.prepare()
         lastHapticTickIndex = tickIndex
+        isFreshDrag = true
         
         // Начинаем показывать превью времени сразу при входе в режим 2
         updatePreviewReminder()
@@ -193,7 +193,15 @@ class SimpleClockViewModel: ObservableObject {
         let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
         let currentAngle = atan2(location.y - center.y, location.x - center.x)
 
-        let smallDelta = atan2(sin(currentAngle - lastDragAngle), cos(currentAngle - lastDragAngle))
+        var smallDelta = atan2(sin(currentAngle - lastDragAngle), cos(currentAngle - lastDragAngle))
+        // Однократно стабилизируем первый шаг: кламп и лёгкое сглаживание
+        if isFreshDrag {
+            let clamp: Double = 0.22 // ~12.6°
+            if smallDelta > clamp { smallDelta = clamp }
+            if smallDelta < -clamp { smallDelta = -clamp }
+            smallDelta *= 0.7
+            isFreshDrag = false
+        }
         cumulativeDragAngle += smallDelta
 
         let rotationTurns = cumulativeDragAngle / (2.0 * .pi)
@@ -237,8 +245,10 @@ class SimpleClockViewModel: ObservableObject {
             if abs(inertiaVelocity) > snapVelocityThreshold {
                 inertiaStartTime = now
                 inertiaStartIndex = tickIndex
+                isCoasting = true
             } else {
                 inertiaVelocity = 0
+                isCoasting = false
             }
         } else {
             inertiaVelocity = 0
@@ -378,8 +388,10 @@ class SimpleClockViewModel: ObservableObject {
             if abs(inertiaVelocity) > snapVelocityThreshold {
                 inertiaStartTime = now
                 inertiaStartIndex = tickIndex
+                isCoasting = true
             } else {
                 inertiaVelocity = 0
+                isCoasting = false
             }
         } else {
             inertiaVelocity = 0
