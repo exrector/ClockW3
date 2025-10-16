@@ -454,8 +454,14 @@ extension SettingsView {
     
     private func testNotification() async {
         let content = UNMutableNotificationContent()
-        content.title = "Напоминание"
-        content.body = "Время \(Date().formatted(date: .omitted, time: .shortened))"
+        content.title = "THE M.O.W TIME"
+        
+        // Форматируем время в формате ЧЧ:ММ
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        let timeString = formatter.string(from: Date())
+        
+        content.body = "Check the world time \(timeString)"
         content.sound = UNNotificationSound.default
         
         // Триггер через 5 секунд
