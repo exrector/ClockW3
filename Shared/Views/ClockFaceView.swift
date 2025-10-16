@@ -10,6 +10,9 @@ struct ClockFaceView: View {
     @StateObject private var viewModel = SimpleClockViewModel()  // НОВАЯ ПРОСТАЯ ВЕРСИЯ!
     @State private var isDragBlocked = false
     @Environment(\.colorScheme) private var environmentColorScheme
+    
+    private enum ActiveGestureMode { case rotate, scroll }
+    @State private var activeMode: ActiveGestureMode? = nil
 
     // Выбор городов (используем общий UserDefaults для синхронизации с виджетом)
     @AppStorage(
@@ -138,28 +141,49 @@ struct ClockFaceView: View {
                 }
                 .frame(width: size.width, height: size.height)
                 .clipped()
+                // Ограничиваем область жеста строго кругом часов
+                .contentShape(Circle())
             }
-            .conditionalGesture(
-                DragGesture(minimumDistance: 0)
+            // Высокий приоритет, но с фильтрацией направления, чтобы не мешать скроллу
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 5)
                     .onChanged { value in
+                        if !interactivityEnabled { return }
                         if isDragBlocked { return }
-                        if !viewModel.isDragging {
-                            let startPoint = value.startLocation
-                            if isInDeadZone(point: startPoint, center: centerPoint, baseRadius: baseRadius) {
-                                isDragBlocked = true
-                                return
+
+                        // Определяем режим по начальной дельте
+                        if activeMode == nil {
+                            let t = value.translation
+                            // Порог для уверенного определения направления
+                            if abs(t.height) > abs(t.width) && abs(t.height) > 8 {
+                                activeMode = .scroll
+                            } else {
+                                // Проверка на dead zone только когда реально хотим крутить
+                                let startPoint = value.startLocation
+                                if isInDeadZone(point: startPoint, center: centerPoint, baseRadius: baseRadius) {
+                                    isDragBlocked = true
+                                    return
+                                }
+                                activeMode = .rotate
+                                if !viewModel.isDragging {
+                                    viewModel.startDrag(at: value.location, in: geometry)
+                                }
                             }
-                            viewModel.startDrag(at: value.location, in: geometry)
                         }
-                        viewModel.updateDrag(at: value.location, in: geometry)
+
+                        // Обрабатываем только если выбрано вращение
+                        if activeMode == .rotate {
+                            viewModel.updateDrag(at: value.location, in: geometry)
+                        }
                     }
                     .onEnded { _ in
-                        if !isDragBlocked {
+                        if activeMode == .rotate, !isDragBlocked {
                             viewModel.endDrag()
                         }
+                        activeMode = nil
                         isDragBlocked = false
                     }
-            , enabled: interactivityEnabled)
+            )
         }
         .onAppear {
             syncCitiesToViewModel()

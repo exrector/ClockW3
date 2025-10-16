@@ -54,6 +54,8 @@ class SimpleClockViewModel: ObservableObject {
     private var prevDragAngle: Double = 0
     private var prevDragTime: Double = 0
     private var cumulativeDragAngle: Double = 0
+    // Последнее реальное событие drag (для авто-перехода в инерцию, если поток оборвался)
+    private var lastDragEventTime: Double = 0
     
     // Инерция (тики в секунду)
     private var inertiaVelocity: Double = 0
@@ -64,6 +66,8 @@ class SimpleClockViewModel: ObservableObject {
     // Haptic
     private let hapticFeedback = HapticFeedback.shared
     private var lastHapticTickIndex: Int?
+    // Кэш для экономного обновления превью (обновлять только при смене тика)
+    private var lastPreviewTickIndexSent: Int?
     
     // MARK: - Initialization
     init() {
@@ -88,17 +92,31 @@ class SimpleClockViewModel: ObservableObject {
     }
     
     private func setupPhysics() {
-        physicsTimer = Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             Task { @MainActor in
                 self.updatePhysics()
             }
         }
+        physicsTimer = timer
+        // В .common, чтобы не замирал во время скролла
+        RunLoop.main.add(timer, forMode: .common)
     }
     
     // MARK: - Physics (ПРОСТАЯ!)
     private func updatePhysics() {
-        guard !isDragging else { return }
+        // Если поток drag-событий оборвался (например, из-за скролла), корректно переходим в инерцию
+        if isDragging {
+            let now = CACurrentMediaTime()
+            let silence = now - lastDragEventTime
+            if silence > 0.12 { // ~7 кадров при 60fps
+                // Эмулируем мягкое завершение драга и старт инерции
+                performAutoEndDrag()
+            } else {
+                return // пока тянем — физика не трогает состояние
+            }
+        }
+        
         guard abs(inertiaVelocity) > snapVelocityThreshold else {
             inertiaVelocity = 0
             return
@@ -127,8 +145,11 @@ class SimpleClockViewModel: ObservableObject {
                     hapticFeedback.playTickCrossing(tickType: type, tickIndex: tickIndex)
                     lastHapticTickIndex = tickIndex
                 }
-                // При инерции также обновляем превью
-                updatePreviewReminder()
+                // Обновляем превью только при смене тика
+                if lastPreviewTickIndexSent != tickIndex {
+                    updatePreviewReminder()
+                    lastPreviewTickIndexSent = tickIndex
+                }
             }
         } else {
             inertiaVelocity = 0
@@ -153,6 +174,7 @@ class SimpleClockViewModel: ObservableObject {
         lastDragTime = CACurrentMediaTime()
         prevDragAngle = lastDragAngle
         prevDragTime = lastDragTime
+        lastDragEventTime = lastDragTime
         
         cumulativeDragAngle = 0
         
@@ -162,6 +184,7 @@ class SimpleClockViewModel: ObservableObject {
         
         // Начинаем показывать превью времени сразу при входе в режим 2
         updatePreviewReminder()
+        lastPreviewTickIndexSent = tickIndex
     }
     
     func updateDrag(at location: CGPoint, in geometry: GeometryProxy) {
@@ -183,6 +206,7 @@ class SimpleClockViewModel: ObservableObject {
         prevDragTime = lastDragTime
         lastDragAngle = currentAngle
         lastDragTime = now
+        lastDragEventTime = now
         
         if tickIndex != lastHapticTickIndex {
             let type = HapticFeedback.tickType(for: tickIndex)
@@ -190,8 +214,11 @@ class SimpleClockViewModel: ObservableObject {
             lastHapticTickIndex = tickIndex
         }
         
-        // Обновляем превью во время драга
-        updatePreviewReminder()
+        // Обновляем превью во время драга только при смене тика
+        if lastPreviewTickIndexSent != tickIndex {
+            updatePreviewReminder()
+            lastPreviewTickIndexSent = tickIndex
+        }
     }
     
     func endDrag() {
@@ -217,8 +244,11 @@ class SimpleClockViewModel: ObservableObject {
             inertiaVelocity = 0
         }
         
-        // Финализируем превью после завершения драга
-        updatePreviewReminder()
+        // Финализируем превью после завершения драга (если тик сменился)
+        if lastPreviewTickIndexSent != tickIndex {
+            updatePreviewReminder()
+            lastPreviewTickIndexSent = tickIndex
+        }
     }
     
     // MARK: - Tap Center Button
@@ -332,5 +362,32 @@ class SimpleClockViewModel: ObservableObject {
         let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: currentTime)
         let reminder = ClockReminder(hour: hour, minute: minute, date: nextDate, isEnabled: true)
         ReminderManager.shared.setPreviewReminder(reminder)
+    }
+    
+    // Автозавершение драга, если поток событий пропал (например, начался скролл)
+    private func performAutoEndDrag() {
+        isDragging = false
+        let now = CACurrentMediaTime()
+        let dt = now - prevDragTime
+        if dt > 0 {
+            let angleDelta = lastDragAngle - prevDragAngle
+            let normalizedDelta = atan2(sin(angleDelta), cos(angleDelta))
+            let rotation = normalizedDelta / (2.0 * .pi)
+            let ticksDelta = -rotation * Double(totalTicks)
+            inertiaVelocity = ticksDelta / dt
+            if abs(inertiaVelocity) > snapVelocityThreshold {
+                inertiaStartTime = now
+                inertiaStartIndex = tickIndex
+            } else {
+                inertiaVelocity = 0
+            }
+        } else {
+            inertiaVelocity = 0
+        }
+        // Обновить превью при необходимости
+        if lastPreviewTickIndexSent != tickIndex {
+            updatePreviewReminder()
+            lastPreviewTickIndexSent = tickIndex
+        }
     }
 }
