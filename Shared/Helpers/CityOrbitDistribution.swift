@@ -22,8 +22,9 @@ struct CityOrbitDistribution {
         var assignment: [UUID: Int] = [:]
         var conflicts: [String] = []
 
-        let fontSize = ClockConstants.labelRingFontSizeRatio
-        let letterSpacing = fontSize * 0.8
+        // Используем ОТНОСИТЕЛЬНЫЕ значения (коэффициенты)
+        let fontSizeRatio = ClockConstants.labelRingFontSizeRatio  // 0.05
+        let letterSpacingRatio = fontSizeRatio * 0.8  // 0.04
 
         // Размещаем города по очереди, предпочитая шахматный порядок
         var nextPreferredOrbit = 1
@@ -44,17 +45,18 @@ struct CityOrbitDistribution {
             var placed = false
 
             for orbit in orbitsToTry {
-                let radius = orbit == 1 ? ClockConstants.outerLabelRingRadius : ClockConstants.middleLabelRingRadius
+                let radiusRatio = orbit == 1 ? ClockConstants.outerLabelRingRadius : ClockConstants.middleLabelRingRadius
 
                 // Вычисляем интервал для этого города на этой орбите
                 let cityCode = city.iataCode
                 let letterCount = cityCode.count
                 // ВАЖНО: при рисовании используется (letterCount - 1), т.к. это расстояния МЕЖДУ буквами
-                let totalWidth = Double(letterCount - 1) * letterSpacing
-                let angularWidth = totalWidth / radius
+                let totalWidthRatio = Double(letterCount - 1) * letterSpacingRatio
+                // Угловая ширина = линейная ширина / радиус (всё в относительных единицах)
+                let angularWidth = totalWidthRatio / radiusRatio
 
                 // Минимальный зазор с каждой стороны (для предотвращения наложения)
-                let minGap = letterSpacing / radius * 2.0
+                let minGap = letterSpacingRatio / radiusRatio * 2.0
 
                 // Интервал города УЖЕ включает зазоры слева и справа
                 let startAngle = centerAngle - angularWidth / 2 - minGap
@@ -78,8 +80,8 @@ struct CityOrbitDistribution {
                     let existingCode = existingCity.iataCode
                     let existingCount = existingCode.count
                     // ВАЖНО: при рисовании используется (count - 1), т.к. это расстояния МЕЖДУ буквами
-                    let existingWidth = Double(existingCount - 1) * letterSpacing
-                    let existingAngular = existingWidth / radius
+                    let existingWidthRatio = Double(existingCount - 1) * letterSpacingRatio
+                    let existingAngular = existingWidthRatio / radiusRatio
 
                     // Интервал существующего города тоже включает зазоры
                     let existingStart = existingAngle - existingAngular / 2 - minGap
@@ -94,23 +96,13 @@ struct CityOrbitDistribution {
                 if !hasConflict {
                     assignment[city.id] = orbit
                     placed = true
-                    #if DEBUG
-                    print("✅ \(city.iataCode) размещён на орбите \(orbit)")
-                    #endif
                     break
-                } else {
-                    #if DEBUG
-                    print("❌ \(city.iataCode) конфликт на орбите \(orbit)")
-                    #endif
                 }
             }
 
             if !placed {
                 // Конфликт на обеих орбитах
                 conflicts.append("Cannot place \(city.name) - both orbits are occupied")
-                #if DEBUG
-                print("🚫 \(city.name) - НЕ РАЗМЕЩЁН (обе орбиты заняты)!")
-                #endif
             } else {
                 // Чередуем предпочитаемую орбиту для следующего города
                 nextPreferredOrbit = nextPreferredOrbit == 1 ? 2 : 1

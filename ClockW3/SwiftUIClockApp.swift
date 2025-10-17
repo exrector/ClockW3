@@ -150,6 +150,7 @@ struct SettingsView: View {
     @State private var selectedIds: Set<String> = []
     @State private var selectedEntries: [TimeZoneDirectory.Entry] = []
     @State private var showTimeZonePicker = false
+    @State private var showMacOSCityPicker = false
     @AppStorage(
         SharedUserDefaults.seededDefaultsKey,
         store: SharedUserDefaults.shared
@@ -254,12 +255,24 @@ struct SettingsView: View {
 #elseif os(macOS)
                     // В macOS показываем выбор городов инлайн с ограниченной высотой
                     VStack(spacing: 0) {
-                        DisclosureGroup {
+                        Button {
+                            showMacOSCityPicker.toggle()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Spacer()
+                                Image(systemName: showMacOSCityPicker ? "chevron.down" : "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("Choose Cities")
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        if showMacOSCityPicker {
                             TimeZoneSelectionInlineView(selection: $selectedIds, onChanged: persistSelection)
                                 .frame(maxHeight: 300)
-                        } label: {
-                            Text("Choose Cities")
-                                .frame(maxWidth: .infinity, alignment: .center)
                         }
                     }
                     .frame(maxWidth: 360)
@@ -801,8 +814,17 @@ struct TimeZoneSelectionInlineView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            TextField("Search cities...", text: $searchText)
-                .textFieldStyle(.roundedBorder)
+            HStack {
+                TextField("Search cities...", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Reset") {
+                    selection = Set(WorldCity.initialSelectionIdentifiers())
+                    selection.insert(localCityIdentifier)
+                    onChanged()
+                }
+                .buttonStyle(.bordered)
+            }
 
             ScrollView {
                 LazyVStack(spacing: 8) {

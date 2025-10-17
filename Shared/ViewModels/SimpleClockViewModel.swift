@@ -113,6 +113,12 @@ class SimpleClockViewModel: ObservableObject {
             return
         }
         
+        #if os(macOS)
+        // На macOS полностью отключаем коастинг/инерцию — мгновенная фиксация
+        inertiaVelocity = 0
+        if isCoasting { isCoasting = false }
+        return
+        #else
         guard abs(inertiaVelocity) > snapVelocityThreshold else {
             inertiaVelocity = 0
             if isCoasting { isCoasting = false }
@@ -152,6 +158,7 @@ class SimpleClockViewModel: ObservableObject {
             inertiaVelocity = 0
             if isCoasting { isCoasting = false }
         }
+        #endif
     }
     
     // MARK: - Drag Handling (ПРОСТАЯ!)
@@ -196,10 +203,19 @@ class SimpleClockViewModel: ObservableObject {
         var smallDelta = atan2(sin(currentAngle - lastDragAngle), cos(currentAngle - lastDragAngle))
         // Однократно стабилизируем первый шаг: кламп и лёгкое сглаживание
         if isFreshDrag {
+            #if os(macOS)
+            // На macOS старт делаем чуть жёстче, чтобы избежать "перестрела"
+            let clamp: Double = 0.18 // ~10.3°
+            #else
             let clamp: Double = 0.22 // ~12.6°
+            #endif
             if smallDelta > clamp { smallDelta = clamp }
             if smallDelta < -clamp { smallDelta = -clamp }
+            #if os(macOS)
+            smallDelta *= 0.6
+            #else
             smallDelta *= 0.7
+            #endif
             isFreshDrag = false
         }
         cumulativeDragAngle += smallDelta
@@ -232,6 +248,11 @@ class SimpleClockViewModel: ObservableObject {
     func endDrag() {
         isDragging = false
         
+        #if os(macOS)
+        // На macOS — без инерции. Фиксируемся на текущем тике сразу.
+        inertiaVelocity = 0
+        isCoasting = false
+        #else
         let now = CACurrentMediaTime()
         let dt = now - prevDragTime
         
@@ -253,6 +274,7 @@ class SimpleClockViewModel: ObservableObject {
         } else {
             inertiaVelocity = 0
         }
+        #endif
         
         // Финализируем превью после завершения драга (если тик сменился)
         if lastPreviewTickIndexSent != tickIndex {

@@ -37,12 +37,20 @@ struct ContentView: View {
                                 .frame(width: height, height: height)
                                 .frame(maxHeight: .infinity)
 
-                            if showSettings {
-                                SettingsView()
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                            } else {
-                                Button("Settings") { showSettings = true }
-                                    .frame(maxWidth: .infinity)
+                            VStack(spacing: 0) {
+                                if showSettings {
+                                    SettingsView()
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                } else {
+                                    Button("Settings") { showSettings = true }
+                                        .frame(maxWidth: .infinity)
+                                }
+
+                                Text("Designed by Exrector")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.bottom, 8)
                             }
                         }
                     } else {
@@ -62,9 +70,10 @@ struct ContentView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
+
                 Text("Designed by Exrector")
-                    .font(.caption2)
+                    .font(.caption)
+                    .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
                     .padding(.bottom, 8)
             }
