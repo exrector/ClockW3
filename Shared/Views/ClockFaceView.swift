@@ -438,7 +438,7 @@ struct CityLabelRingsView: View {
             let fontSize = min(size.width, size.height) * ClockConstants.labelRingFontSizeRatio
 
             // Используем умное распределение городов по орбитам (избегаем наложения текста)
-            let orbitAssignment = CityOrbitDistribution.distributeCities(
+            let result = CityOrbitDistribution.distributeCities(
                 cities: cities,
                 currentTime: currentTime
             )
@@ -447,7 +447,8 @@ struct CityLabelRingsView: View {
             var middleRingCities: [WorldCity] = []
 
             for city in cities {
-                let orbit = orbitAssignment[city.id] ?? 1
+                // Рисуем только города, которые успешно размещены
+                guard let orbit = result.assignment[city.id] else { continue }
                 if orbit == 1 {
                     outerRingCities.append(city)
                 } else {
@@ -506,8 +507,6 @@ struct CityLabelRingsView: View {
         fontSize: CGFloat,
         color: Color
     ) {
-        guard !cities.isEmpty else { return }
-
         // Вычисляем занятые угловые диапазоны (где есть текст)
         var occupiedRanges: [(start: Double, end: Double)] = []
 
@@ -526,11 +525,13 @@ struct CityLabelRingsView: View {
             let cityCode = city.iataCode
             let letterCount = cityCode.count
             let letterSpacing = fontSize * 0.8
-            let totalWidth = CGFloat(letterCount) * letterSpacing  // Учитываем все буквы включая первую и последнюю
+            // ВАЖНО: используем (letterCount - 1) как при рисовании текста
+            let totalWidth = CGFloat(letterCount - 1) * letterSpacing
             let angularWidth = totalWidth / radius
 
             // Добавляем небольшой отступ чтобы не залезать на текст
-            let padding = letterSpacing / radius * 0.1   // Примерно одна буква с каждой стороны
+            // Используем фиксированный угловой зазор независимо от радиуса орбиты
+            let padding = (fontSize * 0.8) / Double(baseRadius) * 0.7
             let startAngle = centerAngle - angularWidth / 2 - padding
             let endAngle = centerAngle + angularWidth / 2 + padding
 

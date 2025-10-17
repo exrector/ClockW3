@@ -268,19 +268,7 @@ struct SettingsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 
-                // Кнопка тестирования уведомления
-                #if DEBUG
-                Button {
-                    Task {
-                        await testNotification()
-                    }
-                } label: {
-                    Label("Test Notification", systemImage: "bell.badge")
-                }
-                .buttonStyle(.bordered)
-                .frame(maxWidth: 360)
-                .padding(.top, 8)
-                #endif
+
                 
                 // Три пузыря для выбора темы внизу
                 HStack(spacing: 16) {
@@ -323,6 +311,9 @@ struct SettingsView: View {
         .onAppear { loadSelection() }
         .onChange(of: selectedIds) { _, _ in
             persistSelection()
+        }
+        .onChange(of: selectedCityIdentifiers) { _, _ in
+            loadSelection()
         }
         .onChange(of: colorSchemePreference) { _, newValue in
             reloadWidgets()
@@ -450,31 +441,6 @@ extension SettingsView {
         guard identifier != localCityIdentifier else { return }
         selectedIds.remove(identifier)
         updateSelectedEntries()
-    }
-
-
-    
-    private func testNotification() async {
-        let content = UNMutableNotificationContent()
-        content.title = "THE M.O.W TIME"
-        
-        // Форматируем время в формате ЧЧ:ММ
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        let timeString = formatter.string(from: Date())
-        
-        content.body = "Check the world time \(timeString)"
-        content.sound = UNNotificationSound.default
-        
-        // Триггер через 5 секунд
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
-        let request = UNNotificationRequest(identifier: "test_notification", content: content, trigger: trigger)
-        
-        do {
-            try await UNUserNotificationCenter.current().add(request)
-        } catch {
-            // Error handling for notification
-        }
     }
 }
 
@@ -675,13 +641,39 @@ struct TimeZoneSelectionView: View {
     @Binding var selection: Set<String>
     let onConfirm: (Set<String>) -> Void
 
+    @State private var showConflictAlert = false
+    @State private var conflictMessage = ""
+    @State private var attemptedCityId: String?
+
     private let entries = TimeZoneDirectory.allEntries()
 
     private var filteredEntries: [TimeZoneDirectory.Entry] {
-        guard !searchText.isEmpty else { return entries }
-        return entries.filter { entry in
+        let currentTime = Date()
+        let baseEntries = searchText.isEmpty ? entries : entries.filter { entry in
             entry.name.localizedCaseInsensitiveContains(searchText) ||
             entry.gmtOffset.localizedCaseInsensitiveContains(searchText)
+        }
+
+        return baseEntries.sorted { lhs, rhs in
+            guard let lhsTZ = TimeZone(identifier: lhs.id),
+                  let rhsTZ = TimeZone(identifier: rhs.id) else {
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+
+            var lhsCal = Calendar.current
+            lhsCal.timeZone = lhsTZ
+            let lhsHour = lhsCal.component(.hour, from: currentTime)
+            let lhsMinute = lhsCal.component(.minute, from: currentTime)
+
+            var rhsCal = Calendar.current
+            rhsCal.timeZone = rhsTZ
+            let rhsHour = rhsCal.component(.hour, from: currentTime)
+            let rhsMinute = rhsCal.component(.minute, from: currentTime)
+
+            let lhsTime = lhsHour * 60 + lhsMinute
+            let rhsTime = rhsHour * 60 + rhsMinute
+
+            return lhsTime < rhsTime
         }
     }
 
@@ -728,6 +720,11 @@ struct TimeZoneSelectionView: View {
             }
 #endif
         }
+        .alert("Cannot Add City", isPresented: $showConflictAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(conflictMessage)
+        }
     }
 
     private func toggle(_ identifier: String) {
@@ -735,7 +732,23 @@ struct TimeZoneSelectionView: View {
             if identifier == localCityIdentifier { return }
             selection.remove(identifier)
         } else {
-            selection.insert(identifier)
+            // Проверяем конфликт ПЕРЕД добавлением
+            var testSelection = selection
+            testSelection.insert(identifier)
+            let testCities = WorldCity.cities(from: Array(testSelection))
+
+            let result = CityOrbitDistribution.distributeCities(
+                cities: testCities,
+                currentTime: Date()
+            )
+
+            if result.hasConflicts {
+                attemptedCityId = identifier
+                conflictMessage = result.conflictMessage ?? "This city conflicts with existing cities"
+                showConflictAlert = true
+            } else {
+                selection.insert(identifier)
+            }
         }
     }
 
@@ -750,13 +763,39 @@ struct TimeZoneSelectionInlineView: View {
     let onChanged: () -> Void
     @State private var searchText = ""
 
+    @State private var showConflictAlert = false
+    @State private var conflictMessage = ""
+    @State private var attemptedCityId: String?
+
     private let entries = TimeZoneDirectory.allEntries()
 
     private var filteredEntries: [TimeZoneDirectory.Entry] {
-        guard !searchText.isEmpty else { return entries }
-        return entries.filter { entry in
+        let currentTime = Date()
+        let baseEntries = searchText.isEmpty ? entries : entries.filter { entry in
             entry.name.localizedCaseInsensitiveContains(searchText) ||
             entry.gmtOffset.localizedCaseInsensitiveContains(searchText)
+        }
+
+        return baseEntries.sorted { lhs, rhs in
+            guard let lhsTZ = TimeZone(identifier: lhs.id),
+                  let rhsTZ = TimeZone(identifier: rhs.id) else {
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+
+            var lhsCal = Calendar.current
+            lhsCal.timeZone = lhsTZ
+            let lhsHour = lhsCal.component(.hour, from: currentTime)
+            let lhsMinute = lhsCal.component(.minute, from: currentTime)
+
+            var rhsCal = Calendar.current
+            rhsCal.timeZone = rhsTZ
+            let rhsHour = rhsCal.component(.hour, from: currentTime)
+            let rhsMinute = rhsCal.component(.minute, from: currentTime)
+
+            let lhsTime = lhsHour * 60 + lhsMinute
+            let rhsTime = rhsHour * 60 + rhsMinute
+
+            return lhsTime < rhsTime
         }
     }
 
@@ -794,6 +833,11 @@ struct TimeZoneSelectionInlineView: View {
                 .padding(.vertical, 8)
             }
         }
+        .alert("Cannot Add City", isPresented: $showConflictAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(conflictMessage)
+        }
     }
 
     private func toggle(_ identifier: String) {
@@ -801,7 +845,23 @@ struct TimeZoneSelectionInlineView: View {
             if identifier == localCityIdentifier { return }
             selection.remove(identifier)
         } else {
-            selection.insert(identifier)
+            // Проверяем конфликт ПЕРЕД добавлением
+            var testSelection = selection
+            testSelection.insert(identifier)
+            let testCities = WorldCity.cities(from: Array(testSelection))
+
+            let result = CityOrbitDistribution.distributeCities(
+                cities: testCities,
+                currentTime: Date()
+            )
+
+            if result.hasConflicts {
+                attemptedCityId = identifier
+                conflictMessage = result.conflictMessage ?? "This city conflicts with existing cities"
+                showConflictAlert = true
+            } else {
+                selection.insert(identifier)
+            }
         }
         onChanged()
     }

@@ -64,7 +64,7 @@ class SimpleClockViewModel: ObservableObject {
     private var inertiaVelocity: Double = 0
     private var inertiaStartTime: Double = 0
     private var inertiaStartIndex: Int = 0
-    private let snapVelocityThreshold: Double = 0.5
+    private let snapVelocityThreshold: Double = 2.0
     
     // Haptic
     private let hapticFeedback = HapticFeedback.shared

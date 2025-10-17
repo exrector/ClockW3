@@ -23,19 +23,31 @@ struct CityArrowsView: View {
     
     var body: some View {
         let snapshots = CityArrowsView.buildSnapshots(for: cities, currentTime: currentTime)
+        let localIdentifier = TimeZone.current.identifier
+
+        // Сортируем: сначала все не-локальные, затем локальная стрелка (чтобы она была сверху)
+        let sortedSnapshots = snapshots.sorted { lhs, rhs in
+            let lhsIsLocal = lhs.city.timeZoneIdentifier == localIdentifier
+            let rhsIsLocal = rhs.city.timeZoneIdentifier == localIdentifier
+
+            if lhsIsLocal == rhsIsLocal {
+                return false // сохраняем исходный порядок
+            }
+            return !lhsIsLocal // не-локальные идут первыми
+        }
 
         return ZStack {
             // Глобус временно отключен
             // GlobeView(baseRadius: baseRadius)
-            ForEach(snapshots) { snapshot in
-                let isLocal = snapshot.city.timeZoneIdentifier == TimeZone.current.identifier
+            ForEach(sortedSnapshots) { snapshot in
+                let isLocal = snapshot.city.timeZoneIdentifier == localIdentifier
                 CityArrowView(
                     snapshot: snapshot,
                     baseRadius: baseRadius,
                     center: center,
                     containerRotation: containerRotation,
                     arrowColor: isLocal ? palette.arrow : palette.numbers,
-                    markerColor: isLocal ? palette.arrow : palette.numbers,
+                    markerColor: palette.arrow,  // Все точки красные
                     labelColor: palette.weekdayText,
                     labelBackgroundColor: palette.weekdayBackground,
                     weekdayNumberColor: palette.weekdayText,

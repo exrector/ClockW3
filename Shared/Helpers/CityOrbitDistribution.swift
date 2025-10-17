@@ -1,19 +1,35 @@
 import Foundation
 
+// MARK: - City Orbit Distribution Result
+struct OrbitDistributionResult {
+    let assignment: [UUID: Int]
+    let hasConflicts: Bool
+    let conflictMessage: String?
+}
+
 // MARK: - City Orbit Distribution
-/// Распределяет города по двум орбитам, избегая наложения текста
 struct CityOrbitDistribution {
 
     /// Распределяет города по орбитам (1 или 2)
     static func distributeCities(
         cities: [WorldCity],
         currentTime: Date
-    ) -> [UUID: Int] {
-        guard !cities.isEmpty else { return [:] }
+    ) -> OrbitDistributionResult {
+        guard !cities.isEmpty else {
+            return OrbitDistributionResult(assignment: [:], hasConflicts: false, conflictMessage: nil)
+        }
 
-        // Вычисляем углы для всех городов
-        let cityAngles: [(city: WorldCity, angle: Double)] = cities.compactMap { city in
-            guard let timeZone = city.timeZone else { return nil }
+        var assignment: [UUID: Int] = [:]
+        var conflicts: [String] = []
+
+        let fontSize = ClockConstants.labelRingFontSizeRatio
+        let letterSpacing = fontSize * 0.8
+
+        // Размещаем города по очереди, предпочитая шахматный порядок
+        var nextPreferredOrbit = 1
+
+        for city in cities {
+            guard let timeZone = city.timeZone else { continue }
 
             var calendar = Calendar.current
             calendar.timeZone = timeZone
@@ -21,205 +37,127 @@ struct CityOrbitDistribution {
             let hour = Double(calendar.component(.hour, from: currentTime))
             let minute = Double(calendar.component(.minute, from: currentTime))
             let hour24 = hour + minute / 60.0
-            let angle = ClockConstants.calculateArrowAngle(hour24: hour24)
+            let centerAngle = ClockConstants.calculateArrowAngle(hour24: hour24)
 
-            return (city, angle)
-        }
+            // Пробуем сначала предпочитаемую орбиту, потом другую
+            let orbitsToTry = nextPreferredOrbit == 1 ? [1, 2] : [2, 1]
+            var placed = false
 
-        // Вычисляем интервалы для каждого города
-        var intervals: [CityInterval] = []
-        let fontSize = ClockConstants.labelRingFontSizeRatio // Относительный размер
-        let letterSpacing = fontSize * 0.8
+            for orbit in orbitsToTry {
+                let radius = orbit == 1 ? ClockConstants.outerLabelRingRadius : ClockConstants.middleLabelRingRadius
 
-        for cityEntry in cityAngles {
-            let cityCode = cityEntry.city.iataCode
-            let textWidth = Double(cityCode.count) * Double(letterSpacing)
-            let padding = Double(letterSpacing) * 0.5
-            let span = textWidth + 2 * padding
+                // Вычисляем интервал для этого города на этой орбите
+                let cityCode = city.iataCode
+                let letterCount = cityCode.count
+                // ВАЖНО: при рисовании используется (letterCount - 1), т.к. это расстояния МЕЖДУ буквами
+                let totalWidth = Double(letterCount - 1) * letterSpacing
+                let angularWidth = totalWidth / radius
 
-            var start = cityEntry.angle - span / 2
-            var end = cityEntry.angle + span / 2
+                // Минимальный зазор с каждой стороны (для предотвращения наложения)
+                let minGap = letterSpacing / radius * 2.0
 
-            // Нормализуем в [0, 2π]
-            start = normalizeAngle(start)
-            end = normalizeAngle(end)
+                // Интервал города УЖЕ включает зазоры слева и справа
+                let startAngle = centerAngle - angularWidth / 2 - minGap
+                let endAngle = centerAngle + angularWidth / 2 + minGap
 
-            // Если интервал пересекает 0, разбиваем на два
-            if start > end {
-                intervals.append(CityInterval(
-                    cityId: cityEntry.city.id,
-                    angle: cityEntry.angle,
-                    start: start,
-                    end: 2 * .pi
-                ))
-                intervals.append(CityInterval(
-                    cityId: cityEntry.city.id,
-                    angle: cityEntry.angle,
-                    start: 0,
-                    end: end
-                ))
+                // Проверяем конфликты с уже размещёнными городами на этой орбите
+                let orbitCities = cities.filter { assignment[$0.id] == orbit }
+                var hasConflict = false
+
+                for existingCity in orbitCities {
+                    guard let existingTZ = existingCity.timeZone else { continue }
+
+                    var cal = Calendar.current
+                    cal.timeZone = existingTZ
+
+                    let h = Double(cal.component(.hour, from: currentTime))
+                    let m = Double(cal.component(.minute, from: currentTime))
+                    let h24 = h + m / 60.0
+                    let existingAngle = ClockConstants.calculateArrowAngle(hour24: h24)
+
+                    let existingCode = existingCity.iataCode
+                    let existingCount = existingCode.count
+                    // ВАЖНО: при рисовании используется (count - 1), т.к. это расстояния МЕЖДУ буквами
+                    let existingWidth = Double(existingCount - 1) * letterSpacing
+                    let existingAngular = existingWidth / radius
+
+                    // Интервал существующего города тоже включает зазоры
+                    let existingStart = existingAngle - existingAngular / 2 - minGap
+                    let existingEnd = existingAngle + existingAngular / 2 + minGap
+
+                    if intervalsOverlap(startAngle, endAngle, existingStart, existingEnd) {
+                        hasConflict = true
+                        break
+                    }
+                }
+
+                if !hasConflict {
+                    assignment[city.id] = orbit
+                    placed = true
+                    #if DEBUG
+                    print("✅ \(city.iataCode) размещён на орбите \(orbit)")
+                    #endif
+                    break
+                } else {
+                    #if DEBUG
+                    print("❌ \(city.iataCode) конфликт на орбите \(orbit)")
+                    #endif
+                }
+            }
+
+            if !placed {
+                // Конфликт на обеих орбитах
+                conflicts.append("Cannot place \(city.name) - both orbits are occupied")
+                #if DEBUG
+                print("🚫 \(city.name) - НЕ РАЗМЕЩЁН (обе орбиты заняты)!")
+                #endif
             } else {
-                intervals.append(CityInterval(
-                    cityId: cityEntry.city.id,
-                    angle: cityEntry.angle,
-                    start: start,
-                    end: end
-                ))
+                // Чередуем предпочитаемую орбиту для следующего города
+                nextPreferredOrbit = nextPreferredOrbit == 1 ? 2 : 1
             }
         }
 
-        // Сортируем интервалы
-        intervals.sort { a, b in
-            if abs(a.start - b.start) < 0.0001 {
-                return a.cityId.uuidString < b.cityId.uuidString
-            }
-            return a.start < b.start
-        }
-
-        // Группируем в кластеры (города с пересекающимися интервалами)
-        let clusters = buildClusters(intervals: intervals)
-
-        // Распределяем кластеры по двум орбитам
-        return distributeClustersAcrossOrbits(
-            clusters: clusters,
-            cityAngles: cityAngles
+        return OrbitDistributionResult(
+            assignment: assignment,
+            hasConflicts: !conflicts.isEmpty,
+            conflictMessage: conflicts.isEmpty ? nil : conflicts.joined(separator: "\n")
         )
     }
 
-    // MARK: - Private Helpers
+    // Проверка пересечения двух угловых интервалов
+    private static func intervalsOverlap(_ start1: Double, _ end1: Double,
+                                        _ start2: Double, _ end2: Double) -> Bool {
+        // Нормализуем углы в [0, 2π]
+        let s1 = normalizeAngle(start1)
+        let e1 = normalizeAngle(end1)
+        let s2 = normalizeAngle(start2)
+        let e2 = normalizeAngle(end2)
+
+        // Если интервал пересекает 0° (start > end), нужна специальная логика
+        let interval1CrossesZero = s1 > e1
+        let interval2CrossesZero = s2 > e2
+
+        if interval1CrossesZero && interval2CrossesZero {
+            // Оба интервала пересекают 0° - они всегда пересекаются
+            return true
+        } else if interval1CrossesZero {
+            // Первый интервал: [s1, 2π] ∪ [0, e1]
+            // НЕ пересекается только если второй интервал целиком в промежутке (e1, s1)
+            return !(s2 > e1 && e2 < s1)
+        } else if interval2CrossesZero {
+            // Второй интервал: [s2, 2π] ∪ [0, e2]
+            // НЕ пересекается только если первый интервал целиком в промежутке (e2, s2)
+            return !(s1 > e2 && e1 < s2)
+        } else {
+            // Оба интервала нормальные [start, end]
+            return !(e1 < s2 || e2 < s1)
+        }
+    }
 
     private static func normalizeAngle(_ angle: Double) -> Double {
         var result = angle
         while result < 0 { result += 2 * .pi }
         while result >= 2 * .pi { result -= 2 * .pi }
         return result
-    }
-
-    private static func buildClusters(intervals: [CityInterval]) -> [[UUID]] {
-        var clusters: [[UUID]] = []
-        var cityToCluster: [UUID: Int] = [:]
-
-        for interval in intervals {
-            // Ищем кластер с пересечением
-            var foundCluster: Int? = nil
-
-            for (clusterIndex, cluster) in clusters.enumerated() {
-                let clusterIntervals = intervals.filter { cluster.contains($0.cityId) }
-                for clusterInterval in clusterIntervals {
-                    if interval.overlaps(with: clusterInterval) {
-                        foundCluster = clusterIndex
-                        break
-                    }
-                }
-                if foundCluster != nil { break }
-            }
-
-            if let clusterIndex = foundCluster {
-                if !clusters[clusterIndex].contains(interval.cityId) {
-                    clusters[clusterIndex].append(interval.cityId)
-                }
-                cityToCluster[interval.cityId] = clusterIndex
-            } else {
-                clusters.append([interval.cityId])
-                cityToCluster[interval.cityId] = clusters.count - 1
-            }
-        }
-
-        // Проверяем замыкание круга
-        if clusters.count > 1 {
-            let firstCluster = clusters[0]
-            let lastCluster = clusters[clusters.count - 1]
-
-            let firstIntervals = intervals.filter {
-                firstCluster.contains($0.cityId) && $0.start < .pi
-            }
-            let lastIntervals = intervals.filter {
-                lastCluster.contains($0.cityId) && $0.end > .pi
-            }
-
-            var shouldMerge = false
-            for lastInterval in lastIntervals {
-                for firstInterval in firstIntervals {
-                    let gap = (2 * .pi - lastInterval.end) + firstInterval.start
-                    if gap < 0.01 {
-                        shouldMerge = true
-                        break
-                    }
-                }
-                if shouldMerge { break }
-            }
-
-            if shouldMerge {
-                clusters[0].append(contentsOf: lastCluster)
-                for cityId in lastCluster {
-                    cityToCluster[cityId] = 0
-                }
-                clusters.removeLast()
-            }
-        }
-
-        return clusters
-    }
-
-    private static func distributeClustersAcrossOrbits(
-        clusters: [[UUID]],
-        cityAngles: [(city: WorldCity, angle: Double)]
-    ) -> [UUID: Int] {
-        var orbit1Cities: [UUID] = []
-        var orbit2Cities: [UUID] = []
-
-        for cluster in clusters {
-            let uniqueCities = Array(Set(cluster))
-
-            if uniqueCities.count == 1 {
-                // Одиночный город - балансируем
-                let cityId = uniqueCities[0]
-
-                if orbit1Cities.count <= orbit2Cities.count {
-                    orbit1Cities.append(cityId)
-                } else {
-                    orbit2Cities.append(cityId)
-                }
-            } else {
-                // Кластер - распределяем round-robin
-                let sortedCluster = uniqueCities.sorted { id1, id2 in
-                    guard let city1 = cityAngles.first(where: { $0.city.id == id1 }),
-                          let city2 = cityAngles.first(where: { $0.city.id == id2 }) else {
-                        return id1.uuidString < id2.uuidString
-                    }
-                    if abs(city1.angle - city2.angle) < 0.0001 {
-                        return id1.uuidString < id2.uuidString
-                    }
-                    return city1.angle < city2.angle
-                }
-
-                for (index, cityId) in sortedCluster.enumerated() {
-                    if index % 2 == 0 {
-                        orbit1Cities.append(cityId)
-                    } else {
-                        orbit2Cities.append(cityId)
-                    }
-                }
-            }
-        }
-
-        // Формируем результат
-        var assignment: [UUID: Int] = [:]
-        for cityId in orbit1Cities { assignment[cityId] = 1 }
-        for cityId in orbit2Cities { assignment[cityId] = 2 }
-
-        return assignment
-    }
-}
-
-// MARK: - City Interval
-private struct CityInterval {
-    let cityId: UUID
-    let angle: Double
-    let start: Double
-    let end: Double
-
-    func overlaps(with other: CityInterval) -> Bool {
-        return !(end < other.start || other.end < start)
     }
 }
