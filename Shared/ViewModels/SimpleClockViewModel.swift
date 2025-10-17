@@ -86,10 +86,27 @@ class SimpleClockViewModel: ObservableObject {
     
     // MARK: - Time Updates
     private func startTimeUpdates() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        // Устанавливаем начальное время
+        currentTime = Date()
+
+        // Вычисляем время до следующей целой секунды
+        let now = Date()
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second, .nanosecond], from: now)
+        let nanoseconds = components.nanosecond ?? 0
+        let delay = Double(1_000_000_000 - nanoseconds) / 1_000_000_000.0
+
+        // Запускаем таймер с задержкой до начала следующей секунды
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self = self else { return }
-            Task { @MainActor in
-                self.currentTime = Date()
+            self.currentTime = Date()
+
+            // Теперь запускаем регулярный таймер, синхронизированный с секундами
+            self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                Task { @MainActor in
+                    self.currentTime = Date()
+                }
             }
         }
     }

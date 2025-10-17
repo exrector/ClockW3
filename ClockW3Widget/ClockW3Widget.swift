@@ -30,11 +30,27 @@ struct Provider: TimelineProvider {
         let build = buildString()
 
         var entries: [SimpleEntry] = []
-        let currentDate = Date()
+        let now = Date()
 
-        // Обновляем каждую минуту в течение часа
+        // Округляем до начала следующей минуты
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: now)
+        guard let startOfNextMinute = calendar.date(from: components)?.addingTimeInterval(60) else {
+            // Fallback если не удалось округлить
+            let entry = SimpleEntry(
+                date: now,
+                colorSchemePreference: colorPref,
+                buildVersion: build,
+                appGroupOK: appGroupOK
+            )
+            let timeline = Timeline(entries: [entry], policy: .after(now.addingTimeInterval(60)))
+            completion(timeline)
+            return
+        }
+
+        // Создаём entries для каждой минуты в течение часа, начиная с начала следующей минуты
         for minuteOffset in 0..<60 {
-            let entryDate = Calendar.current.date(byAdding: .minute, value: minuteOffset, to: currentDate)!
+            let entryDate = calendar.date(byAdding: .minute, value: minuteOffset, to: startOfNextMinute)!
             let entry = SimpleEntry(
                 date: entryDate,
                 colorSchemePreference: colorPref,
