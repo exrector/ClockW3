@@ -92,19 +92,25 @@ struct ClockW3WidgetEntryView: View {
             let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
             let frameSize = geometry.size
 
-            ZStack(alignment: .topLeading) {
-                palette.background
-
-                ClockFaceView(
-                    interactivityEnabled: false,
-                    overrideTime: entry.date,
-                    overrideColorScheme: effectiveColorScheme
-                )
-                .frame(width: frameSize.width, height: frameSize.height)
-                .scaleEffect(0.98)
-                .allowsHitTesting(false)
-
-
+            Group {
+                switch widgetFamily {
+                case .systemMedium:
+                    MediumLineRibbonView(date: entry.date, colorScheme: effectiveColorScheme)
+                        .frame(width: frameSize.width, height: frameSize.height)
+                        .allowsHitTesting(false)
+                default:
+                    ZStack(alignment: .topLeading) {
+                        palette.background
+                        ClockFaceView(
+                            interactivityEnabled: false,
+                            overrideTime: entry.date,
+                            overrideColorScheme: effectiveColorScheme
+                        )
+                        .frame(width: frameSize.width, height: frameSize.height)
+                        .scaleEffect(0.98)
+                        .allowsHitTesting(false)
+                    }
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .aspectRatio(contentMode: .fill)
