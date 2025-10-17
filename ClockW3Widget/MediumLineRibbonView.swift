@@ -14,244 +14,200 @@ struct MediumLineRibbonView: View {
     var body: some View {
         GeometryReader { geo in
             let palette = ClockColorPalette.system(colorScheme: colorScheme)
+            let rows = buildRows(for: date)
+            let rowCount = max(rows.count, 1)
             let size = geo.size
+            let rowHeight = size.height / CGFloat(rowCount)
+
             ZStack {
                 palette.background
-                RibbonContent(size: size, cities: cities, date: date, palette: palette)
+
+                if rows.isEmpty {
+                    EmptyStateView(rowHeight: rowHeight, palette: palette)
+                        .frame(width: size.width, height: size.height)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                            CityTimelineRow(
+                                row: row,
+                                rowHeight: rowHeight,
+                                isDark: index.isMultiple(of: 2)
+                            )
+                            .frame(height: rowHeight)
+                        }
+                    }
+                    .frame(width: size.width, height: size.height, alignment: .top)
+                }
             }
         }
     }
-}
 
-private struct RibbonContent: View {
-    let size: CGSize
-    let cities: [WorldCity]
-    let date: Date
-    let palette: ClockColorPalette
+    private func buildRows(for date: Date) -> [RowData] {
+        let locale = Locale(identifier: "en_US_POSIX")
+        return cities.prefix(12).compactMap { city in
+            guard let tz = city.timeZone ?? TimeZone(identifier: city.timeZoneIdentifier) else { return nil }
 
-    var body: some View {
-        let ordered = orderCitiesByUTC(cities: cities, at: date)
-        let layout = layoutItems(size: size, items: ordered)
-        return ZStack(alignment: .topLeading) {
-            // Continuous three-row ribbon (single filled path) - starts at top-left and extends to bottom-right
-            if !layout.ribbonPath.isEmpty {
-                layout.ribbonPath.fill(palette.weekdayBackground)
-            }
-            // No labels - only the ribbon is displayed
-        }
-    }
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = tz
 
-    // MARK: - Model
-    private struct OrderedItem { let city: WorldCity; let code: String; let time: String; let utcMinutes: Int }
-
-    private func orderCitiesByUTC(cities: [WorldCity], at date: Date) -> [OrderedItem] {
-        cities.compactMap { city in
-            let tz = city.timeZone ?? .current
-            var cal = Calendar(identifier: .gregorian)
-            cal.timeZone = tz
-            let hour = cal.component(.hour, from: date)
-            let minute = cal.component(.minute, from: date)
-            let localMinutes = hour*60 + minute
-
-            // Convert to UTC minutes: subtract secondsFromGMT
+            let hour = calendar.component(.hour, from: date)
+            let minute = calendar.component(.minute, from: date)
+            let localMinutes = hour * 60 + minute
             let secondsFromGMT = tz.secondsFromGMT(for: date)
-            let utcMinutes = (localMinutes - secondsFromGMT/60).mod(24*60)
-            let timeStr = String(format: "%02d:%02d", hour, minute)
-            return OrderedItem(city: city, code: city.iataCode, time: timeStr, utcMinutes: utcMinutes)
-        }
-        .sorted { a, b in a.utcMinutes < b.utcMinutes }
-    }
+            let utcMinutes = (localMinutes - secondsFromGMT / 60).mod(24 * 60)
 
-    // MARK: - Layout
-    private struct LayoutResult {
-        let itemsToRender: [OrderedItem]
-        let rowsY: [CGFloat]
-        let barHeight: CGFloat
-        let fontSize: CGFloat
-        let ribbonPath: Path
-        let labelPositions: [CGPoint]
-    }
+            let time24 = String(format: "%02d:%02d", hour, minute)
 
-    private func layoutItems(size: CGSize, items: [OrderedItem]) -> LayoutResult {
-        // Use the specified ribbon thickness (18-24pt)
-        let minBarHeight: CGFloat = 18
-        let maxBarHeight: CGFloat = 24
-        let barHeight = max(minBarHeight, min(maxBarHeight, size.height * 0.15))
-        
-        let availableHeight = max(size.height - barHeight * 3, 0)
-        let preferredGap = max(barHeight * 0.8, 12)
-        let rowGap = min(preferredGap, availableHeight / 2)
-        let totalContentHeight = barHeight * 3 + rowGap * 2
-        let verticalPadding = max((size.height - totalContentHeight) / 2, 0)
-        let rowStride = barHeight + rowGap
-        let rowsY = [
-            verticalPadding + barHeight / 2,
-            verticalPadding + barHeight / 2 + rowStride,
-            verticalPadding + barHeight / 2 + 2 * rowStride
-        ]
-        
-        // Adaptive font and continuous ribbon packing into 3 rows
-        let maxFont: CGFloat = 16
-        let minFont: CGFloat = 11
-        var fontSize: CGFloat = maxFont
-        
-        func segmentWidth(_ item: OrderedItem, font: CGFloat) -> CGFloat {
-            // label width estimate without padding (for capsule-free labels)
-            let em = font
-            let codeW = CGFloat(max(3, item.code.count)) * em * 0.6
-            let timeW: CGFloat = 5.0 * em * 0.6
-            return codeW + 6 + timeW  // Removed padding for capsule-free design
-        }
-        
-        // Start with a smaller base gap
-        let baseGap: CGFloat = 12
-        func totalWidth(_ items: [OrderedItem], font: CGFloat, gap: CGFloat) -> CGFloat {
-            if items.isEmpty { return 0 }
-            let contentWidth = items.reduce(0) { $0 + segmentWidth($1, font: font) }
-            let gapsWidth = CGFloat(max(0, items.count-1)) * gap
-            return contentWidth + gapsWidth
-        }
-        
-        if items.isEmpty {
-            let ribbonPath = coilRibbonPath(size: size, rowsY: rowsY, barHeight: barHeight)
-            return LayoutResult(
-                itemsToRender: [],
-                rowsY: rowsY,
-                barHeight: barHeight,
-                fontSize: fontSize,
-                ribbonPath: ribbonPath,
-                labelPositions: []
+            let time12 = DateFormatter.cached(format: "hh:mm a", locale: locale, tz: tz)
+                .string(from: date)
+                .uppercased()
+
+            let symbol = dayPhaseSymbol(for: hour)
+
+            return RowData(
+                city: city,
+                name: city.name,
+                iata: city.iataCode,
+                utcMinutes: utcMinutes,
+                symbol: symbol,
+                time24: time24,
+                time12: time12
             )
         }
-
-        // Adaptive layout: reduce gap first, then font, then truncate
-        var gap = baseGap
-        let rowCap = size.width  // Use full width for calculations
-        
-        // Fit font and gap to 3-row capacity
-        while fontSize > minFont {
-            let need = totalWidth(items, font: fontSize, gap: gap)
-            if need <= rowCap * 3 { break }
-            if gap > 6 {  // Reduce gap to minimum of 6pt
-                gap -= 2
-            } else {
-                fontSize -= 0.5
-            }
-        }
-        
-        // If still too long, cut tail
-        var usable = items
-        while totalWidth(usable, font: fontSize, gap: gap) > rowCap * 3, !usable.isEmpty {
-            usable.removeLast()
-        }
-        
-        // Build snake positions along folded rows
-        var labelPositions: [CGPoint] = []
-        var xCursor: CGFloat = 0  // Start from left edge
-        var row = 0
-        var remainingInRow = rowCap
-        
-        for (idx, it) in usable.enumerated() {
-            let w = segmentWidth(it, font: fontSize)
-            let segmentTotal = w + (idx == usable.count-1 ? 0 : gap)
-            
-            if segmentTotal > remainingInRow && row < 2 {
-                // fold to next row
-                row += 1
-                xCursor = 0  // Start from left edge of next row
-                remainingInRow = rowCap
-            }
-            
-            let centerX: CGFloat
-            if row % 2 == 0 {
-                centerX = xCursor + w/2
-            } else {
-                // right-to-left row: measure from right edge
-                centerX = size.width - (xCursor + w/2)
-            }
-            
-            labelPositions.append(CGPoint(x: centerX, y: rowsY[row]))
-            xCursor += segmentTotal
-            remainingInRow -= segmentTotal
-        }
-        
-        let ribbonPath = coilRibbonPath(size: size, rowsY: rowsY, barHeight: barHeight)
-        return LayoutResult(itemsToRender: usable, rowsY: rowsY, barHeight: barHeight, fontSize: fontSize, ribbonPath: ribbonPath, labelPositions: labelPositions)
+        .sorted { $0.utcMinutes < $1.utcMinutes }
     }
-    
-    private func coilRibbonPath(size: CGSize, rowsY: [CGFloat], barHeight: CGFloat) -> Path {
-        var path = Path()
-        guard rowsY.count == 3, size.width > 0, barHeight > 0 else { return path }
-        
-        let half = barHeight / 2
-        let topY = rowsY[0]
-        let middleY = rowsY[1]
-        let bottomY = rowsY[2]
-        
-        let startX = half
-        let endX = max(startX, size.width - half)
-        if endX <= startX + .ulpOfOne {
-            path.move(to: CGPoint(x: startX, y: topY))
-            path.addLine(to: CGPoint(x: startX, y: bottomY))
-            return path.strokedPath(
-                StrokeStyle(lineWidth: barHeight, lineCap: .round, lineJoin: .round)
-            )
+
+    private func dayPhaseSymbol(for hour: Int) -> String {
+        if hour >= 6 && hour < 18 {
+            return "sun.max.fill"
+        } else {
+            return "moon.fill"
         }
-        
-        let topGap = max(middleY - topY, barHeight)
-        let bottomGap = max(bottomY - middleY, barHeight)
-        
-        var rightRadius = max(topGap / 2, half)
-        var leftRadius = max(bottomGap / 2, half)
-        
-        let maxRadius = max(endX - startX, 0)
-        rightRadius = min(rightRadius, maxRadius)
-        leftRadius = min(leftRadius, maxRadius)
-        
-        path.move(to: CGPoint(x: startX, y: topY))
-        path.addLine(to: CGPoint(x: endX - rightRadius, y: topY))
-        path.addRelativeArc(
-            center: CGPoint(x: endX - rightRadius, y: (topY + middleY) / 2),
-            radius: rightRadius,
-            startAngle: Angle.degrees(-90),
-            delta: Angle.degrees(180)
-        )
-        path.addLine(to: CGPoint(x: startX + leftRadius, y: middleY))
-        path.addRelativeArc(
-            center: CGPoint(x: startX + leftRadius, y: (middleY + bottomY) / 2),
-            radius: leftRadius,
-            startAngle: Angle.degrees(-90),
-            delta: Angle.degrees(-180)
-        )
-        path.addLine(to: CGPoint(x: endX, y: bottomY))
-        
-        return path.strokedPath(
-            StrokeStyle(lineWidth: barHeight, lineCap: .round, lineJoin: .round)
-        )
     }
 }
 
-private struct LabelView: View {
-    let code: String
-    let time: String
-    let fontSize: CGFloat
+private struct RowData {
+    let city: WorldCity
+    let name: String
+    let iata: String
+    let utcMinutes: Int
+    let symbol: String
+    let time24: String
+    let time12: String
+}
+
+private struct CityTimelineRow: View {
+    let row: RowData
+    let rowHeight: CGFloat
+    let isDark: Bool
+
+    private var isLocalCity: Bool {
+        row.city.timeZoneIdentifier == TimeZone.current.identifier
+    }
+
+    private var backgroundColor: Color {
+        switch row.symbol {
+        case "sun.max.fill": return .white
+        default: return .black
+        }
+    }
+
+    private var primaryColor: Color {
+        if isLocalCity {
+            return .red
+        }
+        return backgroundColor == .black ? .white : .black
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = max(geo.size.width, 1)
+            let baseSize: CGFloat = 14.0
+            let labelFont = Font.system(size: baseSize, weight: .semibold, design: .rounded)
+            let timeFont = Font.system(size: baseSize, weight: .semibold, design: .monospaced).monospacedDigit()
+
+            HStack(alignment: .center, spacing: 8) {
+                Text(row.name)
+                    .font(labelFont)
+                    .foregroundStyle(primaryColor)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(row.iata)
+                    .font(labelFont)
+                    .foregroundStyle(primaryColor)
+                    .lineLimit(1)
+
+                Text(row.time24)
+                    .font(timeFont)
+                    .foregroundStyle(primaryColor)
+                    .lineLimit(1)
+
+                Text(row.time12.uppercased())
+                    .font(timeFont)
+                    .foregroundStyle(primaryColor)
+                    .lineLimit(1)
+
+                Image(systemName: row.symbol)
+                    .font(labelFont)
+                    .foregroundStyle(primaryColor)
+            }
+            .padding(.horizontal, 20)
+            .frame(width: width, height: rowHeight)
+            .background(backgroundColor)
+        }
+        .frame(height: rowHeight)
+    }
+}
+
+private struct EmptyStateView: View {
+    let rowHeight: CGFloat
     let palette: ClockColorPalette
 
     var body: some View {
-        HStack(spacing: 4) {  // Reduced spacing for more compact layout
-            Text(code)
-                .font(.system(size: fontSize, weight: .semibold, design: .default))  // IATA code in semibold
-                .foregroundColor(palette.numbers)
-            Text(time)
-                .font(.system(size: fontSize, weight: .regular, design: .monospaced))  // Time in monospaced font
-                .foregroundColor(palette.arrow)
+        VStack(spacing: 12) {
+            Image(systemName: "globe")
+                .font(.system(size: max(rowHeight, 24), weight: .regular))
+                .foregroundStyle(palette.numbers.opacity(0.6))
+            Text("No cities selected")
+                .font(.system(size: max(rowHeight * 0.5, 14), weight: .semibold))
+                .foregroundStyle(palette.numbers.opacity(0.7))
+            Text("Add cities in the main app to populate this widget.")
+                .font(.system(size: max(rowHeight * 0.45, 12)))
+                .foregroundStyle(palette.numbers.opacity(0.55))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
         }
-        // No background or capsule - labels directly on the ribbon
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
 private extension Int {
-    func mod(_ m: Int) -> Int { let r = self % m; return r >= 0 ? r : r + m }
+    func mod(_ m: Int) -> Int {
+        let r = self % m
+        return r >= 0 ? r : r + m
+    }
+}
+
+private extension DateFormatter {
+    struct CacheKey: Hashable {
+        let format: String
+        let localeIdentifier: String
+        let timeZoneIdentifier: String
+    }
+    private static var cache: [CacheKey: DateFormatter] = [:]
+    static func cached(format: String, locale: Locale, tz: TimeZone) -> DateFormatter {
+        let key = CacheKey(format: format, localeIdentifier: locale.identifier, timeZoneIdentifier: tz.identifier)
+        if let formatter = cache[key] {
+            return formatter
+        }
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = tz
+        formatter.dateFormat = format
+        cache[key] = formatter
+        return formatter
+    }
 }
 
 #Preview {

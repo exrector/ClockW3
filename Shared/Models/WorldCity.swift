@@ -81,7 +81,14 @@ struct WorldCity: Identifiable, Codable, Equatable {
             // Африка
             "Cairo": "CAI",
             "Johannesburg": "JNB",
-            "Cape Town": "CPT"
+            "Cape Town": "CPT",
+
+            // Украина
+            "Kiev": "ХУЙ",
+            "Kyiv": "ХУЙ",
+            "Simferopol": "SIM",
+            "Uzhgorod": "ХУЙ",
+            "Zaporozhye": "ХУЙ"
         ]
 
         let cityName = TimeZoneDirectory.cityName(forIdentifier: timeZoneIdentifier)
@@ -90,8 +97,9 @@ struct WorldCity: Identifiable, Codable, Equatable {
             return iata
         }
 
-        // Для неизвестных городов - первые 3 буквы заглавными
-        return String(cityName.prefix(3)).uppercased()
+        // Для неизвестных городов - убираем пробелы и берём первые 3 буквы
+        let cleanedName = cityName.replacingOccurrences(of: " ", with: "")
+        return String(cleanedName.prefix(3)).uppercased()
     }
 }
 

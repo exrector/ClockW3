@@ -733,7 +733,7 @@ struct TimeZoneSelectionView: View {
             }
 #endif
         }
-        .alert("Cannot Add City", isPresented: $showConflictAlert) {
+        .alert("Computer says no", isPresented: $showConflictAlert) {
             Button("OK", role: .cancel) { }
         } message: {
             Text(conflictMessage)
@@ -855,7 +855,7 @@ struct TimeZoneSelectionInlineView: View {
                 .padding(.vertical, 8)
             }
         }
-        .alert("Cannot Add City", isPresented: $showConflictAlert) {
+        .alert("Computer says no", isPresented: $showConflictAlert) {
             Button("OK", role: .cancel) { }
         } message: {
             Text(conflictMessage)
