@@ -628,6 +628,11 @@ private struct ReminderRow: View {
                                     Circle()
                                         .stroke(borderColor, lineWidth: 1.5)
                                 )
+                                .overlay(
+                                    Image(systemName: isDailyMode ? "infinity" : "1.circle.fill")
+                                        .font(.system(size: isDailyMode ? 10 : 9, weight: .semibold))
+                                        .foregroundStyle(isDailyMode ? (colorScheme == .light ? .white : .black) : borderColor)
+                                )
                                 .shadow(color: isDailyMode ? borderColor.opacity(0.25) : .clear, radius: 3)
                                 .contentShape(Circle())
 #if os(iOS)
@@ -656,14 +661,14 @@ private struct ReminderRow: View {
                                 .frame(width: 20, height: 20)
                                 .overlay(
                                     Circle()
-                                        .stroke(isAlwaysLiveActivity ? .green : borderColor, lineWidth: isAlwaysLiveActivity ? 2.0 : 1.5)
+                                        .stroke(borderColor, lineWidth: isAlwaysLiveActivity ? 2.0 : 1.5)
                                 )
                                 .overlay(
                                     Image(systemName: isAlwaysLiveActivity ? "infinity" : "waveform.path.ecg")
                                         .font(.system(size: 10, weight: .semibold))
-                                        .foregroundStyle(isLiveActivityEnabled ? (colorScheme == .light ? .white : .black) : (isAlwaysLiveActivity ? .green : borderColor))
+                                        .foregroundStyle(isLiveActivityEnabled ? (colorScheme == .light ? .white : .black) : borderColor)
                                 )
-                                .shadow(color: isLiveActivityEnabled ? borderColor.opacity(0.25) : (isAlwaysLiveActivity ? .green.opacity(0.4) : .clear), radius: 3)
+                                .shadow(color: isLiveActivityEnabled ? borderColor.opacity(0.25) : .clear, radius: 3)
                                 .opacity((isDailyMode && !isAlwaysLiveActivity) ? 0.3 : 1.0)
                         }
                         .buttonStyle(.plain)
