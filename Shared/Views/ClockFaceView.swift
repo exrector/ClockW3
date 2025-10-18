@@ -258,31 +258,65 @@ struct CornerScrewDecorationView: View {
     }
 
     private var nutSize: CGFloat {
-        minDimension * 0.095 * 0.7
+        let isCircular = abs(size.width - size.height) < 10
+        if isCircular {
+            // Размер для циферблата
+            return minDimension * 0.095 * 0.7
+        } else {
+            // Размер для панели настроек - в 2 раза больше
+            return minDimension * 0.095 * 1.4
+        }
     }
 
     private var cornerDescriptors: [CornerDescriptor] {
-        let diameter = minDimension * ClockConstants.clockSizeRatio
-        let baseRadius = diameter / 2
         let centerX = size.width / 2
         let centerY = size.height / 2
-        let desiredDistance = baseRadius * 1.2
-        let maxDistance = max(0, (minDimension / 2 - nutSize / 2) * CGFloat(sqrt(2.0)))
-        let radialDistance = min(desiredDistance, maxDistance)
-        let diagonal = radialDistance / CGFloat(sqrt(2.0))
 
-        return (0..<4).map { index in
-            let baseAngle = CornerScrewDecorationView.baseAngles[index]
-            let randomOffset = randomOffsets[index]
-            let rotation = Angle.degrees(baseAngle + randomOffset)
+        // Определяем, круглая ли это область (циферблат) или прямоугольная (панель настроек)
+        let isCircular = abs(size.width - size.height) < 10
 
-            let dx = (index % 2 == 0) ? -diagonal : diagonal
-            let dy = (index < 2) ? -diagonal : diagonal
+        if isCircular {
+            // Для циферблата - используем старую логику (квадратное размещение)
+            let diameter = minDimension * ClockConstants.clockSizeRatio
+            let baseRadius = diameter / 2
+            let desiredDistance = baseRadius * 1.2
+            let maxDistance = max(0, (minDimension / 2 - nutSize / 2) * CGFloat(sqrt(2.0)))
+            let radialDistance = min(desiredDistance, maxDistance)
+            let diagonal = radialDistance / CGFloat(sqrt(2.0))
 
-            return CornerDescriptor(
-                rotation: rotation,
-                position: CGPoint(x: centerX + dx, y: centerY + dy)
-            )
+            return (0..<4).map { index in
+                let baseAngle = CornerScrewDecorationView.baseAngles[index]
+                let randomOffset = randomOffsets[index]
+                let rotation = Angle.degrees(baseAngle + randomOffset)
+
+                let dx = (index % 2 == 0) ? -diagonal : diagonal
+                let dy = (index < 2) ? -diagonal : diagonal
+
+                return CornerDescriptor(
+                    rotation: rotation,
+                    position: CGPoint(x: centerX + dx, y: centerY + dy)
+                )
+            }
+        } else {
+            // Для прямоугольной панели - фиксированные отступы от краёв плитки
+            let verticalInset: CGFloat = 8 // 8pt от верха/низа плитки
+            let horizontalInset: CGFloat = 16 // 16pt от левого/правого края плитки
+            let horizontalOffset = size.width / 2 - horizontalInset
+            let verticalOffset = size.height / 2 - verticalInset
+
+            return (0..<4).map { index in
+                let baseAngle = CornerScrewDecorationView.baseAngles[index]
+                let randomOffset = randomOffsets[index]
+                let rotation = Angle.degrees(baseAngle + randomOffset)
+
+                let dx = (index % 2 == 0) ? -horizontalOffset : horizontalOffset
+                let dy = (index < 2) ? -verticalOffset : verticalOffset
+
+                return CornerDescriptor(
+                    rotation: rotation,
+                    position: CGPoint(x: centerX + dx, y: centerY + dy)
+                )
+            }
         }
     }
 

@@ -71,11 +71,23 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                Text("Designed by Exrector")
-                    .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .kerning(1.5)
-                    .padding(.bottom, 8)
+                HStack(spacing: 6) {
+                    // Левый винтик
+                    Text("⊗")
+                        .font(.system(size: 10, weight: .heavy))
+                        .foregroundStyle(.primary)
+
+                    Text("Designed by Exrector")
+                        .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(.primary)
+                        .kerning(1.5)
+
+                    // Правый винтик
+                    Text("⊕")
+                        .font(.system(size: 10, weight: .heavy))
+                        .foregroundStyle(.primary)
+                }
+                .padding(.bottom, 8)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color("ClockBackground"))

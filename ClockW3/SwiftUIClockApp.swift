@@ -181,113 +181,118 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 32) {
-                VStack(spacing: 16) {
-                    // Слот напоминания (реальное или preview)
-                    if let reminder = reminderManager.currentReminder {
+        VStack(spacing: 0) {
+            // ВЕРХНИЙ БЛОК (фиксированный) - Напоминание с винтиками
+            VStack(spacing: 16) {
+                if let reminder = reminderManager.currentReminder {
 #if os(iOS)
-                        let modeChangeHandler: ((Bool) -> Void)? = { isDaily in
-                            Task {
-                                await reminderManager.updateReminderRepeat(isDaily: isDaily)
-                            }
+                    let modeChangeHandler: ((Bool) -> Void)? = { isDaily in
+                        Task {
+                            await reminderManager.updateReminderRepeat(isDaily: isDaily)
                         }
-                        let liveActivityHandler: ((Bool) -> Void)? = { isEnabled in
-                            Task {
-                                await reminderManager.updateLiveActivityEnabled(isEnabled: isEnabled)
-                            }
+                    }
+                    let liveActivityHandler: ((Bool) -> Void)? = { isEnabled in
+                        Task {
+                            await reminderManager.updateLiveActivityEnabled(isEnabled: isEnabled)
                         }
-                        let criticalHandler: ((Bool) -> Void)? = { isEnabled in
-                            Task {
-                                await reminderManager.updateCriticalEnabled(isEnabled: isEnabled)
-                            }
+                    }
+                    let criticalHandler: ((Bool) -> Void)? = { isEnabled in
+                        Task {
+                            await reminderManager.updateCriticalEnabled(isEnabled: isEnabled)
                         }
-                        let alwaysLiveActivityHandler: ((Bool) -> Void)? = { isEnabled in
-                            Task {
-                                await reminderManager.updateAlwaysLiveActivity(isEnabled: isEnabled)
-                            }
+                    }
+                    let alwaysLiveActivityHandler: ((Bool) -> Void)? = { isEnabled in
+                        Task {
+                            await reminderManager.updateAlwaysLiveActivity(isEnabled: isEnabled)
                         }
-
-                        ReminderRow(
-                            reminder: reminder,
-                            isPreview: false,
-                            onModeChange: modeChangeHandler,
-                            onLiveActivityToggle: liveActivityHandler,
-                            onAlwaysLiveActivityToggle: alwaysLiveActivityHandler,
-                            onCriticalToggle: criticalHandler,
-                            onEdit: {
-                                editContext = ReminderEditContext(kind: .current, reminder: reminder)
-                            },
-                            onRemove: {
-                                reminderManager.deleteReminder()
-                            },
-                            onConfirm: nil
-                        )
-                        .frame(maxWidth: .infinity, alignment: .center)
-#else
-                        let modeChangeHandler: ((Bool) -> Void)? = { isDaily in
-                            Task {
-                                await reminderManager.updateReminderRepeat(isDaily: isDaily)
-                            }
-                        }
-
-                        ReminderRow(
-                            reminder: reminder,
-                            isPreview: false,
-                            onModeChange: modeChangeHandler,
-                            onEdit: {
-                                editContext = ReminderEditContext(kind: .current, reminder: reminder)
-                            },
-                            onRemove: {
-                                reminderManager.deleteReminder()
-                            },
-                            onConfirm: nil
-                        )
-                        .frame(maxWidth: .infinity, alignment: .center)
-#endif
-                    } else if let preview = reminderManager.previewReminder {
-#if os(iOS)
-                        ReminderRow(
-                            reminder: preview,
-                            isPreview: true,
-                            onModeChange: nil,
-                            onLiveActivityToggle: nil,
-                            onAlwaysLiveActivityToggle: nil,
-                            onCriticalToggle: nil,
-                            onEdit: {
-                                editContext = ReminderEditContext(kind: .preview, reminder: preview)
-                            },
-                            onRemove: {
-                                reminderManager.clearPreviewReminder()
-                            },
-                            onConfirm: {
-                                Task {
-                                    await reminderManager.confirmPreview()
-                                }
-                            }
-                        )
-                        .frame(maxWidth: .infinity, alignment: .center)
-#else
-                        ReminderRow(
-                            reminder: preview,
-                            isPreview: true,
-                            onModeChange: nil,
-                            onEdit: {
-                                editContext = ReminderEditContext(kind: .preview, reminder: preview)
-                            },
-                            onRemove: {
-                                reminderManager.clearPreviewReminder()
-                            },
-                            onConfirm: {
-                                Task {
-                                    await reminderManager.confirmPreview()
-                                }
-                            }
-                        )
-                        .frame(maxWidth: .infinity, alignment: .center)
-#endif
                     }
 
+                    ReminderRow(
+                        reminder: reminder,
+                        isPreview: false,
+                        onModeChange: modeChangeHandler,
+                        onLiveActivityToggle: liveActivityHandler,
+                        onAlwaysLiveActivityToggle: alwaysLiveActivityHandler,
+                        onCriticalToggle: criticalHandler,
+                        onEdit: {
+                            editContext = ReminderEditContext(kind: .current, reminder: reminder)
+                        },
+                        onRemove: {
+                            reminderManager.deleteReminder()
+                        },
+                        onConfirm: nil
+                    )
+                    .frame(maxWidth: .infinity, alignment: .center)
+#else
+                    let modeChangeHandler: ((Bool) -> Void)? = { isDaily in
+                        Task {
+                            await reminderManager.updateReminderRepeat(isDaily: isDaily)
+                        }
+                    }
+
+                    ReminderRow(
+                        reminder: reminder,
+                        isPreview: false,
+                        onModeChange: modeChangeHandler,
+                        onEdit: {
+                            editContext = ReminderEditContext(kind: .current, reminder: reminder)
+                        },
+                        onRemove: {
+                            reminderManager.deleteReminder()
+                        },
+                        onConfirm: nil
+                    )
+                    .frame(maxWidth: .infinity, alignment: .center)
+#endif
+                } else if let preview = reminderManager.previewReminder {
+#if os(iOS)
+                    ReminderRow(
+                        reminder: preview,
+                        isPreview: true,
+                        onModeChange: nil,
+                        onLiveActivityToggle: nil,
+                        onAlwaysLiveActivityToggle: nil,
+                        onCriticalToggle: nil,
+                        onEdit: {
+                            editContext = ReminderEditContext(kind: .preview, reminder: preview)
+                        },
+                        onRemove: {
+                            reminderManager.clearPreviewReminder()
+                        },
+                        onConfirm: {
+                            Task {
+                                await reminderManager.confirmPreview()
+                            }
+                        }
+                    )
+                    .frame(maxWidth: .infinity, alignment: .center)
+#else
+                    ReminderRow(
+                        reminder: preview,
+                        isPreview: true,
+                        onModeChange: nil,
+                        onEdit: {
+                            editContext = ReminderEditContext(kind: .preview, reminder: preview)
+                        },
+                        onRemove: {
+                            reminderManager.clearPreviewReminder()
+                        },
+                        onConfirm: {
+                            Task {
+                                await reminderManager.confirmPreview()
+                            }
+                        }
+                    )
+                    .frame(maxWidth: .infinity, alignment: .center)
+#endif
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+
+            // НИЖНИЙ БЛОК (прокручиваемый) - Города и настройки темы
+            ScrollView {
+                VStack(spacing: 16) {
                     if selectedEntries.isEmpty {
                         Text("No cities selected")
                             .font(.caption)
@@ -353,49 +358,46 @@ struct SettingsView: View {
                     .frame(maxWidth: 360)
                     .padding(.top, 8)
 #endif
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                
 
-                
-                // Три пузыря для выбора темы внизу
-                HStack(spacing: 16) {
-                    ColorSchemeButton(
-                        title: "System",
-                        systemImage: "circle.lefthalf.filled",
-                        isSelected: colorSchemePreference == "system",
-                        colorScheme: colorScheme
-                    ) {
-                        colorSchemePreference = "system"
+                    // Три пузыря для выбора темы внизу
+                    HStack(spacing: 16) {
+                        ColorSchemeButton(
+                            title: "System",
+                            systemImage: "circle.lefthalf.filled",
+                            isSelected: colorSchemePreference == "system",
+                            colorScheme: colorScheme
+                        ) {
+                            colorSchemePreference = "system"
+                        }
+
+                        ColorSchemeButton(
+                            title: "Light",
+                            systemImage: "sun.max.fill",
+                            isSelected: colorSchemePreference == "light",
+                            colorScheme: colorScheme
+                        ) {
+                            colorSchemePreference = "light"
+                        }
+
+                        ColorSchemeButton(
+                            title: "Dark",
+                            systemImage: "moon.fill",
+                            isSelected: colorSchemePreference == "dark",
+                            colorScheme: colorScheme
+                        ) {
+                            colorSchemePreference = "dark"
+                        }
                     }
-                    
-                    ColorSchemeButton(
-                        title: "Light",
-                        systemImage: "sun.max.fill",
-                        isSelected: colorSchemePreference == "light",
-                        colorScheme: colorScheme
-                    ) {
-                        colorSchemePreference = "light"
-                    }
-                    
-                    ColorSchemeButton(
-                        title: "Dark",
-                        systemImage: "moon.fill",
-                        isSelected: colorSchemePreference == "dark",
-                        colorScheme: colorScheme
-                    ) {
-                        colorSchemePreference = "dark"
-                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 16)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 16)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 36)
-            .frame(maxWidth: .infinity)
+            .scrollIndicators(.hidden)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .scrollIndicators(.hidden)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear { loadSelection() }
         .onChange(of: selectedIds) { _, _ in
             persistSelection()
@@ -724,8 +726,8 @@ private struct ReminderRow: View {
                 Spacer()
 
                 // Статусы (три строки) - всегда присутствуют для сохранения размера
-                if !isPreview {
-                    VStack(alignment: .trailing, spacing: 2) {
+                VStack(alignment: .trailing, spacing: 2) {
+                    if !isPreview {
                         // Строка 1: Every day / One time (всегда показывается)
                         Text(isDailyMode ? "Every day" : "One time")
                             .font(.caption2)
@@ -760,6 +762,15 @@ private struct ReminderRow: View {
                                 .foregroundStyle(isCriticalEnabled ? .red : .clear)
                         }
 #endif
+                    } else {
+                        // Placeholder для preview - показываем "PREVIEW" в центральной строке
+                        Text(" ")
+                            .font(.caption2)
+                        Text("PREVIEW")
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                        Text(" ")
+                            .font(.caption2)
                     }
                 }
 
