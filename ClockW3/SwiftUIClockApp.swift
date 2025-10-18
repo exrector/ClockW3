@@ -575,6 +575,13 @@ private struct ReminderRow: View {
                         Button {
                             isDailyMode.toggle()
                             onModeChange(isDailyMode)
+                            // При переключении на ежедневный режим автоматически выключаем Live Activity
+#if os(iOS)
+                            if isDailyMode && isLiveActivityEnabled {
+                                isLiveActivityEnabled = false
+                                onLiveActivityToggle?(false)
+                            }
+#endif
                         } label: {
                             let fillColor: Color = isDailyMode
                                 ? (colorScheme == .light ? .black : .white)
@@ -598,6 +605,7 @@ private struct ReminderRow: View {
 #if os(iOS)
                     if let onLiveActivityToggle = onLiveActivityToggle, !isPreview {
                         Button {
+                            guard !isDailyMode else { return }
                             isLiveActivityEnabled.toggle()
                             onLiveActivityToggle(isLiveActivityEnabled)
                         } label: {
@@ -614,8 +622,10 @@ private struct ReminderRow: View {
                                         .foregroundStyle(isLiveActivityEnabled ? (colorScheme == .light ? .white : .black) : borderColor)
                                 )
                                 .shadow(color: isLiveActivityEnabled ? borderColor.opacity(0.25) : .clear, radius: 3)
+                                .opacity(isDailyMode ? 0.3 : 1.0)
                         }
                         .buttonStyle(.plain)
+                        .disabled(isDailyMode)
                         .accessibilityLabel("Toggle Live Activity")
                     }
 #endif

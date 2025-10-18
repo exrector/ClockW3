@@ -78,11 +78,11 @@ struct ClockReminder: Codable, Identifiable {
         // Вычисляем общее количество минут и округляем до 15 минут
         let totalMinutes = hourFloat * 60.0
         let roundedMinutes = round(totalMinutes / 15.0) * 15.0
-        
+
         // Нормализуем значения в диапазоне 0-23 часов и 0-59 минут
         var targetHour = Int(roundedMinutes / 60.0)
         var targetMinute = Int(roundedMinutes.truncatingRemainder(dividingBy: 60.0))
-        
+
         // Убираем отрицательные значения
         while targetHour < 0 {
             targetHour += 24
@@ -91,13 +91,13 @@ struct ClockReminder: Codable, Identifiable {
             targetMinute += 60
             targetHour -= 1
         }
-        
+
         // Приводим к диапазону 0-23
         targetHour = targetHour % 24
         if targetHour < 0 {
             targetHour += 24
         }
-        
+
         // Приводим минуты к диапазону 0-59 и округляем до 15 минут
         targetMinute = targetMinute % 60
         if targetMinute < 0 {

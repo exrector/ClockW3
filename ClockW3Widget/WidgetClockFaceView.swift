@@ -41,6 +41,10 @@ struct WidgetClockFaceView: View {
                         currentTime: date
                     )
 
+                    // Декоративные винты в углах
+                    CornerScrewDecorationView(size: size, colorScheme: colorScheme)
+                        .allowsHitTesting(false)
+
                     CityLabelRingsView(
                         size: size,
                         cities: cities,

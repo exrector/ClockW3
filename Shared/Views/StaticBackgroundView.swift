@@ -63,10 +63,10 @@ struct TicksView: View {
                 let dotDiameter: CGFloat
                 
                 if isHourTick {
-                    dotDiameter = baseRadius * ClockConstants.hourTickThickness * 2.0
+                    dotDiameter = baseRadius * ClockConstants.hourTickThickness * 3.0
                     color = hourTicksColor
                 } else if isHalfHourTick {
-                    dotDiameter = baseRadius * ClockConstants.halfHourTickThickness * 2.0
+                    dotDiameter = baseRadius * ClockConstants.halfHourTickThickness * 2.5
                     color = minorTicksColor
                 } else {
                     dotDiameter = baseRadius * ClockConstants.quarterTickThickness * 2.0

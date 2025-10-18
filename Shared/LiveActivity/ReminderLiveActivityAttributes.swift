@@ -7,6 +7,8 @@ struct ReminderLiveActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         /// Фактическое время ближайшего напоминания
         var scheduledDate: Date
+        /// Флаг, указывающий что напоминание сработало (время прошло)
+        var hasTriggered: Bool
     }
 
     /// Идентификатор напоминания, чтобы синхронизировать активность и модель

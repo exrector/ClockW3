@@ -17,6 +17,7 @@ class ReminderManager: ObservableObject {
     private let userDefaults = SharedUserDefaults.shared
     private let reminderKey = "clock_reminder"
     private let notificationIdentifier = "clock_reminder_notification"
+    private var updateTimer: Timer?
 
     private init() {
         loadReminder()
@@ -26,6 +27,7 @@ class ReminderManager: ObservableObject {
         }
 #if canImport(ActivityKit) && !os(macOS)
         reconcileLiveActivityOnLaunch()
+        startLiveActivityUpdateTimer()
 #endif
     }
     
@@ -126,11 +128,17 @@ class ReminderManager: ObservableObject {
     /// Обновляет время существующего напоминания
     func updateReminderTime(hour: Int, minute: Int) async {
         guard var reminder = currentReminder else { return }
+
+        // Если это one-time напоминание, пересчитываем дату
+        let updatedDate = reminder.date != nil
+            ? ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: Date())
+            : nil
+
         reminder = ClockReminder(
             id: reminder.id,
             hour: hour,
             minute: minute,
-            date: reminder.date,
+            date: updatedDate,
             isEnabled: reminder.isEnabled,
             liveActivityEnabled: reminder.liveActivityEnabled
         )
@@ -248,6 +256,17 @@ class ReminderManager: ObservableObject {
     }
 
     @available(iOS 16.1, *)
+    private func startLiveActivityUpdateTimer() {
+        // Обновляем Live Activity каждые 10 секунд для проверки статуса
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, let reminder = self.currentReminder else { return }
+                await self.updateLiveActivity(for: reminder)
+            }
+        }
+    }
+
+    @available(iOS 16.1, *)
     private func terminateOrphanedActivities() async {
         let activities = Activity<ReminderLiveActivityAttributes>.activities
         for activity in activities {
@@ -267,24 +286,53 @@ class ReminderManager: ObservableObject {
             return
         }
 
+        // Live Activity только для однократных напоминаний
+        guard !reminder.isDaily else {
+            await endLiveActivity(reminderID: reminder.id)
+            return
+        }
+
         if #available(iOS 16.2, *) {
             guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         }
 
         let scheduledDate = reminder.nextScheduledDate()
-        let contentState = ReminderLiveActivityAttributes.ContentState(scheduledDate: scheduledDate)
+        let now = Date()
+        let hasTriggered = scheduledDate <= now
+
+        let contentState = ReminderLiveActivityAttributes.ContentState(
+            scheduledDate: scheduledDate,
+            hasTriggered: hasTriggered
+        )
+
+        // Если напоминание сработало, закрываем через 2 минуты
+        // Иначе staleDate не устанавливаем
+        let staleDate = hasTriggered ? now.addingTimeInterval(120) : nil
 
         if let existing = Activity<ReminderLiveActivityAttributes>.activities.first(where: { $0.attributes.reminderID == reminder.id }) {
             if #available(iOS 16.2, *) {
-                let content = ActivityContent(state: contentState, staleDate: nil)
+                let content = ActivityContent(state: contentState, staleDate: staleDate)
                 await existing.update(content)
             } else {
                 await existing.update(using: contentState)
             }
+
+            // Если сработало, удаляем напоминание через 2 минуты
+            if hasTriggered {
+                Task {
+                    try? await Task.sleep(nanoseconds: 120_000_000_000) // 2 минуты
+                    await MainActor.run {
+                        self.deleteReminder()
+                    }
+                }
+            }
         } else {
+            // Не создаем новую Live Activity если напоминание уже сработало
+            guard !hasTriggered else { return }
+
             let attributes = ReminderLiveActivityAttributes(reminderID: reminder.id, title: "THE M.O.W TIME")
             if #available(iOS 16.2, *) {
-                let content = ActivityContent(state: contentState, staleDate: nil)
+                let content = ActivityContent(state: contentState, staleDate: staleDate)
                 _ = try? Activity<ReminderLiveActivityAttributes>.request(
                     attributes: attributes,
                     content: content,

@@ -226,7 +226,7 @@ struct ClockFaceView: View {
 }
 
 // MARK: - Corner Decorations
-private struct CornerScrewDecorationView: View {
+struct CornerScrewDecorationView: View {
     let size: CGSize
     let colorScheme: ColorScheme
 
