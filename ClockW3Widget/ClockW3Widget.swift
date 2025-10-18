@@ -116,10 +116,9 @@ struct ClockW3WidgetEntryView: View {
             default:
                 ZStack(alignment: .topLeading) {
                     palette.background
-                    ClockFaceView(
-                        interactivityEnabled: false,
-                        overrideTime: entry.date,
-                        overrideColorScheme: effectiveColorScheme
+                    WidgetClockFaceView(
+                        date: entry.date,
+                        colorScheme: effectiveColorScheme
                     )
                     .frame(width: frameSize.width, height: frameSize.height)
                     .scaleEffect(0.98)
