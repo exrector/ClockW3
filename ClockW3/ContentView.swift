@@ -47,9 +47,9 @@ struct ContentView: View {
                                 }
 
                                 Text("Designed by Exrector")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.secondary)
+                                    .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                                    .foregroundStyle(.primary)
+                                    .kerning(1.5)
                                     .padding(.bottom, 8)
                             }
                         }
@@ -72,9 +72,9 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 Text("Designed by Exrector")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(.primary)
+                    .kerning(1.5)
                     .padding(.bottom, 8)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
