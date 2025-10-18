@@ -9,6 +9,8 @@ struct ClockReminder: Codable, Identifiable {
     let date: Date?      // nil = ежедневное, не nil = однократное на конкретную дату
     var isEnabled: Bool
     var liveActivityEnabled: Bool
+    var alwaysLiveActivity: Bool // Live Activity всегда включен (даже для ежедневных)
+    var isCritical: Bool // Critical Alert - игнорирует Do Not Disturb и Silent Mode
 
     init(
         id: UUID = UUID(),
@@ -16,7 +18,9 @@ struct ClockReminder: Codable, Identifiable {
         minute: Int,
         date: Date? = nil,
         isEnabled: Bool = true,
-        liveActivityEnabled: Bool = false
+        liveActivityEnabled: Bool = false,
+        alwaysLiveActivity: Bool = false,
+        isCritical: Bool = false
     ) {
         self.id = id
         self.hour = hour
@@ -25,6 +29,8 @@ struct ClockReminder: Codable, Identifiable {
         self.date = date
         self.isEnabled = isEnabled
         self.liveActivityEnabled = liveActivityEnabled
+        self.alwaysLiveActivity = alwaysLiveActivity
+        self.isCritical = isCritical
     }
 
     var isDaily: Bool {
@@ -147,6 +153,8 @@ extension ClockReminder {
         case date
         case isEnabled
         case liveActivityEnabled
+        case alwaysLiveActivity
+        case isCritical
     }
 
     init(from decoder: Decoder) throws {
@@ -157,6 +165,8 @@ extension ClockReminder {
         date = try container.decodeIfPresent(Date.self, forKey: .date)
         isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
         liveActivityEnabled = try container.decodeIfPresent(Bool.self, forKey: .liveActivityEnabled) ?? false
+        alwaysLiveActivity = try container.decodeIfPresent(Bool.self, forKey: .alwaysLiveActivity) ?? false
+        isCritical = try container.decodeIfPresent(Bool.self, forKey: .isCritical) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -168,6 +178,12 @@ extension ClockReminder {
         try container.encode(isEnabled, forKey: .isEnabled)
         if liveActivityEnabled {
             try container.encode(liveActivityEnabled, forKey: .liveActivityEnabled)
+        }
+        if alwaysLiveActivity {
+            try container.encode(alwaysLiveActivity, forKey: .alwaysLiveActivity)
+        }
+        if isCritical {
+            try container.encode(isCritical, forKey: .isCritical)
         }
     }
 }

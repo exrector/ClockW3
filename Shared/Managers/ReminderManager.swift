@@ -77,7 +77,11 @@ class ReminderManager: ObservableObject {
     /// Запрашивает разрешение на отправку уведомлений
     func requestPermission() async -> Bool {
         do {
+            #if os(iOS)
+            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge, .criticalAlert])
+            #else
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+            #endif
             return granted
         } catch {
             return false
@@ -140,7 +144,9 @@ class ReminderManager: ObservableObject {
             minute: minute,
             date: updatedDate,
             isEnabled: reminder.isEnabled,
-            liveActivityEnabled: reminder.liveActivityEnabled
+            liveActivityEnabled: reminder.liveActivityEnabled,
+            alwaysLiveActivity: reminder.alwaysLiveActivity,
+            isCritical: reminder.isCritical
         )
         await setReminder(reminder)
     }
@@ -160,7 +166,9 @@ class ReminderManager: ObservableObject {
             minute: reminder.minute,
             date: nextDate,
             isEnabled: reminder.isEnabled,
-            liveActivityEnabled: reminder.liveActivityEnabled
+            liveActivityEnabled: reminder.liveActivityEnabled,
+            alwaysLiveActivity: reminder.alwaysLiveActivity,
+            isCritical: reminder.isCritical
         )
         await setReminder(reminder)
     }
@@ -189,7 +197,19 @@ class ReminderManager: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "THE M.O.W TIME"
         content.body = "Check the world time \(reminder.formattedTime)"
+
+        #if os(iOS)
+        if reminder.isCritical {
+            // Critical alert с максимальной громкостью
+            content.sound = UNNotificationSound.defaultCriticalSound(withAudioVolume: 1.0)
+            content.interruptionLevel = .critical
+        } else {
+            content.sound = .default
+        }
+        #else
         content.sound = .default
+        #endif
+
         content.categoryIdentifier = "CLOCK_REMINDER"
 
         let trigger: UNNotificationTrigger
@@ -231,6 +251,26 @@ class ReminderManager: ObservableObject {
         guard var reminder = currentReminder else { return }
         guard reminder.liveActivityEnabled != isEnabled else { return }
         reminder.liveActivityEnabled = isEnabled
+        await setReminder(reminder)
+    }
+
+    /// Обновляет флаг Critical Alert
+    func updateCriticalEnabled(isEnabled: Bool) async {
+        guard var reminder = currentReminder else { return }
+        guard reminder.isCritical != isEnabled else { return }
+        reminder.isCritical = isEnabled
+        await setReminder(reminder)
+    }
+
+    /// Обновляет флаг Always Live Activity
+    func updateAlwaysLiveActivity(isEnabled: Bool) async {
+        guard var reminder = currentReminder else { return }
+        guard reminder.alwaysLiveActivity != isEnabled else { return }
+        reminder.alwaysLiveActivity = isEnabled
+        // При включении always-on автоматически включаем Live Activity
+        if isEnabled {
+            reminder.liveActivityEnabled = true
+        }
         await setReminder(reminder)
     }
 
@@ -286,8 +326,8 @@ class ReminderManager: ObservableObject {
             return
         }
 
-        // Live Activity только для однократных напоминаний
-        guard !reminder.isDaily else {
+        // Live Activity только для однократных напоминаний (если не включен always-on режим)
+        guard !reminder.isDaily || reminder.alwaysLiveActivity else {
             await endLiveActivity(reminderID: reminder.id)
             return
         }

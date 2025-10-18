@@ -197,12 +197,24 @@ struct SettingsView: View {
                                 await reminderManager.updateLiveActivityEnabled(isEnabled: isEnabled)
                             }
                         }
+                        let criticalHandler: ((Bool) -> Void)? = { isEnabled in
+                            Task {
+                                await reminderManager.updateCriticalEnabled(isEnabled: isEnabled)
+                            }
+                        }
+                        let alwaysLiveActivityHandler: ((Bool) -> Void)? = { isEnabled in
+                            Task {
+                                await reminderManager.updateAlwaysLiveActivity(isEnabled: isEnabled)
+                            }
+                        }
 
                         ReminderRow(
                             reminder: reminder,
                             isPreview: false,
                             onModeChange: modeChangeHandler,
                             onLiveActivityToggle: liveActivityHandler,
+                            onAlwaysLiveActivityToggle: alwaysLiveActivityHandler,
+                            onCriticalToggle: criticalHandler,
                             onEdit: {
                                 editContext = ReminderEditContext(kind: .current, reminder: reminder)
                             },
@@ -240,6 +252,8 @@ struct SettingsView: View {
                             isPreview: true,
                             onModeChange: nil,
                             onLiveActivityToggle: nil,
+                            onAlwaysLiveActivityToggle: nil,
+                            onCriticalToggle: nil,
                             onEdit: {
                                 editContext = ReminderEditContext(kind: .preview, reminder: preview)
                             },
@@ -297,9 +311,21 @@ struct SettingsView: View {
                     Button {
                         showTimeZonePicker = true
                     } label: {
-                        Label("Choose Cities", systemImage: "globe")
+                        HStack(spacing: 8) {
+                            Image(systemName: "globe")
+                                .font(.body)
+                            Text("Choose Cities")
+                                .font(.body)
+                        }
+                        .foregroundStyle(colorScheme == .light ? .black : .white)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .strokeBorder(Color.primary, lineWidth: 1)
+                        )
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
                     .frame(maxWidth: 360)
 #elseif os(macOS)
                     // В macOS показываем выбор городов инлайн с ограниченной высотой
@@ -407,7 +433,9 @@ struct SettingsView: View {
                             minute: minute,
                             date: context.reminder.date,
                             isEnabled: context.reminder.isEnabled,
-                            liveActivityEnabled: context.reminder.liveActivityEnabled
+                            liveActivityEnabled: context.reminder.liveActivityEnabled,
+                            alwaysLiveActivity: context.reminder.alwaysLiveActivity,
+                            isCritical: context.reminder.isCritical
                         )
                         reminderManager.setPreviewReminder(updatedReminder)
                     }
@@ -516,6 +544,8 @@ private struct ReminderRow: View {
     let isPreview: Bool
     let onModeChange: ((Bool) -> Void)?
     let onLiveActivityToggle: ((Bool) -> Void)?
+    let onAlwaysLiveActivityToggle: ((Bool) -> Void)?
+    let onCriticalToggle: ((Bool) -> Void)?
     let onEdit: (() -> Void)?
     let onRemove: () -> Void
     let onConfirm: (() -> Void)?
@@ -523,6 +553,8 @@ private struct ReminderRow: View {
     @State private var isDailyMode: Bool
 #if os(iOS)
     @State private var isLiveActivityEnabled: Bool
+    @State private var isAlwaysLiveActivity: Bool
+    @State private var isCriticalEnabled: Bool
 #endif
     @Environment(\.colorScheme) private var colorScheme
 
@@ -531,6 +563,8 @@ private struct ReminderRow: View {
         isPreview: Bool,
         onModeChange: ((Bool) -> Void)?,
         onLiveActivityToggle: ((Bool) -> Void)? = nil,
+        onAlwaysLiveActivityToggle: ((Bool) -> Void)? = nil,
+        onCriticalToggle: ((Bool) -> Void)? = nil,
         onEdit: (() -> Void)?,
         onRemove: @escaping () -> Void,
         onConfirm: (() -> Void)?
@@ -539,40 +573,41 @@ private struct ReminderRow: View {
         self.isPreview = isPreview
         self.onModeChange = onModeChange
         self.onLiveActivityToggle = onLiveActivityToggle
+        self.onAlwaysLiveActivityToggle = onAlwaysLiveActivityToggle
+        self.onCriticalToggle = onCriticalToggle
         self.onEdit = onEdit
         self.onRemove = onRemove
         self.onConfirm = onConfirm
         _isDailyMode = State(initialValue: reminder.isDaily)
 #if os(iOS)
         _isLiveActivityEnabled = State(initialValue: reminder.liveActivityEnabled)
+        _isAlwaysLiveActivity = State(initialValue: reminder.alwaysLiveActivity)
+        _isCriticalEnabled = State(initialValue: reminder.isCritical)
 #endif
     }
 
     var body: some View {
         ZStack {
-            VStack(alignment: .center, spacing: 4) {
-                Button {
-                    onEdit?()
-                } label: {
-                    Text(reminder.formattedTime)
-                        .font(.headline)
-                        .foregroundColor(isPreview ? .primary : .red)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Edit reminder time")
-
-                if let subtitle = subtitleText {
-                    Text(subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+            // Центр - только таймер
+            Button {
+                onEdit?()
+            } label: {
+                Text(reminder.formattedTime)
+                    .font(.headline)
+                    .foregroundColor(isPreview ? .primary : .red)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Edit reminder time")
 
             HStack {
                 let borderColor: Color = colorScheme == .light ? .black : .white
                 HStack(spacing: 12) {
                     if let onModeChange = onModeChange {
                         Button {
+#if os(iOS)
+                            // Блокируем переключение на Every day если включен Critical
+                            guard !isCriticalEnabled else { return }
+#endif
                             isDailyMode.toggle()
                             onModeChange(isDailyMode)
                             // При переключении на ежедневный режим автоматически выключаем Live Activity
@@ -595,17 +630,24 @@ private struct ReminderRow: View {
                                 )
                                 .shadow(color: isDailyMode ? borderColor.opacity(0.25) : .clear, radius: 3)
                                 .contentShape(Circle())
+#if os(iOS)
+                                .opacity(isCriticalEnabled ? 0.3 : 1.0)
+#endif
                         }
                         .buttonStyle(.plain)
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
+#if os(iOS)
+                        .disabled(isCriticalEnabled)
+#endif
                         .accessibilityLabel("Toggle reminder repeat mode")
                     }
 
 #if os(iOS)
                     if let onLiveActivityToggle = onLiveActivityToggle, !isPreview {
                         Button {
-                            guard !isDailyMode else { return }
+                            // Обычное нажатие - toggle как обычно
+                            guard !isDailyMode && !isAlwaysLiveActivity else { return }
                             isLiveActivityEnabled.toggle()
                             onLiveActivityToggle(isLiveActivityEnabled)
                         } label: {
@@ -614,48 +656,131 @@ private struct ReminderRow: View {
                                 .frame(width: 20, height: 20)
                                 .overlay(
                                     Circle()
-                                        .stroke(borderColor, lineWidth: 1.5)
+                                        .stroke(isAlwaysLiveActivity ? .green : borderColor, lineWidth: isAlwaysLiveActivity ? 2.0 : 1.5)
                                 )
                                 .overlay(
-                                    Image(systemName: "waveform.path.ecg")
+                                    Image(systemName: isAlwaysLiveActivity ? "infinity" : "waveform.path.ecg")
                                         .font(.system(size: 10, weight: .semibold))
-                                        .foregroundStyle(isLiveActivityEnabled ? (colorScheme == .light ? .white : .black) : borderColor)
+                                        .foregroundStyle(isLiveActivityEnabled ? (colorScheme == .light ? .white : .black) : (isAlwaysLiveActivity ? .green : borderColor))
                                 )
-                                .shadow(color: isLiveActivityEnabled ? borderColor.opacity(0.25) : .clear, radius: 3)
-                                .opacity(isDailyMode ? 0.3 : 1.0)
+                                .shadow(color: isLiveActivityEnabled ? borderColor.opacity(0.25) : (isAlwaysLiveActivity ? .green.opacity(0.4) : .clear), radius: 3)
+                                .opacity((isDailyMode && !isAlwaysLiveActivity) ? 0.3 : 1.0)
                         }
                         .buttonStyle(.plain)
-                        .disabled(isDailyMode)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .disabled(isDailyMode && !isAlwaysLiveActivity)
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.5)
+                                .onEnded { _ in
+                                    // Long press - включаем/выключаем always-on режим
+                                    isAlwaysLiveActivity.toggle()
+                                    onAlwaysLiveActivityToggle?(isAlwaysLiveActivity)
+                                    // Генерируем тактильный отклик
+                                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                                    generator.impactOccurred()
+                                }
+                        )
                         .accessibilityLabel("Toggle Live Activity")
+                    }
+
+                    if let onCriticalToggle = onCriticalToggle, !isPreview {
+                        Button {
+                            isCriticalEnabled.toggle()
+                            onCriticalToggle(isCriticalEnabled)
+                            // При включении Critical автоматически переключаем на One time
+                            if isCriticalEnabled && isDailyMode {
+                                isDailyMode = false
+                                onModeChange?(false)
+                            }
+                        } label: {
+                            Circle()
+                                .fill(isCriticalEnabled ? .red : .clear)
+                                .frame(width: 20, height: 20)
+                                .overlay(
+                                    Circle()
+                                        .stroke(isCriticalEnabled ? .red : borderColor, lineWidth: 1.5)
+                                )
+                                .overlay(
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundStyle(isCriticalEnabled ? .white : borderColor)
+                                )
+                                .shadow(color: isCriticalEnabled ? .red.opacity(0.4) : .clear, radius: 3)
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .accessibilityLabel("Toggle Critical Alert")
                     }
 #endif
                 }
 
                 Spacer()
 
-                HStack(spacing: 8) {
-                    if isPreview, let onConfirm = onConfirm {
-                        Button(action: onConfirm) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(.green)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Confirm reminder")
-                    }
+                // Статусы (три строки) - всегда присутствуют для сохранения размера
+                if !isPreview {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        // Строка 1: Every day / One time (всегда показывается)
+                        Text(isDailyMode ? "Every day" : "One time")
+                            .font(.caption2)
+                            .foregroundStyle(.primary)
 
+#if os(iOS)
+                        // Строка 2: Live Activity (всегда занимает место)
+                        if onLiveActivityToggle != nil {
+                            if isLiveActivityEnabled {
+                                HStack(spacing: 2) {
+                                    if isAlwaysLiveActivity {
+                                        Image(systemName: "infinity")
+                                            .font(.system(size: 8))
+                                            .foregroundStyle(.primary)
+                                    }
+                                    Text("Live Activity")
+                                        .font(.caption2)
+                                        .foregroundStyle(.primary)
+                                }
+                            } else {
+                                // Placeholder для сохранения высоты
+                                Text("Live Activity")
+                                    .font(.caption2)
+                                    .foregroundStyle(.clear)
+                            }
+                        }
+
+                        // Строка 3: Critical (всегда занимает место)
+                        if onCriticalToggle != nil {
+                            Text("Critical")
+                                .font(.caption2)
+                                .foregroundStyle(isCriticalEnabled ? .red : .clear)
+                        }
+#endif
+                    }
+                }
+
+                // Одна кнопка: галочка для preview, крестик для созданного
+                if isPreview, let onConfirm = onConfirm {
+                    Button(action: onConfirm) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Confirm reminder")
+                } else {
                     Button(action: onRemove) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title3)
                             .foregroundStyle(.primary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(isPreview ? "Cancel reminder" : "Remove reminder")
+                    .accessibilityLabel("Remove reminder")
                 }
             }
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 16)
+        .frame(minHeight: 44)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(Color.primary, lineWidth: 1)
@@ -672,21 +797,19 @@ private struct ReminderRow: View {
                 isLiveActivityEnabled = newValue
             }
         }
+        .onChange(of: reminder.alwaysLiveActivity) { _, newValue in
+            if newValue != isAlwaysLiveActivity {
+                isAlwaysLiveActivity = newValue
+            }
+        }
+        .onChange(of: reminder.isCritical) { _, newValue in
+            if newValue != isCriticalEnabled {
+                isCriticalEnabled = newValue
+            }
+        }
 #endif
     }
 
-    private var subtitleText: String? {
-        if isPreview {
-            return "Preview"
-        }
-        var base = isDailyMode ? "Every day" : "One time"
-#if os(iOS)
-        if onLiveActivityToggle != nil && isLiveActivityEnabled {
-            base += " · Live Activity"
-        }
-#endif
-        return base
-    }
 }
 
 private struct CityRow: View {
@@ -817,7 +940,7 @@ struct TimeZoneSelectionView: View {
                     Spacer()
                     if selection.contains(entry.id) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(.primary)
                     }
                 }
             }
