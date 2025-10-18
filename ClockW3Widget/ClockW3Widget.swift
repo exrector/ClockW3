@@ -157,8 +157,19 @@ struct ClockW3Widget: Widget {
 }
 
 // MARK: - Preview
-#Preview(as: .systemMedium) {
-    ClockW3Widget()
-} timeline: {
-    SimpleEntry(date: .now, colorSchemePreference: "system", buildVersion: "0.0(0)", appGroupOK: true)
+#if DEBUG
+@available(iOSApplicationExtension 17.0, *)
+struct ClockW3Widget_Previews: PreviewProvider {
+    static var previews: some View {
+        ClockW3WidgetEntryView(
+            entry: SimpleEntry(
+                date: .now,
+                colorSchemePreference: "system",
+                buildVersion: "0.0(0)",
+                appGroupOK: true
+            )
+        )
+        .previewContext(WidgetPreviewContext(family: .systemMedium))
+    }
 }
+#endif

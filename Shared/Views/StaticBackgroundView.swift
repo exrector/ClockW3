@@ -123,11 +123,14 @@ struct HourNumbersView: View {
     }
 }
 
-// MARK: - Preview
-#Preview {
-    StaticBackgroundView(
-        size: CGSize(width: 400, height: 400),
-        colors: ClockColorPalette.system(colorScheme: .light),
-        currentTime: Date()
-    )
+#if DEBUG
+struct StaticBackgroundView_Previews: PreviewProvider {
+    static var previews: some View {
+        StaticBackgroundView(
+            size: CGSize(width: 400, height: 400),
+            colors: ClockColorPalette.system(colorScheme: .light),
+            currentTime: Date()
+        )
+    }
 }
+#endif

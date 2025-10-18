@@ -186,15 +186,23 @@ struct SettingsView: View {
                 VStack(spacing: 16) {
                     // Слот напоминания (реальное или preview)
                     if let reminder = reminderManager.currentReminder {
-                        // Показываем реальное напоминание
+#if os(iOS)
+                        let modeChangeHandler: ((Bool) -> Void)? = { isDaily in
+                            Task {
+                                await reminderManager.updateReminderRepeat(isDaily: isDaily)
+                            }
+                        }
+                        let liveActivityHandler: ((Bool) -> Void)? = { isEnabled in
+                            Task {
+                                await reminderManager.updateLiveActivityEnabled(isEnabled: isEnabled)
+                            }
+                        }
+
                         ReminderRow(
                             reminder: reminder,
                             isPreview: false,
-                            onModeChange: { isDaily in
-                                Task {
-                                    await reminderManager.updateReminderRepeat(isDaily: isDaily)
-                                }
-                            },
+                            onModeChange: modeChangeHandler,
+                            onLiveActivityToggle: liveActivityHandler,
                             onEdit: {
                                 editContext = ReminderEditContext(kind: .current, reminder: reminder)
                             },
@@ -204,8 +212,48 @@ struct SettingsView: View {
                             onConfirm: nil
                         )
                         .frame(maxWidth: .infinity, alignment: .center)
+#else
+                        let modeChangeHandler: ((Bool) -> Void)? = { isDaily in
+                            Task {
+                                await reminderManager.updateReminderRepeat(isDaily: isDaily)
+                            }
+                        }
+
+                        ReminderRow(
+                            reminder: reminder,
+                            isPreview: false,
+                            onModeChange: modeChangeHandler,
+                            onEdit: {
+                                editContext = ReminderEditContext(kind: .current, reminder: reminder)
+                            },
+                            onRemove: {
+                                reminderManager.deleteReminder()
+                            },
+                            onConfirm: nil
+                        )
+                        .frame(maxWidth: .infinity, alignment: .center)
+#endif
                     } else if let preview = reminderManager.previewReminder {
-                        // Показываем preview напоминание
+#if os(iOS)
+                        ReminderRow(
+                            reminder: preview,
+                            isPreview: true,
+                            onModeChange: nil,
+                            onLiveActivityToggle: nil,
+                            onEdit: {
+                                editContext = ReminderEditContext(kind: .preview, reminder: preview)
+                            },
+                            onRemove: {
+                                reminderManager.clearPreviewReminder()
+                            },
+                            onConfirm: {
+                                Task {
+                                    await reminderManager.confirmPreview()
+                                }
+                            }
+                        )
+                        .frame(maxWidth: .infinity, alignment: .center)
+#else
                         ReminderRow(
                             reminder: preview,
                             isPreview: true,
@@ -223,6 +271,7 @@ struct SettingsView: View {
                             }
                         )
                         .frame(maxWidth: .infinity, alignment: .center)
+#endif
                     }
 
                     if selectedEntries.isEmpty {
@@ -357,13 +406,18 @@ struct SettingsView: View {
                             hour: hour,
                             minute: minute,
                             date: context.reminder.date,
-                            isEnabled: context.reminder.isEnabled
+                            isEnabled: context.reminder.isEnabled,
+                            liveActivityEnabled: context.reminder.liveActivityEnabled
                         )
                         reminderManager.setPreviewReminder(updatedReminder)
                     }
                     editContext = nil
                 }
             }
+#if os(iOS)
+            .presentationDetents([.height(380)])
+            .presentationDragIndicator(.hidden)
+#endif
         }
     }
 }
@@ -461,17 +515,22 @@ private struct ReminderRow: View {
     let reminder: ClockReminder
     let isPreview: Bool
     let onModeChange: ((Bool) -> Void)?
+    let onLiveActivityToggle: ((Bool) -> Void)?
     let onEdit: (() -> Void)?
     let onRemove: () -> Void
     let onConfirm: (() -> Void)?
 
     @State private var isDailyMode: Bool
+#if os(iOS)
+    @State private var isLiveActivityEnabled: Bool
+#endif
     @Environment(\.colorScheme) private var colorScheme
 
     init(
         reminder: ClockReminder,
         isPreview: Bool,
         onModeChange: ((Bool) -> Void)?,
+        onLiveActivityToggle: ((Bool) -> Void)? = nil,
         onEdit: (() -> Void)?,
         onRemove: @escaping () -> Void,
         onConfirm: (() -> Void)?
@@ -479,15 +538,18 @@ private struct ReminderRow: View {
         self.reminder = reminder
         self.isPreview = isPreview
         self.onModeChange = onModeChange
+        self.onLiveActivityToggle = onLiveActivityToggle
         self.onEdit = onEdit
         self.onRemove = onRemove
         self.onConfirm = onConfirm
         _isDailyMode = State(initialValue: reminder.isDaily)
+#if os(iOS)
+        _isLiveActivityEnabled = State(initialValue: reminder.liveActivityEnabled)
+#endif
     }
 
     var body: some View {
         ZStack {
-            // Центральный контент всегда строго по центру
             VStack(alignment: .center, spacing: 4) {
                 Button {
                     onEdit?()
@@ -498,42 +560,69 @@ private struct ReminderRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Edit reminder time")
-                
+
                 if let subtitle = subtitleText {
                     Text(subtitle)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
-            
-            // Боковые элементы поверх (слева/справа), как в CityRow
+
             HStack {
-                // Левая кнопка режима (если доступна)
-                if let onModeChange = onModeChange {
-                    Button {
-                        isDailyMode.toggle()
-                        onModeChange(isDailyMode)
-                    } label: {
-                        let borderColor: Color = colorScheme == .light ? .black : .white
-                        let fillColor: Color = isDailyMode
-                            ? (colorScheme == .light ? .black : .white)
-                            : .clear
-                        Circle()
-                            .fill(fillColor)
-                            .frame(width: 20, height: 20)
-                            .overlay(
-                                Circle()
-                                    .stroke(borderColor, lineWidth: 1.5)
-                            )
-                            .shadow(color: isDailyMode ? borderColor.opacity(0.25) : .clear, radius: 3)
+                let borderColor: Color = colorScheme == .light ? .black : .white
+                HStack(spacing: 12) {
+                    if let onModeChange = onModeChange {
+                        Button {
+                            isDailyMode.toggle()
+                            onModeChange(isDailyMode)
+                        } label: {
+                            let fillColor: Color = isDailyMode
+                                ? (colorScheme == .light ? .black : .white)
+                                : .clear
+                            Circle()
+                                .fill(fillColor)
+                                .frame(width: 20, height: 20)
+                                .overlay(
+                                    Circle()
+                                        .stroke(borderColor, lineWidth: 1.5)
+                                )
+                                .shadow(color: isDailyMode ? borderColor.opacity(0.25) : .clear, radius: 3)
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .accessibilityLabel("Toggle reminder repeat mode")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Toggle reminder repeat mode")
+
+#if os(iOS)
+                    if let onLiveActivityToggle = onLiveActivityToggle, !isPreview {
+                        Button {
+                            isLiveActivityEnabled.toggle()
+                            onLiveActivityToggle(isLiveActivityEnabled)
+                        } label: {
+                            Circle()
+                                .fill(isLiveActivityEnabled ? (colorScheme == .light ? .black : .white) : .clear)
+                                .frame(width: 20, height: 20)
+                                .overlay(
+                                    Circle()
+                                        .stroke(borderColor, lineWidth: 1.5)
+                                )
+                                .overlay(
+                                    Image(systemName: "waveform.path.ecg")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(isLiveActivityEnabled ? (colorScheme == .light ? .white : .black) : borderColor)
+                                )
+                                .shadow(color: isLiveActivityEnabled ? borderColor.opacity(0.25) : .clear, radius: 3)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Toggle Live Activity")
+                    }
+#endif
                 }
-                
+
                 Spacer()
-                
-                // Правые кнопки
+
                 HStack(spacing: 8) {
                     if isPreview, let onConfirm = onConfirm {
                         Button(action: onConfirm) {
@@ -544,7 +633,7 @@ private struct ReminderRow: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel("Confirm reminder")
                     }
-                    
+
                     Button(action: onRemove) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title3)
@@ -567,13 +656,26 @@ private struct ReminderRow: View {
                 isDailyMode = newValue
             }
         }
+#if os(iOS)
+        .onChange(of: reminder.liveActivityEnabled) { _, newValue in
+            if newValue != isLiveActivityEnabled {
+                isLiveActivityEnabled = newValue
+            }
+        }
+#endif
     }
 
     private var subtitleText: String? {
         if isPreview {
             return "Preview"
         }
-        return isDailyMode ? "Every day" : "One time"
+        var base = isDailyMode ? "Every day" : "One time"
+#if os(iOS)
+        if onLiveActivityToggle != nil && isLiveActivityEnabled {
+            base += " · Live Activity"
+        }
+#endif
+        return base
     }
 }
 
@@ -897,86 +999,150 @@ struct TimeZoneSelectionInlineView: View {
 private struct EditReminderView: View {
     let reminder: ClockReminder
     let onSave: (Int, Int) -> Void
-    
+
     @State private var selectedHour: Int
     @State private var selectedMinute: Int
     @Environment(\.dismiss) private var dismiss
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     init(reminder: ClockReminder, onSave: @escaping (Int, Int) -> Void) {
         self.reminder = reminder
         self.onSave = onSave
         self._selectedHour = State(initialValue: reminder.hour)
         self._selectedMinute = State(initialValue: reminder.minute)
     }
-    
+
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Text("Редактировать напоминание")
-                    .font(.title2)
-                    .padding(.top)
-                
-                HStack {
-                    Picker("Час", selection: $selectedHour) {
-                        ForEach(0..<24, id: \.self) { hour in
-                            Text(String(format: "%02d", hour)).tag(hour)
-                        }
-                    }
-                    #if os(iOS)
-                    .pickerStyle(.wheel)
-                    #endif
-                    .frame(width: 80)
-                    
-                    Text(":")
-                        .font(.title)
-                    
-                    Picker("Минута", selection: $selectedMinute) {
-                        ForEach([0, 15, 30, 45], id: \.self) { minute in
-                            Text(String(format: "%02d", minute)).tag(minute)
-                        }
-                    }
-                    #if os(iOS)
-                    .pickerStyle(.wheel)
-                    #endif
-                    .frame(width: 80)
+        VStack(spacing: 0) {
+            // Spacer for sheet rounded corners
+            Color.clear
+                .frame(height: 16)
+
+            // Header
+            HStack {
+                Button("Cancel") {
+                    dismiss()
                 }
-                .padding()
-                
+                .keyboardShortcut(.cancelAction)
+
                 Spacer()
+
+                Text("Edit Reminder")
+                    .font(.headline)
+
+                Spacer()
+
+                Button("Save") {
+                    onSave(selectedHour, selectedMinute)
+                }
+                .keyboardShortcut(.defaultAction)
+                .fontWeight(.semibold)
             }
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                #if os(iOS)
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Отмена") {
-                        dismiss()
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(headerBackgroundColor)
+
+            Divider()
+
+            // Time Picker
+            VStack(spacing: 24) {
+                Text("Set Time")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    // Hour Picker
+                    VStack(spacing: 4) {
+                        Text("Hour")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Picker("", selection: $selectedHour) {
+                            ForEach(0..<24, id: \.self) { hour in
+                                Text(String(format: "%02d", hour))
+                                    .tag(hour)
+                                    .font(.system(.title2, design: .rounded))
+                            }
+                        }
+#if os(iOS)
+                        .pickerStyle(.wheel)
+#endif
+                        .frame(width: 80, height: 120)
+                        .clipped()
+                    }
+
+                    Text(":")
+                        .font(.system(.largeTitle, design: .rounded))
+                        .fontWeight(.light)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 20)
+
+                    // Minute Picker
+                    VStack(spacing: 4) {
+                        Text("Minute")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Picker("", selection: $selectedMinute) {
+                            ForEach([0, 15, 30, 45], id: \.self) { minute in
+                                Text(String(format: "%02d", minute))
+                                    .tag(minute)
+                                    .font(.system(.title2, design: .rounded))
+                            }
+                        }
+#if os(iOS)
+                        .pickerStyle(.wheel)
+#endif
+                        .frame(width: 80, height: 120)
+                        .clipped()
                     }
                 }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Сохранить") {
-                        onSave(selectedHour, selectedMinute)
-                    }
-                    .fontWeight(.semibold)
+
+                // Preview
+                VStack(spacing: 8) {
+                    Text("Preview")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+
+                    Text(String(format: "%02d:%02d", selectedHour, selectedMinute))
+                        .font(.system(.title, design: .rounded))
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.primary.opacity(0.05))
+                        )
                 }
-                #else
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Отмена") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") {
-                        onSave(selectedHour, selectedMinute)
-                    }
-                    .fontWeight(.semibold)
-                }
-                #endif
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.vertical, 32)
+            .background(backgroundColor)
         }
+#if os(macOS)
+        .frame(width: 320, height: 380)
+        .background(backgroundColor)
+#else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+#endif
+    }
+
+    private var headerBackgroundColor: Color {
+#if os(macOS)
+        Color(nsColor: .controlBackgroundColor)
+#else
+        Color(uiColor: .secondarySystemBackground)
+#endif
+    }
+
+    private var backgroundColor: Color {
+#if os(macOS)
+        Color(nsColor: .textBackgroundColor)
+#else
+        Color(uiColor: .systemBackground)
+#endif
     }
 }
 
@@ -1018,6 +1184,10 @@ private struct ColorSchemeButton: View {
 }
 
 // MARK: - Preview
-#Preview {
-    ContentView()
+#if DEBUG
+struct SwiftUIClockApp_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
 }
+#endif

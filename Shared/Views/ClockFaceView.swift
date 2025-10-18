@@ -699,7 +699,10 @@ private extension View {
     }
 }
 
-// MARK: - Preview
-#Preview {
-    ClockFaceView()
+#if DEBUG
+struct ClockFaceView_Previews: PreviewProvider {
+    static var previews: some View {
+        ClockFaceView()
+    }
 }
+#endif

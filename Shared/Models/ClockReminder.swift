@@ -8,14 +8,23 @@ struct ClockReminder: Codable, Identifiable {
     let minute: Int      // округлено до 15 минут (0, 15, 30, 45)
     let date: Date?      // nil = ежедневное, не nil = однократное на конкретную дату
     var isEnabled: Bool
+    var liveActivityEnabled: Bool
 
-    init(id: UUID = UUID(), hour: Int, minute: Int, date: Date? = nil, isEnabled: Bool = true) {
+    init(
+        id: UUID = UUID(),
+        hour: Int,
+        minute: Int,
+        date: Date? = nil,
+        isEnabled: Bool = true,
+        liveActivityEnabled: Bool = false
+    ) {
         self.id = id
         self.hour = hour
         // Округляем минуты до ближайших 15 минут
         self.minute = Self.roundToQuarter(minute)
         self.date = date
         self.isEnabled = isEnabled
+        self.liveActivityEnabled = liveActivityEnabled
     }
 
     var isDaily: Bool {
@@ -116,5 +125,49 @@ struct ClockReminder: Codable, Identifiable {
         }
 
         return calendar.date(byAdding: .day, value: 1, to: sameDay) ?? sameDay
+    }
+}
+
+extension ClockReminder {
+    /// Возвращает следующую фактическую дату напоминания относительно указанного времени.
+    func nextScheduledDate(from reference: Date = Date()) -> Date {
+        if let date {
+            return date
+        }
+        return Self.nextTriggerDate(hour: hour, minute: minute, from: reference)
+    }
+}
+
+// MARK: - Codable
+extension ClockReminder {
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case hour
+        case minute
+        case date
+        case isEnabled
+        case liveActivityEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        hour = try container.decode(Int.self, forKey: .hour)
+        minute = try container.decode(Int.self, forKey: .minute)
+        date = try container.decodeIfPresent(Date.self, forKey: .date)
+        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        liveActivityEnabled = try container.decodeIfPresent(Bool.self, forKey: .liveActivityEnabled) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(hour, forKey: .hour)
+        try container.encode(minute, forKey: .minute)
+        try container.encodeIfPresent(date, forKey: .date)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        if liveActivityEnabled {
+            try container.encode(liveActivityEnabled, forKey: .liveActivityEnabled)
+        }
     }
 }

@@ -397,13 +397,16 @@ struct SimpleContinentsView: View {
     }
 }
 
-// MARK: - Preview
-#Preview {
-    CityArrowsView(
-        size: CGSize(width: 400, height: 400),
-        cities: WorldCity.defaultCities,
-        currentTime: Date(),
-        palette: ClockColorPalette.system(colorScheme: .light),
-        containerRotation: 0
-    )
+#if DEBUG
+struct CityArrowsView_Previews: PreviewProvider {
+    static var previews: some View {
+        CityArrowsView(
+            size: CGSize(width: 400, height: 400),
+            cities: WorldCity.defaultCities,
+            currentTime: Date(),
+            palette: ClockColorPalette.system(colorScheme: .light),
+            containerRotation: 0
+        )
+    }
 }
+#endif

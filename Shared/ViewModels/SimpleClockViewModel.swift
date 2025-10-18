@@ -409,7 +409,13 @@ class SimpleClockViewModel: ObservableObject {
         
         // Формируем one-time превью с ближайшей датой
         let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: currentTime)
-        let reminder = ClockReminder(hour: hour, minute: minute, date: nextDate, isEnabled: true)
+        let reminder = ClockReminder(
+            hour: hour,
+            minute: minute,
+            date: nextDate,
+            isEnabled: true,
+            liveActivityEnabled: false
+        )
         ReminderManager.shared.setPreviewReminder(reminder)
     }
     

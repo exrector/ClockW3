@@ -1,6 +1,9 @@
 import Foundation
 import Combine
 import UserNotifications
+#if canImport(ActivityKit) && !os(macOS)
+import ActivityKit
+#endif
 
 // MARK: - Reminder Manager
 /// Управляет единственным напоминанием циферблата
@@ -21,6 +24,9 @@ class ReminderManager: ObservableObject {
         if currentReminder == nil {
             createDefaultPreview()
         }
+#if canImport(ActivityKit) && !os(macOS)
+        reconcileLiveActivityOnLaunch()
+#endif
     }
     
     private func createDefaultPreview() {
@@ -113,6 +119,8 @@ class ReminderManager: ObservableObject {
         if reminder.isEnabled {
             await scheduleNotification(for: reminder)
         }
+
+        await updateLiveActivityIntegration(for: reminder)
     }
 
     /// Обновляет время существующего напоминания
@@ -123,7 +131,8 @@ class ReminderManager: ObservableObject {
             hour: hour,
             minute: minute,
             date: reminder.date,
-            isEnabled: reminder.isEnabled
+            isEnabled: reminder.isEnabled,
+            liveActivityEnabled: reminder.liveActivityEnabled
         )
         await setReminder(reminder)
     }
@@ -142,18 +151,28 @@ class ReminderManager: ObservableObject {
             hour: reminder.hour,
             minute: reminder.minute,
             date: nextDate,
-            isEnabled: reminder.isEnabled
+            isEnabled: reminder.isEnabled,
+            liveActivityEnabled: reminder.liveActivityEnabled
         )
         await setReminder(reminder)
     }
 
     /// Удаляет напоминание
     func deleteReminder() {
+        let reminderID = currentReminder?.id
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
         currentReminder = nil
         saveReminder()
         // Сразу создаем новый preview
         createDefaultPreview()
+
+#if canImport(ActivityKit) && !os(macOS)
+        if let reminderID, #available(iOS 16.1, *) {
+            Task {
+                await self.endLiveActivity(reminderID: reminderID)
+            }
+        }
+#endif
     }
 
     // MARK: - Notification Scheduling
@@ -198,4 +217,100 @@ class ReminderManager: ObservableObject {
         } catch {
         }
     }
+
+    /// Обновляет флаг Live Activity
+    func updateLiveActivityEnabled(isEnabled: Bool) async {
+        guard var reminder = currentReminder else { return }
+        guard reminder.liveActivityEnabled != isEnabled else { return }
+        reminder.liveActivityEnabled = isEnabled
+        await setReminder(reminder)
+    }
+
+    private func updateLiveActivityIntegration(for reminder: ClockReminder) async {
+#if canImport(ActivityKit) && !os(macOS)
+        if #available(iOS 16.1, *) {
+            await updateLiveActivity(for: reminder)
+        }
+#endif
+    }
+
+#if canImport(ActivityKit) && !os(macOS)
+    @available(iOS 16.1, *)
+    private func reconcileLiveActivityOnLaunch() {
+        Task { [weak self] in
+            guard let self else { return }
+            if let reminder = self.currentReminder {
+                await self.updateLiveActivity(for: reminder)
+            } else {
+                await self.terminateOrphanedActivities()
+            }
+        }
+    }
+
+    @available(iOS 16.1, *)
+    private func terminateOrphanedActivities() async {
+        let activities = Activity<ReminderLiveActivityAttributes>.activities
+        for activity in activities {
+            if #available(iOS 16.2, *) {
+                let content = ActivityContent(state: activity.content.state, staleDate: nil)
+                await activity.end(content, dismissalPolicy: .immediate)
+            } else {
+                await activity.end(dismissalPolicy: .immediate)
+            }
+        }
+    }
+
+    @available(iOS 16.1, *)
+    private func updateLiveActivity(for reminder: ClockReminder) async {
+        guard reminder.liveActivityEnabled, reminder.isEnabled else {
+            await endLiveActivity(reminderID: reminder.id)
+            return
+        }
+
+        if #available(iOS 16.2, *) {
+            guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        }
+
+        let scheduledDate = reminder.nextScheduledDate()
+        let contentState = ReminderLiveActivityAttributes.ContentState(scheduledDate: scheduledDate)
+
+        if let existing = Activity<ReminderLiveActivityAttributes>.activities.first(where: { $0.attributes.reminderID == reminder.id }) {
+            if #available(iOS 16.2, *) {
+                let content = ActivityContent(state: contentState, staleDate: nil)
+                await existing.update(content)
+            } else {
+                await existing.update(using: contentState)
+            }
+        } else {
+            let attributes = ReminderLiveActivityAttributes(reminderID: reminder.id, title: "THE M.O.W TIME")
+            if #available(iOS 16.2, *) {
+                let content = ActivityContent(state: contentState, staleDate: nil)
+                _ = try? Activity<ReminderLiveActivityAttributes>.request(
+                    attributes: attributes,
+                    content: content,
+                    pushType: nil
+                )
+            } else {
+                _ = try? Activity<ReminderLiveActivityAttributes>.request(
+                    attributes: attributes,
+                    contentState: contentState,
+                    pushType: nil
+                )
+            }
+        }
+    }
+
+    @available(iOS 16.1, *)
+    private func endLiveActivity(reminderID: UUID) async {
+        guard let activity = Activity<ReminderLiveActivityAttributes>.activities.first(where: { $0.attributes.reminderID == reminderID }) else {
+            return
+        }
+        if #available(iOS 16.2, *) {
+            let content = ActivityContent(state: activity.content.state, staleDate: nil)
+            await activity.end(content, dismissalPolicy: .immediate)
+        } else {
+            await activity.end(dismissalPolicy: .immediate)
+        }
+    }
+#endif
 }

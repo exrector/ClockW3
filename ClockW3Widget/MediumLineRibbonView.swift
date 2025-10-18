@@ -210,7 +210,11 @@ private extension DateFormatter {
     }
 }
 
-#Preview {
-    MediumLineRibbonView(date: Date(), colorScheme: .light)
-        .frame(width: 584, height: 284)
+#if DEBUG
+struct MediumLineRibbonView_Previews: PreviewProvider {
+    static var previews: some View {
+        MediumLineRibbonView(date: Date(), colorScheme: .light)
+            .frame(width: 584, height: 284)
+    }
 }
+#endif
