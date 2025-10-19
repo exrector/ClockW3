@@ -132,11 +132,17 @@ struct SwiftUIClockApp: App {
     #endif
 
     var body: some Scene {
-        WindowGroup {
+#if os(macOS)
+        let orientation = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.windowOrientationKey) ?? "landscape"
+        let defaultSize = orientation == "landscape"
+            ? CGSize(width: 893, height: 500)
+            : CGSize(width: 449, height: 938)
+#endif
+        return WindowGroup {
             ContentView()
         }
 #if os(macOS)
-        .defaultSize(width: 893, height: 500)
+        .defaultSize(width: defaultSize.width, height: defaultSize.height)
         .windowResizability(.contentSize)
 #endif
     }
@@ -422,6 +428,9 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 16)
+
+                    designedByFooter
+                        .padding(.top, 12)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, 24)
@@ -567,9 +576,26 @@ extension SettingsView {
     }
 
     private func removeCity(_ identifier: String) {
-        guard identifier != localCityIdentifier else { return }
-        selectedIds.remove(identifier)
-        updateSelectedEntries()
+       guard identifier != localCityIdentifier else { return }
+       selectedIds.remove(identifier)
+       updateSelectedEntries()
+    }
+
+    private var designedByFooter: some View {
+        HStack(spacing: 6) {
+            Text("⊗")
+                .font(.system(size: 10, weight: .heavy))
+                .foregroundStyle(.primary)
+
+            Text("Designed by Exrector")
+                .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                .foregroundStyle(.primary)
+                .kerning(1.5)
+
+            Text("⊕")
+                .font(.system(size: 10, weight: .heavy))
+                .foregroundStyle(.primary)
+        }
     }
 }
 
