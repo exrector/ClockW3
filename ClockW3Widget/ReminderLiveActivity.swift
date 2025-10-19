@@ -7,93 +7,24 @@ import SwiftUI
 struct ReminderLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ReminderLiveActivityAttributes.self) { context in
+            // Lock Screen / Notification контент
             ReminderLiveActivityContentView(context: context)
                 .activityBackgroundTint(Color("ClockBackground"))
                 .activitySystemActionForegroundColor(.primary)
         } dynamicIsland: { context in
+            // Без Dynamic Island - только minimal состояние (колокольчик справа)
             DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    HStack {
-                        Image(systemName: "bell.fill")
-                            .foregroundStyle(.red)
-                        Text(context.attributes.title)
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                }
-
-                DynamicIslandExpandedRegion(.trailing) {
-                    if context.state.hasTriggered {
-                        Text("DONE")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.green)
-                    } else {
-                        Text(context.state.scheduledDate, style: .timer)
-                            .font(.caption.monospacedDigit())
-                            .fontWeight(.medium)
-                            .multilineTextAlignment(.trailing)
-                    }
-                }
-
+                // Expanded - не показываем
                 DynamicIslandExpandedRegion(.center) {
-                    Text(context.state.scheduledDate, style: .time)
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .multilineTextAlignment(.center)
-                }
-
-                DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Reminder at")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text(context.state.scheduledDate, style: .time)
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                        }
-
-                        Spacer()
-
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text(context.state.hasTriggered ? "Status" : "Time left")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            if context.state.hasTriggered {
-                                Text("DONE")
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(.green)
-                            } else {
-                                Text(context.state.scheduledDate, style: .timer)
-                                    .font(.caption.monospacedDigit())
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 8)
+                    EmptyView()
                 }
             } compactLeading: {
-                HStack(spacing: 4) {
-                    Image(systemName: context.state.hasTriggered ? "checkmark.circle.fill" : "bell.fill")
-                        .foregroundStyle(context.state.hasTriggered ? .green : .red)
-                        .font(.caption2)
-                    if context.state.hasTriggered {
-                        Text("DONE")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                    } else {
-                        Text(context.state.scheduledDate, style: .timer)
-                            .font(.caption2.monospacedDigit())
-                            .fontWeight(.semibold)
-                    }
-                }
+                // Compact leading - не показываем
+                EmptyView()
             } compactTrailing: {
-                Text(context.state.scheduledDate, style: .time)
-                    .font(.caption2.bold())
+                ReminderIslandBadge(isDone: context.state.hasTriggered)
             } minimal: {
-                Image(systemName: "bell.fill")
-                    .foregroundStyle(.red)
+                ReminderIslandBadge(isDone: context.state.hasTriggered)
             }
         }
     }
@@ -158,6 +89,23 @@ private struct ReminderLiveActivityContentView: View {
             }
         }
         .padding(16)
+    }
+}
+
+@available(iOSApplicationExtension 16.1, *)
+private struct ReminderIslandBadge: View {
+    let isDone: Bool
+
+    private var iconColor: Color {
+        isDone ? .green : .red
+    }
+
+    var body: some View {
+        Image(systemName: isDone ? "bell.badge.fill" : "bell.fill")
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(.primary, iconColor)
+            .font(.system(size: 17, weight: .semibold))
+            .shadow(color: .black.opacity(0.25), radius: 1, x: 0, y: 1)
     }
 }
 #endif
