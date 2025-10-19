@@ -9,7 +9,7 @@ struct ReminderLiveActivity: Widget {
         ActivityConfiguration(for: ReminderLiveActivityAttributes.self) { context in
             // Lock Screen / Notification контент
             ReminderLiveActivityContentView(context: context)
-                .activityBackgroundTint(Color("ClockBackground"))
+                .activityBackgroundTint(.clear)
                 .activitySystemActionForegroundColor(.primary)
         } dynamicIsland: { context in
             // Без Dynamic Island - только minimal состояние (колокольчик справа)
