@@ -25,4 +25,5 @@ enum SharedUserDefaults {
     static let selectedCitiesKey = "selectedCityIdentifiers"
     static let seededDefaultsKey = "didSeedDefaultCities"
     static let colorSchemeKey = "colorSchemePreference"
+    static let windowOrientationKey = "windowOrientationPreference" // "landscape" или "portrait"
 }

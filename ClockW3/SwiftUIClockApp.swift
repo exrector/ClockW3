@@ -135,6 +135,10 @@ struct SwiftUIClockApp: App {
         WindowGroup {
             ContentView()
         }
+#if os(macOS)
+        .defaultSize(width: 893, height: 500)
+        .windowResizability(.contentSize)
+#endif
     }
 }
 
@@ -161,6 +165,14 @@ struct SettingsView: View {
         SharedUserDefaults.colorSchemeKey,
         store: SharedUserDefaults.shared
     ) private var colorSchemePreference: String = "system"
+
+#if os(macOS)
+    // Ориентация окна для macOS
+    @AppStorage(
+        SharedUserDefaults.windowOrientationKey,
+        store: SharedUserDefaults.shared
+    ) private var windowOrientationPreference: String = "landscape"
+#endif
     
     @Environment(\.colorScheme) private var colorScheme
 
@@ -359,7 +371,7 @@ struct SettingsView: View {
                     .padding(.top, 8)
 #endif
 
-                    // Три пузыря для выбора темы внизу
+                    // Пузыри для выбора темы и ориентации (на macOS)
                     HStack(spacing: 16) {
                         ColorSchemeButton(
                             title: "System",
@@ -387,6 +399,26 @@ struct SettingsView: View {
                         ) {
                             colorSchemePreference = "dark"
                         }
+
+#if os(macOS)
+                        ColorSchemeButton(
+                            title: "Portrait",
+                            systemImage: "rectangle.portrait",
+                            isSelected: windowOrientationPreference == "portrait",
+                            colorScheme: colorScheme
+                        ) {
+                            windowOrientationPreference = "portrait"
+                        }
+
+                        ColorSchemeButton(
+                            title: "Landscape",
+                            systemImage: "rectangle",
+                            isSelected: windowOrientationPreference == "landscape",
+                            colorScheme: colorScheme
+                        ) {
+                            windowOrientationPreference = "landscape"
+                        }
+#endif
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 16)
@@ -728,12 +760,12 @@ private struct ReminderRow: View {
                 // Статусы (три строки) - всегда присутствуют для сохранения размера
                 VStack(alignment: .trailing, spacing: 2) {
                     if !isPreview {
+#if os(iOS)
                         // Строка 1: Every day / One time (всегда показывается)
                         Text(isDailyMode ? "Every day" : "One time")
                             .font(.caption2)
                             .foregroundStyle(.primary)
 
-#if os(iOS)
                         // Строка 2: Live Activity (всегда занимает место)
                         if onLiveActivityToggle != nil {
                             if isLiveActivityEnabled {
@@ -761,6 +793,21 @@ private struct ReminderRow: View {
                                 .font(.caption2)
                                 .foregroundStyle(isCriticalEnabled ? .red : .clear)
                         }
+#else
+                        // macOS: Строка 1 - пустая
+                        Text(" ")
+                            .font(.caption2)
+                            .foregroundStyle(.clear)
+
+                        // Строка 2: Every day / One time (центральная строка)
+                        Text(isDailyMode ? "Every day" : "One time")
+                            .font(.caption2)
+                            .foregroundStyle(.primary)
+
+                        // Строка 3 - пустая
+                        Text(" ")
+                            .font(.caption2)
+                            .foregroundStyle(.clear)
 #endif
                     } else {
                         // Placeholder для preview - показываем "PREVIEW" в центральной строке
