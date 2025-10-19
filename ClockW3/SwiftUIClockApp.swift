@@ -306,7 +306,11 @@ struct SettingsView: View {
                 }
             }
             .padding(.horizontal, 24)
+#if os(macOS)
+            .padding(.vertical, windowOrientationPreference == "portrait" ? 8 : 16)
+#else
             .padding(.vertical, 16)
+#endif
 
             // НИЖНИЙ БЛОК (прокручиваемый) - Города и настройки темы
             ScrollView {
@@ -867,7 +871,11 @@ private struct ReminderRow: View {
                 }
             }
         }
+#if os(macOS)
+        .padding(.vertical, 6)
+#else
         .padding(.vertical, 10)
+#endif
         .padding(.horizontal, 16)
         .frame(minHeight: 44)
         .background(
