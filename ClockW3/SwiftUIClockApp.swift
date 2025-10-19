@@ -3,6 +3,9 @@ import SwiftUI
 import WidgetKit
 #endif
 import UserNotifications
+#if canImport(StoreKit)
+import StoreKit
+#endif
 #if os(macOS)
 import AppKit
 #endif
@@ -157,6 +160,10 @@ struct SettingsView: View {
         SharedUserDefaults.selectedCitiesKey,
         store: SharedUserDefaults.shared
     ) private var selectedCityIdentifiers: String = ""
+    @AppStorage(
+        SharedUserDefaults.premiumUnlockedKey,
+        store: SharedUserDefaults.shared
+    ) private var premiumUnlocked: Bool = false
     @State private var selectedIds: Set<String> = []
     @State private var selectedEntries: [TimeZoneDirectory.Entry] = []
     @State private var showTimeZonePicker = false
@@ -185,6 +192,8 @@ struct SettingsView: View {
     // Напоминание
     @StateObject private var reminderManager = ReminderManager.shared
     @State private var editContext: ReminderEditContext?
+    @StateObject private var storeManager = StoreManager()
+    @State private var purchaseAlert: PurchaseAlert?
 
     private struct ReminderEditContext: Identifiable {
         enum Kind {
@@ -411,24 +420,32 @@ struct SettingsView: View {
                         }
 
 #if os(macOS)
-                        ColorSchemeButton(
-                            title: "Portrait",
-                            systemImage: "rectangle.portrait",
-                            isSelected: windowOrientationPreference == "portrait",
-                            colorScheme: colorScheme
-                        ) {
-                            windowOrientationPreference = "portrait"
-                        }
+                    ColorSchemeButton(
+                        title: "Port.",
+                        systemImage: "rectangle.portrait",
+                        isSelected: windowOrientationPreference == "portrait",
+                        colorScheme: colorScheme
+                    ) {
+                        windowOrientationPreference = "portrait"
+                    }
 
-                        ColorSchemeButton(
-                            title: "Landscape",
-                            systemImage: "rectangle",
-                            isSelected: windowOrientationPreference == "landscape",
-                            colorScheme: colorScheme
-                        ) {
-                            windowOrientationPreference = "landscape"
+                    ColorSchemeButton(
+                        title: "Land.",
+                        systemImage: "rectangle",
+                        isSelected: windowOrientationPreference == "landscape",
+                        colorScheme: colorScheme
+                    ) {
+                        windowOrientationPreference = "landscape"
                         }
 #endif
+                        PremiumAccessButton(
+                            isUnlocked: premiumUnlocked,
+                            isProcessing: storeManager.isPurchasing,
+                            colorScheme: colorScheme,
+                            priceText: storeManager.priceText,
+                            onPurchase: { Task { await attemptPurchase() } },
+                            onRestore: { Task { await attemptRestore() } }
+                        )
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 16)
@@ -493,6 +510,13 @@ struct SettingsView: View {
             .presentationDetents([.height(380)])
             .presentationDragIndicator(.hidden)
 #endif
+        }
+        .alert(item: $purchaseAlert) { alert in
+            Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("OK"))
+            )
         }
     }
 }
@@ -577,6 +601,35 @@ extension SettingsView {
         }
         updateSelectedEntries()
         reloadWidgets()
+    }
+
+    private func attemptPurchase() async {
+        do {
+            let result = try await storeManager.purchasePremium()
+            switch result {
+            case .success:
+                purchaseAlert = PurchaseAlert(title: "Premium unlocked", message: "Thank you for supporting ClockW3.")
+            case .pending:
+                purchaseAlert = PurchaseAlert(title: "Purchase pending", message: "Your purchase is pending approval. We'll unlock premium once it completes.")
+            case .cancelled:
+                break
+            }
+        } catch {
+            purchaseAlert = PurchaseAlert(title: "Purchase failed", message: error.localizedDescription)
+        }
+    }
+
+    private func attemptRestore() async {
+        do {
+            try await storeManager.restorePurchases()
+            if premiumUnlocked {
+                purchaseAlert = PurchaseAlert(title: "Premium restored", message: "Your premium access is active on this device.")
+            } else {
+                purchaseAlert = PurchaseAlert(title: "No purchases found", message: "We couldn't find an active premium purchase for this Apple ID.")
+            }
+        } catch {
+            purchaseAlert = PurchaseAlert(title: "Restore failed", message: error.localizedDescription)
+        }
     }
 
     private func removeCity(_ identifier: String) {
@@ -909,6 +962,91 @@ private struct ReminderRow: View {
 
 }
 
+private struct PurchaseAlert: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+}
+
+private struct PremiumAccessButton: View {
+    let isUnlocked: Bool
+    let isProcessing: Bool
+    let colorScheme: ColorScheme
+    let priceText: String?
+    let onPurchase: () -> Void
+    let onRestore: () -> Void
+
+    var body: some View {
+        Button(action: primaryAction) {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(circleFill)
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            Circle()
+                                .stroke(circleBorder, lineWidth: 2)
+                        )
+                        .shadow(color: shadowColor, radius: 3)
+
+                    if isProcessing {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(progressTint)
+                    } else {
+                        Image(systemName: isUnlocked ? "heart.fill" : "lock.fill")
+                            .font(.title2)
+                            .foregroundColor(iconColor)
+                    }
+                }
+
+                Text(labelText)
+                    .font(.caption)
+                    .foregroundStyle(labelColor)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(isProcessing)
+        .contextMenu {
+            if !isUnlocked {
+                Button("Unlock Premium", action: onPurchase)
+            }
+            Button("Restore Purchases", action: onRestore)
+        }
+        .accessibilityLabel(isUnlocked ? "Premium unlocked" : "Unlock premium access")
+    }
+
+    private func primaryAction() {
+        if isUnlocked {
+            onRestore()
+        } else {
+            onPurchase()
+        }
+    }
+
+    private var circleFill: Color { Color.primary.opacity(colorScheme == .light ? 0.05 : 0.08) }
+
+    private var circleBorder: Color { colorScheme == .light ? .black.opacity(0.6) : .white.opacity(0.7) }
+
+    private var shadowColor: Color { Color.primary.opacity(0.1) }
+
+    private var iconColor: Color {
+        if isUnlocked { return .red }
+        return colorScheme == .light ? .black : .white
+    }
+
+    private var progressTint: Color { colorScheme == .light ? .black : .white }
+
+    private var labelColor: Color { colorScheme == .light ? .black : .white }
+
+    private var labelText: String {
+        if isUnlocked {
+            return "Premium"
+        }
+        return priceText ?? "Unlock"
+    }
+}
+
 private struct CityRow: View {
     let entry: TimeZoneDirectory.Entry
     let isRemovable: Bool
@@ -971,6 +1109,7 @@ private extension SettingsView {
         
         // Также попробуем перезагрузить конкретный kind
         WidgetCenter.shared.reloadTimelines(ofKind: "MOWWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: "MOWSmallWidget")
     }
 }
 #else

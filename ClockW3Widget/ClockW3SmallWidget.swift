@@ -11,22 +11,26 @@ import SwiftUI
 // MARK: - Timeline Provider
 struct SmallWidgetProvider: TimelineProvider {
     func placeholder(in context: Context) -> SmallWidgetEntry {
-        SmallWidgetEntry(date: Date())
+        SmallWidgetEntry(date: Date(), colorSchemePreference: "system")
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SmallWidgetEntry) -> ()) {
-        let entry = SmallWidgetEntry(date: Date())
+        let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
+        let entry = SmallWidgetEntry(date: Date(), colorSchemePreference: colorPref)
         completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         var entries: [SmallWidgetEntry] = []
 
+        // Читаем настройку цветовой схемы при каждом обновлении timeline
+        let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
+
         // Генерируем timeline на следующие 60 минут с обновлением каждую минуту
         let currentDate = Date()
         for minuteOffset in 0 ..< 60 {
             let entryDate = Calendar.current.date(byAdding: .minute, value: minuteOffset, to: currentDate)!
-            let entry = SmallWidgetEntry(date: entryDate)
+            let entry = SmallWidgetEntry(date: entryDate, colorSchemePreference: colorPref)
             entries.append(entry)
         }
 
@@ -38,231 +42,468 @@ struct SmallWidgetProvider: TimelineProvider {
 // MARK: - Timeline Entry
 struct SmallWidgetEntry: TimelineEntry {
     let date: Date
+    let colorSchemePreference: String
 }
 
 // MARK: - Widget Entry View
 struct ClockW3SmallWidgetEntryView: View {
     var entry: SmallWidgetProvider.Entry
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorScheme) private var systemColorScheme
+
+    private var effectiveColorScheme: ColorScheme {
+        switch entry.colorSchemePreference {
+        case "light":
+            return .light
+        case "dark":
+            return .dark
+        default:
+            return systemColorScheme
+        }
+    }
 
     var body: some View {
         GeometryReader { geometry in
             let widgetSize = min(geometry.size.width, geometry.size.height)
-            // Делаем циферблат в 2 раза больше виджета, чтобы показать ¼
             let fullClockSize = widgetSize * 2
+            let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
 
             ZStack {
-                // Фон
-                Color("ClockBackground")
+                palette.background
                     .ignoresSafeArea()
 
-                // Полный циферблат, смещённый так чтобы:
-                // - Центр был в левом НИЖНЕМ углу виджета (0, widgetSize)
-                // - Виден был сегмент 12-18 часов (верхняя половина левой части циферблата)
-                ClockFaceView(
-                    interactivityEnabled: false,
-                    overrideTime: entry.date,
-                    overrideColorScheme: colorScheme
+                SimplifiedClockFace(
+                    currentTime: entry.date,
+                    palette: palette
                 )
                 .frame(width: fullClockSize, height: fullClockSize)
-                // Центр циферблата по умолчанию в (fullClockSize/2, fullClockSize/2)
-                // Нужно сдвинуть центр в позицию (0, widgetSize) относительно виджета
-                // offset x: 0 - fullClockSize/2 = -widgetSize
-                // offset y: widgetSize - fullClockSize/2 = 0
                 .position(x: 0, y: widgetSize)
             }
             .frame(width: widgetSize, height: widgetSize)
-            .clipped() // Обрезаем, показывая только сегмент 12-18 часов
+            .clipped()
         }
+        .widgetBackground(ClockColorPalette.system(colorScheme: effectiveColorScheme).background)
     }
 }
 
-// MARK: - Simple Clock Hands
-struct SimpleClockHands: View {
+// MARK: - Simplified Clock Face (только для виджета)
+struct SimplifiedClockFace: View {
     let currentTime: Date
-    let radius: CGFloat
-    let centerY: CGFloat // Y координата центра (низ виджета)
+    let palette: ClockColorPalette
+    private let staticArrowAngle: Double = -Double.pi / 4  // 315°
+    private let tickDotRadiusRatio: CGFloat = 0.86
+    private let numberRingRadiusRatio: CGFloat = 0.72
+    private let hourAngleStep: Double = .pi / 6  // 30°
+    private let minuteBubbleRadiusRatio: CGFloat = 0.075
+    private let minuteBubbleGapRatio: CGFloat = 0.03
 
     var body: some View {
-        let calendar = Calendar.current
-        let hour = calendar.component(.hour, from: currentTime)
-        let minute = calendar.component(.minute, from: currentTime)
+        Canvas { context, size in
+            let baseRadius = min(size.width, size.height) / 2.0 * ClockConstants.clockSizeRatio
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let rotationAngle = rotationOffset(for: currentTime)
 
-        // Углы стрелок (0° = 3 часа, 90° = 6 часов, 180° = 9 часов, 270° = 12 часов)
-        let hourAngle = (Double(hour % 12) * 30 + Double(minute) * 0.5) * .pi / 180
-        let minuteAngle = Double(minute) * 6 * .pi / 180
+            drawBackground(context: context, center: center, baseRadius: baseRadius)
+            drawTicks(context: context, center: center, baseRadius: baseRadius, rotationAngle: rotationAngle)
+            drawNumbers(context: context, center: center, baseRadius: baseRadius, rotationAngle: rotationAngle)
 
-        ZStack(alignment: .bottomLeading) {
-            // Часовая стрелка - от левого нижнего угла
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: centerY))
-                let endX = cos(hourAngle) * radius * 0.6
-                let endY = centerY - sin(hourAngle) * radius * 0.6 // Минус для направления вверх
-                path.addLine(to: CGPoint(x: endX, y: endY))
-            }
-            .stroke(Color.primary, lineWidth: 4)
-
-            // Минутная стрелка - от левого нижнего угла
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: centerY))
-                let endX = cos(minuteAngle) * radius * 0.9
-                let endY = centerY - sin(minuteAngle) * radius * 0.9 // Минус для направления вверх
-                path.addLine(to: CGPoint(x: endX, y: endY))
-            }
-            .stroke(Color.primary, lineWidth: 2)
-
-            // Центр в левом нижнем углу
-            Circle()
-                .fill(Color.primary)
-                .frame(width: 8, height: 8)
-                .position(x: 0, y: centerY)
-        }
-    }
-}
-
-// MARK: - Quarter Clock Face (¼ циферблата)
-struct QuarterClockFaceView: View {
-    let radius: CGFloat
-    let currentTime: Date
-    let colorScheme: ColorScheme
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            // Круг циферблата (будет обрезан до ¼)
-            Circle()
-                .stroke(Color.blue, lineWidth: 4) // Синий для отладки
-                .frame(width: radius * 2, height: radius * 2)
-                .offset(x: -radius, y: -radius)
-
-            // Тестовая линия от центра вправо
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: radius, y: 0))
-            }
-            .stroke(Color.red, lineWidth: 3)
-
-            // Тестовая линия от центра вниз
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: 0, y: radius))
-            }
-            .stroke(Color.green, lineWidth: 3)
-
-            // Центральный круг для отладки
-            Circle()
-                .fill(Color.orange)
-                .frame(width: 20, height: 20)
-                .offset(x: -10, y: -10)
-
-            // Часовые метки (будут видны только в правой нижней четверти)
-            ForEach(0..<24) { hour in
-                HourTickView(
-                    hour: hour,
-                    radius: radius,
-                    isVisible: isHourInQuarter(hour)
+            if let localInfo = makeLocalCityInfo(for: currentTime) {
+                drawLocalCityOrbit(
+                    context: context,
+                    center: center,
+                    baseRadius: baseRadius,
+                    info: localInfo
+                )
+                drawArrow(
+                    context: context,
+                    center: center,
+                    baseRadius: baseRadius,
+                    info: localInfo
                 )
             }
 
-            // Стрелки (только часовая и минутная)
-            ClockHandsView(
-                currentTime: currentTime,
-                radius: radius
-            )
+            drawCenterDisc(context: context, center: center, baseRadius: baseRadius)
         }
     }
 
-    // Определяем какие часы видны в правой нижней четверти (6-12)
-    private func isHourInQuarter(_ hour: Int) -> Bool {
-        return hour >= 6 && hour < 12
+    private func drawBackground(
+        context: GraphicsContext,
+        center: CGPoint,
+        baseRadius: CGFloat
+    ) {
+        let rect = CGRect(
+            x: center.x - baseRadius,
+            y: center.y - baseRadius,
+            width: baseRadius * 2,
+            height: baseRadius * 2
+        )
+
+        context.fill(Path(ellipseIn: rect), with: .color(palette.background))
     }
-}
 
-// MARK: - Hour Tick
-struct HourTickView: View {
-    let hour: Int
-    let radius: CGFloat
-    let isVisible: Bool
+    private func drawTicks(
+        context: GraphicsContext,
+        center: CGPoint,
+        baseRadius: CGFloat,
+        rotationAngle: Double
+    ) {
+        let minutesPerTick: Double = 10
+        let ticksPerHour = Int(60 / minutesPerTick)  // 6
+        let totalTicks = ticksPerHour * 12          // 72 (12 часов)
+        let sizeScale: CGFloat = 1.3 * 1.15         // +30% и дополнительно +15%
 
-    var body: some View {
-        if isVisible {
-            let angle = Double(hour) * .pi / 12.0 - .pi / 2
-            let tickLength: CGFloat = 12
-            let tickWidth: CGFloat = 2
-            let outerRadius = radius * 0.95
-            let innerRadius = outerRadius - tickLength
+        for index in 0..<totalTicks {
+            let isHourTick = index % ticksPerHour == 0
+            let isHalfHourTick = (index % (ticksPerHour / 2) == 0) && !isHourTick  // каждые 30 минут
 
-            Path { path in
-                let outerX = cos(angle) * outerRadius
-                let outerY = sin(angle) * outerRadius
-                let innerX = cos(angle) * innerRadius
-                let innerY = sin(angle) * innerRadius
+            let dotDiameter: CGFloat
+            let color: Color
 
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: outerX, y: outerY))
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: innerX, y: innerY))
+            if isHourTick {
+                dotDiameter = baseRadius * ClockConstants.hourTickThickness * 3.0 * sizeScale
+                color = palette.hourTicks
+            } else if isHalfHourTick {
+                dotDiameter = baseRadius * ClockConstants.halfHourTickThickness * 2.5 * sizeScale
+                color = palette.minorTicks
+            } else {
+                dotDiameter = baseRadius * ClockConstants.quarterTickThickness * 2.0 * sizeScale
+                color = palette.minorTicks.opacity(0.85)
             }
-            .stroke(Color.primary, lineWidth: tickWidth)
-        }
-    }
-}
 
-// MARK: - Clock Hands
-struct ClockHandsView: View {
-    let currentTime: Date
-    let radius: CGFloat
+            let minutesFromBase = Double(index) * minutesPerTick
+            let angle = minutesFromBase / 60.0 * hourAngleStep + rotationAngle
 
-    var body: some View {
-        let calendar = Calendar.current
-        let hour = calendar.component(.hour, from: currentTime)
-        let minute = calendar.component(.minute, from: currentTime)
-        let second = calendar.component(.second, from: currentTime)
-
-        // Углы стрелок
-        let hourAngle = (Double(hour % 12) + Double(minute) / 60.0) * .pi / 6.0 - .pi / 2
-        let minuteAngle = (Double(minute) + Double(second) / 60.0) * .pi / 30.0 - .pi / 2
-
-        ZStack(alignment: .topLeading) {
-            // Часовая стрелка
-            HandView(
-                angle: hourAngle,
-                length: radius * 0.5,
-                width: 6,
-                color: .primary
+            let dotCenter = AngleCalculations.pointOnCircle(
+                center: center,
+                radius: baseRadius * tickDotRadiusRatio,
+                angle: angle
             )
 
-            // Минутная стрелка
-            HandView(
-                angle: minuteAngle,
-                length: radius * 0.7,
-                width: 4,
-                color: .primary
+            let rect = CGRect(
+                x: dotCenter.x - dotDiameter / 2,
+                y: dotCenter.y - dotDiameter / 2,
+                width: dotDiameter,
+                height: dotDiameter
             )
 
-            // Центральный круг
-            Circle()
-                .fill(Color.primary)
-                .frame(width: 8, height: 8)
+            context.fill(Path(ellipseIn: rect), with: .color(color))
         }
     }
-}
 
-// MARK: - Single Hand
-struct HandView: View {
-    let angle: Double
-    let length: CGFloat
-    let width: CGFloat
-    let color: Color
+    private func drawNumbers(
+        context: GraphicsContext,
+        center: CGPoint,
+        baseRadius: CGFloat,
+        rotationAngle: Double
+    ) {
+        let fontSize = baseRadius * 2 * ClockConstants.numberFontSizeRatio * 1.2
+        let totalHourMarks = 12
+        let baseHour = 18
 
-    var body: some View {
-        let endX = cos(angle) * length
-        let endY = sin(angle) * length
+        for index in 0..<totalHourMarks {
+            let rawHour = (baseHour + index) % 24
+            let displayHour = rawHour == 0 ? 24 : rawHour
+            let angle = Double(index) * hourAngleStep + rotationAngle
+            let position = AngleCalculations.pointOnCircle(
+                center: center,
+                radius: baseRadius * numberRingRadiusRatio,
+                angle: angle
+            )
 
-        Path { path in
-            path.move(to: CGPoint(x: 0, y: 0))
-            path.addLine(to: CGPoint(x: endX, y: endY))
+            let text = Text(String(format: "%02d", displayHour))
+                .font(.system(size: fontSize, design: .monospaced))
+                .foregroundColor(palette.numbers)
+
+            context.draw(text, at: position, anchor: .center)
         }
-        .stroke(color, lineWidth: width)
+    }
+
+    private func drawLocalCityOrbit(
+        context: GraphicsContext,
+        center: CGPoint,
+        baseRadius: CGFloat,
+        info: LocalCityInfo
+    ) {
+        let orbitRadius = baseRadius * ClockConstants.outerLabelRingRadius
+        let fontSize = baseRadius * 2 * ClockConstants.labelRingFontSizeRatio
+        let characters = Array(info.displayName.uppercased())
+
+        if !characters.isEmpty {
+            let letterSpacing = Double(fontSize) * 0.8
+            let totalWidth = Double(max(characters.count - 1, 0)) * letterSpacing
+            let startAngle = info.arrowAngle - totalWidth / (2 * Double(orbitRadius))
+
+            for (index, character) in characters.enumerated() {
+                let letterAngle = startAngle + Double(index) * letterSpacing / Double(orbitRadius)
+                let position = AngleCalculations.pointOnCircle(
+                    center: center,
+                    radius: orbitRadius,
+                    angle: letterAngle
+                )
+
+                if character != " " {
+                    var letterContext = context
+                    letterContext.translateBy(x: position.x, y: position.y)
+                    letterContext.rotate(by: Angle(radians: letterAngle + .pi / 2))
+
+                    let text = Text(String(character))
+                        .font(.system(size: fontSize, weight: .medium))
+                        .foregroundColor(palette.arrow)
+
+                    letterContext.draw(text, at: .zero, anchor: .center)
+                }
+            }
+
+            let angularWidth = totalWidth / Double(orbitRadius)
+            let padding = (Double(fontSize) * 0.8) / Double(baseRadius) * 0.7
+            let occupiedStart = info.arrowAngle - angularWidth / 2 - padding
+            let occupiedEnd = info.arrowAngle + angularWidth / 2 + padding
+
+            let freeRanges = calculateFreeRanges(
+                occupiedRanges: [(start: occupiedStart, end: occupiedEnd)]
+            )
+
+            let segmentWidth = baseRadius * 0.1
+
+            for range in freeRanges where range.end > range.start {
+                var path = Path()
+                path.addArc(
+                    center: center,
+                    radius: orbitRadius,
+                    startAngle: Angle(radians: range.start),
+                    endAngle: Angle(radians: range.end),
+                    clockwise: false
+                )
+
+                context.stroke(
+                    path,
+                    with: .color(palette.secondaryColor),
+                    style: StrokeStyle(lineWidth: segmentWidth, lineCap: .butt)
+                )
+            }
+        }
+    }
+
+    private func drawArrow(
+        context: GraphicsContext,
+        center: CGPoint,
+        baseRadius: CGFloat,
+        info: LocalCityInfo
+    ) {
+        let arrowThickness = baseRadius * ClockConstants.arrowThicknessRatio * 1.4
+        let bubbleOrbitRatio = minuteBubbleOrbitRatio()
+        let arrowEndRatio = max(bubbleOrbitRatio - minuteBubbleRadiusRatio - minuteBubbleGapRatio, 0.12)
+        let arrowEndRadius = baseRadius * arrowEndRatio
+        let arrowEndPosition = AngleCalculations.pointOnCircle(
+            center: center,
+            radius: arrowEndRadius,
+            angle: info.arrowAngle
+        )
+
+        var path = Path()
+        path.move(to: center)
+        path.addLine(to: arrowEndPosition)
+
+        context.stroke(
+            path,
+            with: .color(palette.arrow),
+            style: StrokeStyle(lineWidth: arrowThickness, lineCap: .round)
+        )
+
+        drawMinuteBubble(
+            context: context,
+            position: minuteBubblePosition(
+                center: center,
+                baseRadius: baseRadius,
+                angle: info.arrowAngle
+            ),
+            baseRadius: baseRadius,
+            minute: info.minute
+        )
+
+        let markerPosition = AngleCalculations.pointOnCircle(
+            center: center,
+            radius: baseRadius * tickDotRadiusRatio,
+            angle: info.arrowAngle
+        )
+        let markerSize = baseRadius * 0.03 * 1.35
+        let markerRect = CGRect(
+            x: markerPosition.x - markerSize / 2,
+            y: markerPosition.y - markerSize / 2,
+            width: markerSize,
+            height: markerSize
+        )
+
+        context.fill(Path(ellipseIn: markerRect), with: .color(palette.arrow))
+    }
+
+    private func minuteBubblePosition(
+        center: CGPoint,
+        baseRadius: CGFloat,
+        angle: Double
+    ) -> CGPoint {
+        let bubbleRadius = minuteBubbleOrbitRatio()
+        return AngleCalculations.pointOnCircle(
+            center: center,
+            radius: baseRadius * bubbleRadius,
+            angle: angle
+        )
+    }
+
+    private func drawMinuteBubble(
+        context: GraphicsContext,
+        position: CGPoint,
+        baseRadius: CGFloat,
+        minute: Int
+    ) {
+        let bubbleRadius = baseRadius * minuteBubbleRadiusRatio
+        let bubbleRect = CGRect(
+            x: position.x - bubbleRadius,
+            y: position.y - bubbleRadius,
+            width: bubbleRadius * 2,
+            height: bubbleRadius * 2
+        )
+
+        let bubblePath = Path(ellipseIn: bubbleRect)
+
+        context.fill(
+            bubblePath,
+            with: .color(palette.background.opacity(0.9))
+        )
+        context.stroke(
+            bubblePath,
+            with: .color(palette.arrow),
+            lineWidth: bubbleRadius * 0.18
+        )
+
+        let minuteText = Text(String(format: "%02d", minute))
+            .font(.system(size: bubbleRadius * 1.2, weight: .bold, design: .rounded))
+            .foregroundColor(palette.arrow)
+
+        context.draw(minuteText, at: position, anchor: .center)
+    }
+
+    private func drawCenterDisc(
+        context: GraphicsContext,
+        center: CGPoint,
+        baseRadius: CGFloat
+    ) {
+        let radius = baseRadius * ClockConstants.centerButtonVisualRatio
+        let rect = CGRect(
+            x: center.x - radius,
+            y: center.y - radius,
+            width: radius * 2,
+            height: radius * 2
+        )
+
+        context.fill(Path(ellipseIn: rect), with: .color(palette.centerCircle))
+    }
+
+    private func makeLocalCityInfo(for time: Date) -> LocalCityInfo? {
+        let timeZone = TimeZone.current
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let components = calendar.dateComponents([.minute], from: time)
+        guard let minute = components.minute else { return nil }
+
+        let city = WorldCity.make(identifier: timeZone.identifier)
+
+        return LocalCityInfo(displayName: city.name, arrowAngle: staticArrowAngle, minute: minute)
+    }
+    
+    private func minuteBubbleOrbitRatio() -> CGFloat {
+        min(tickDotRadiusRatio + 0.09, 0.55)
+    }
+    
+    private func rotationOffset(for time: Date) -> Double {
+        let timeZone = TimeZone.current
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let components = calendar.dateComponents([.hour, .minute], from: time)
+        guard let hour = components.hour, let minute = components.minute else {
+            return 0
+        }
+
+        let hour24 = Double(hour) + Double(minute) / 60.0
+        let baseAngle = ClockConstants.calculateArrowAngle(hour24: hour24)
+        let scaledAngle = baseAngle * 2.0  // 30° на час вместо 15°
+        return ClockConstants.normalizeAngle(staticArrowAngle - scaledAngle)
+    }
+
+    private func calculateFreeRanges(
+        occupiedRanges: [(start: Double, end: Double)]
+    ) -> [(start: Double, end: Double)] {
+        guard !occupiedRanges.isEmpty else {
+            return [(start: 0, end: 2 * .pi)]
+        }
+
+        var normalized: [(start: Double, end: Double)] = []
+
+        for range in occupiedRanges {
+            var start = range.start
+            var end = range.end
+
+            while start < 0 { start += 2 * .pi }
+            while start >= 2 * .pi { start -= 2 * .pi }
+            while end < 0 { end += 2 * .pi }
+            while end >= 2 * .pi { end -= 2 * .pi }
+
+            if start > end {
+                normalized.append((start: start, end: 2 * .pi))
+                normalized.append((start: 0, end: end))
+            } else {
+                normalized.append((start: start, end: end))
+            }
+        }
+
+        normalized.sort { $0.start < $1.start }
+        var merged: [(start: Double, end: Double)] = []
+
+        for range in normalized {
+            if merged.isEmpty {
+                merged.append(range)
+            } else {
+                let lastIndex = merged.count - 1
+                if range.start <= merged[lastIndex].end {
+                    merged[lastIndex].end = max(merged[lastIndex].end, range.end)
+                } else {
+                    merged.append(range)
+                }
+            }
+        }
+
+        if merged.isEmpty {
+            return [(start: 0, end: 2 * .pi)]
+        }
+
+        var freeRanges: [(start: Double, end: Double)] = []
+
+        if merged[0].start > 0 {
+            freeRanges.append((start: 0, end: merged[0].start))
+        }
+
+        if merged.count > 1 {
+            for index in 0..<(merged.count - 1) {
+                let gapStart = merged[index].end
+                let gapEnd = merged[index + 1].start
+                if gapStart < gapEnd {
+                    freeRanges.append((start: gapStart, end: gapEnd))
+                }
+            }
+        }
+
+        if let last = merged.last, last.end < 2 * .pi {
+            freeRanges.append((start: last.end, end: 2 * .pi))
+        }
+
+        return freeRanges
+    }
+
+    private struct LocalCityInfo {
+        let displayName: String
+        let arrowAngle: Double
+        let minute: Int
     }
 }
 
@@ -290,7 +531,9 @@ struct ClockW3SmallWidget: Widget {
 #if DEBUG
 struct ClockW3SmallWidget_Previews: PreviewProvider {
     static var previews: some View {
-        ClockW3SmallWidgetEntryView(entry: SmallWidgetEntry(date: Date()))
+        ClockW3SmallWidgetEntryView(
+            entry: SmallWidgetEntry(date: Date(), colorSchemePreference: "system")
+        )
             .previewContext(WidgetPreviewContext(family: .systemSmall))
     }
 }

@@ -26,4 +26,10 @@ enum SharedUserDefaults {
     static let seededDefaultsKey = "didSeedDefaultCities"
     static let colorSchemeKey = "colorSchemePreference"
     static let windowOrientationKey = "windowOrientationPreference" // "landscape" или "portrait"
+    static let premiumUnlockedKey = "premiumUnlocked"
+    static let premiumPurchaseKey = "premiumPurchaseUnlocked"
+
+    // DEPRECATED: Custom trial removed in favor of App Store subscriptions
+    static let premiumTrialEndKey = "premiumTrialEnd"
+    static let premiumTrialUsedKey = "premiumTrialUsed"
 }

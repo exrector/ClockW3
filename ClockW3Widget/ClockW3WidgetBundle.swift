@@ -14,6 +14,7 @@ struct ClockW3WidgetBundle: WidgetBundle {
     var body: some Widget {
         // ВРЕМЕННО: ClockW3SmallWidget первый для превью в симуляторе
         ClockW3SmallWidget()
+        ClockW3ClassicSmallWidget()
         ClockW3Widget()
 #if canImport(ActivityKit) && !os(macOS)
         if #available(iOSApplicationExtension 16.1, *) {

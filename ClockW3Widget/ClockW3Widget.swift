@@ -130,9 +130,7 @@ struct ClockW3WidgetEntryView: View {
             }
         }
         .ignoresSafeArea()
-        .containerBackground(for: .widget) {
-            ClockColorPalette.system(colorScheme: effectiveColorScheme).background
-        }
+        .widgetBackground(ClockColorPalette.system(colorScheme: effectiveColorScheme).background)
     }
 }
 
@@ -146,7 +144,7 @@ struct ClockW3Widget: Widget {
         }
         .configurationDisplayName("MOW time")
         .description("M.O.W TIME - 24-hour world clock with time zones")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .supportedFamilies([.systemMedium, .systemLarge])
 
         if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, *) {
             return configuration.contentMarginsDisabled()
