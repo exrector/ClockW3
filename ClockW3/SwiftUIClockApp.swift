@@ -184,6 +184,10 @@ struct SettingsView: View {
         SharedUserDefaults.use12HourFormatKey,
         store: SharedUserDefaults.shared
     ) private var use12HourFormat: Bool = false
+    @AppStorage(
+        SharedUserDefaults.mechanismDebugKey,
+        store: SharedUserDefaults.shared
+    ) private var mechanismDebugEnabled: Bool = false
 
 #if os(macOS)
     // Ориентация окна для macOS
@@ -481,28 +485,24 @@ extension SettingsView {
         TimeZone.current.identifier
     }
 
-    private var manualThemeTitle: String {
-        if colorSchemePreference == "dark" {
-            return "Dark"
-        } else if colorSchemePreference == "light" {
-            return "Light"
-        } else {
-            return "Theme"
+    private var themeCycleTitle: String {
+        switch colorSchemePreference {
+        case "light": return "Light"
+        case "dark": return "Dark"
+        default: return "System"
         }
     }
 
-    private var manualThemeIcon: String {
-        if colorSchemePreference == "dark" {
-            return "moon.fill"
-        } else if colorSchemePreference == "light" {
-            return "sun.max.fill"
-        } else {
-            return "circle.lefthalf.filled"
+    private var themeCycleIcon: String {
+        switch colorSchemePreference {
+        case "light": return "sun.max.fill"
+        case "dark": return "moon.fill"
+        default: return "circle.lefthalf.filled"
         }
     }
 
-    private var isManualThemeSelected: Bool {
-        colorSchemePreference != "system"
+    private var themeCycleAccessibilityLabel: String {
+        "Color scheme: \(themeCycleTitle). Double-tap to switch."
     }
 
 #if os(macOS)
@@ -527,28 +527,13 @@ extension SettingsView {
     private var themeControls: some View {
         HStack(spacing: 16) {
             ColorSchemeButton(
-                title: "System",
-                systemImage: "circle.lefthalf.filled",
-                isSelected: colorSchemePreference == "system",
+                title: themeCycleTitle,
+                systemImage: themeCycleIcon,
+                isSelected: true,
                 colorScheme: colorScheme,
-                accessibilityLabel: nil,
+                accessibilityLabel: themeCycleAccessibilityLabel,
                 action: {
-                    colorSchemePreference = "system"
-                }
-            )
-
-            ColorSchemeButton(
-                title: manualThemeTitle,
-                systemImage: manualThemeIcon,
-                isSelected: false,
-                colorScheme: colorScheme,
-                accessibilityLabel: "Toggle light or dark appearance",
-                action: {
-                    if colorSchemePreference == "light" {
-                        colorSchemePreference = "dark"
-                    } else {
-                        colorSchemePreference = "light"
-                    }
+                    advanceColorScheme()
                 }
             )
 
@@ -563,6 +548,19 @@ extension SettingsView {
                     reloadWidgets()
                 }
             )
+
+#if DEBUG
+            ColorSchemeButton(
+                title: "Gears",
+                systemImage: mechanismDebugEnabled ? "gearshape.2.fill" : "gearshape.2",
+                isSelected: mechanismDebugEnabled,
+                colorScheme: colorScheme,
+                accessibilityLabel: mechanismDebugEnabled ? "Disable mechanism preview" : "Enable mechanism preview",
+                action: {
+                    mechanismDebugEnabled.toggle()
+                }
+            )
+#endif
 
             orientationButton
 
@@ -593,6 +591,18 @@ extension SettingsView {
 #else
         EmptyView()
 #endif
+    }
+
+    private func advanceColorScheme() {
+        switch colorSchemePreference {
+        case "system":
+            colorSchemePreference = "light"
+        case "light":
+            colorSchemePreference = "dark"
+        default:
+            colorSchemePreference = "system"
+        }
+        reloadWidgets()
     }
 
     private func initializeColorSchemeIfNeeded() {

@@ -331,6 +331,10 @@ class SimpleClockViewModel: ObservableObject {
         timeForArrows
     }
     
+    var minutesOffsetForArrows: Int {
+        isInTimerMode ? 0 : -tickIndex * minutesPerTick
+    }
+    
     func arrowAngle(for city: WorldCity) -> Double {
         guard let timeZone = city.timeZone else { return 0 }
         

@@ -27,6 +27,10 @@ struct ClockFaceView: View {
         SharedUserDefaults.use12HourFormatKey,
         store: SharedUserDefaults.shared
     ) private var use12HourFormat: Bool = false
+    @AppStorage(
+        SharedUserDefaults.mechanismDebugKey,
+        store: SharedUserDefaults.shared
+    ) private var mechanismDebugEnabled: Bool = false
     var interactivityEnabled: Bool = true
     var overrideTime: Date? = nil  // Для виджетов - передаем время из timeline entry
     var overrideColorScheme: ColorScheme? = nil  // Для виджетов - передаем цветовую схему
@@ -41,71 +45,123 @@ struct ClockFaceView: View {
             let minSide = min(geometry.size.width, geometry.size.height)
             let size = CGSize(width: minSide, height: minSide)
             let baseRadius = minSide / 2.0 * ClockConstants.clockSizeRatio
+            let dialDiameter = baseRadius * 2
             let centerPoint = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
             let currentTime = overrideTime ?? viewModel.currentTime
-
             let palette = ClockColorPalette.system(colorScheme: colorScheme)
 
-            ZStack {
-                // Фон приложения
-                palette.background
-                    .ignoresSafeArea()
-
-                // Основной циферблат
+            if mechanismDebugEnabled && interactivityEnabled {
                 ZStack {
-                    // Статический фон (Layer01) - НЕ ВРАЩАЕТСЯ
-                    StaticBackgroundView(
-                        size: size,
-                        colors: palette,
-                        currentTime: currentTime,
-                        use12HourFormat: use12HourFormat
-                    )
+                    palette.background
+                        .ignoresSafeArea()
 
-                    // Декоративные винты в углах
-                    CornerScrewDecorationView(size: size, colorScheme: colorScheme)
-                        .allowsHitTesting(false)
+                    ClockMechanismView()
+                        .frame(width: dialDiameter, height: dialDiameter)
+                        .clipShape(Circle())
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+            } else {
+                ZStack {
+                    // Фон приложения
+                    palette.background
+                        .ignoresSafeArea()
 
-                    // Вращающиеся кольца с подписями городов
-                    CityLabelRingsView(
-                        size: size,
-                        cities: viewModel.cities,
-                        currentTime: viewModel.timeForArrows,
-                        palette: palette
-                    )
-                    .rotationEffect(.radians(viewModel.rotationAngle))
-                    .animation(
-                        viewModel.isDragging ? .none : .easeOut(duration: 0.3),
-                        value: viewModel.rotationAngle
-                    )
+                    // Основной циферблат
+                    ZStack {
+                        // Статический фон (Layer01) - НЕ ВРАЩАЕТСЯ
+                        StaticBackgroundView(
+                            size: size,
+                            colors: palette,
+                            currentTime: currentTime,
+                            use12HourFormat: use12HourFormat
+                        )
 
-                    // Вращающийся контейнер со стрелками (Layer05)
-                    CityArrowsView(
-                        size: size,
-                        cities: viewModel.cities,
-                        currentTime: viewModel.timeForArrows,
-                        palette: palette,
-                        containerRotation: viewModel.rotationAngle
-                    )
-                    .rotationEffect(.radians(viewModel.rotationAngle))
-                    .animation(
-                        viewModel.isDragging ? .none : .easeOut(duration: 0.3),
-                        value: viewModel.rotationAngle
-                    )
-                    
-                    if interactivityEnabled {
-                        ZStack {
-                            Circle()
-                                .fill(Color.clear)
+                        // Декоративные винты в углах
+                        CornerScrewDecorationView(size: size, colorScheme: colorScheme)
+                            .allowsHitTesting(false)
+
+                        // Вращающиеся кольца с подписями городов
+                        CityLabelRingsView(
+                            size: size,
+                            cities: viewModel.cities,
+                            currentTime: viewModel.timeForArrows,
+                            palette: palette
+                        )
+                        .rotationEffect(.radians(viewModel.rotationAngle))
+                        .animation(
+                            viewModel.isDragging ? .none : .easeOut(duration: 0.3),
+                            value: viewModel.rotationAngle
+                        )
+
+                        // Вращающийся контейнер со стрелками (Layer05)
+                        CityArrowsView(
+                            size: size,
+                            cities: viewModel.cities,
+                            currentTime: viewModel.timeForArrows,
+                            minutesOffset: viewModel.minutesOffsetForArrows,
+                            palette: palette,
+                            containerRotation: viewModel.rotationAngle
+                        )
+                        .rotationEffect(.radians(viewModel.rotationAngle))
+                        .animation(
+                            viewModel.isDragging ? .none : .easeOut(duration: 0.3),
+                            value: viewModel.rotationAngle
+                        )
+                        
+                        if interactivityEnabled {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.clear)
+                                    .frame(
+                                        width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
+                                        height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
+                                    )
+
+                                // Центральный пузырь с AM/PM текстом
+                                ZStack {
+                                    Circle()
+                                        .fill(palette.centerCircle)
+                                        .shadow(color: palette.centerCircle.opacity(0.4), radius: baseRadius * 0.02)
+
+                                    if use12HourFormat {
+                                        let ampmText = getAMPM(for: currentTime)
+                                        Text(ampmText)
+                                            .font(.system(size: baseRadius * 0.05, weight: .semibold, design: .default))
+                                            .foregroundColor(colorScheme == .light ? .white : .black)
+                                    }
+                                }
                                 .frame(
-                                    width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
-                                    height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
+                                    width: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio),
+                                    height: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio)
                                 )
-
-                            // Центральный пузырь с AM/PM текстом
+                            }
+                            .contentShape(Circle())
+                            .frame(
+                                width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
+                                height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
+                            )
+                            .simultaneousGesture(
+                                LongPressGesture(minimumDuration: 0.7)
+                                    .onEnded { _ in
+                                        Task {
+                                            await viewModel.confirmPreviewReminder()
+                                        }
+                                    }
+                            )
+                            .simultaneousGesture(
+                                TapGesture()
+                                    .onEnded { _ in
+                                        #if os(iOS)
+                                        HapticFeedback.shared.playImpact(intensity: .medium)
+                                        #endif
+                                        viewModel.resetRotation()
+                                    }
+                            )
+                            .accessibilityLabel("Reset rotation or hold to confirm reminder")
+                        } else {
                             ZStack {
                                 Circle()
                                     .fill(palette.centerCircle)
-                                    .shadow(color: palette.centerCircle.opacity(0.4), radius: baseRadius * 0.02)
 
                                 if use12HourFormat {
                                     let ampmText = getAMPM(for: currentTime)
@@ -118,88 +174,49 @@ struct ClockFaceView: View {
                                 width: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio),
                                 height: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio)
                             )
+                            .frame(
+                                width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
+                                height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
+                            )
                         }
-                        .contentShape(Circle())
-                        .frame(
-                            width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
-                            height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
-                        )
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 0.7)
-                                .onEnded { _ in
-                                    Task {
-                                        await viewModel.confirmPreviewReminder()
-                                    }
-                                }
-                        )
-                        .simultaneousGesture(
-                            TapGesture()
-                                .onEnded { _ in
-                                    #if os(iOS)
-                                    HapticFeedback.shared.playImpact(intensity: .medium)
-                                    #endif
-                                    viewModel.resetRotation()
-                                }
-                        )
-                        .accessibilityLabel("Reset rotation or hold to confirm reminder")
-                    } else {
-                        ZStack {
-                            Circle()
-                                .fill(palette.centerCircle)
-
-                            if use12HourFormat {
-                                let ampmText = getAMPM(for: currentTime)
-                                Text(ampmText)
-                                    .font(.system(size: baseRadius * 0.05, weight: .semibold, design: .default))
-                                    .foregroundColor(colorScheme == .light ? .white : .black)
-                            }
-                        }
-                        .frame(
-                            width: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio),
-                            height: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio)
-                        )
-                        .frame(
-                            width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
-                            height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
-                        )
                     }
+                    .frame(width: size.width, height: size.height)
+                    .clipped()
                 }
-                .frame(width: size.width, height: size.height)
-                .clipped()
+                // Высокий приоритет, но с фильтрацией направления, чтобы не мешать скроллу
+                .highPriorityGesture(
+                    DragGesture(minimumDistance: 2)
+                        .onChanged { value in
+                            if !interactivityEnabled { return }
+                            if isDragBlocked { return }
+
+                            // Первый контакт: если вне мёртвой зоны — сразу вращаем
+                            if activeMode == nil {
+                                let startPoint = value.startLocation
+                                if isInDeadZone(point: startPoint, center: centerPoint, baseRadius: baseRadius) {
+                                    isDragBlocked = true
+                                    return
+                                }
+                                activeMode = .rotate
+                                if !viewModel.isDragging {
+                                    viewModel.startDrag(at: value.startLocation, in: geometry)
+                                }
+                            }
+
+                            // Обрабатываем только если выбрано вращение
+                            if activeMode == .rotate {
+                                viewModel.updateDrag(at: value.location, in: geometry)
+                            }
+                        }
+                        .onEnded { _ in
+                            if activeMode == .rotate, !isDragBlocked {
+                                viewModel.endDrag()
+                            }
+                            activeMode = nil
+                            isDragBlocked = false
+                        }
+                )
             }
-            // Высокий приоритет, но с фильтрацией направления, чтобы не мешать скроллу
-            .highPriorityGesture(
-                DragGesture(minimumDistance: 2)
-                    .onChanged { value in
-                        if !interactivityEnabled { return }
-                        if isDragBlocked { return }
-
-                        // Первый контакт: если вне мёртвой зоны — сразу вращаем
-                        if activeMode == nil {
-                            let startPoint = value.startLocation
-                            if isInDeadZone(point: startPoint, center: centerPoint, baseRadius: baseRadius) {
-                                isDragBlocked = true
-                                return
-                            }
-                            activeMode = .rotate
-                            if !viewModel.isDragging {
-                                viewModel.startDrag(at: value.startLocation, in: geometry)
-                            }
-                        }
-
-                        // Обрабатываем только если выбрано вращение
-                        if activeMode == .rotate {
-                            viewModel.updateDrag(at: value.location, in: geometry)
-                        }
-                    }
-                    .onEnded { _ in
-                        if activeMode == .rotate, !isDragBlocked {
-                            viewModel.endDrag()
-                        }
-                        activeMode = nil
-                        isDragBlocked = false
-                    }
-            )
         }
         .onAppear {
             syncCitiesToViewModel()

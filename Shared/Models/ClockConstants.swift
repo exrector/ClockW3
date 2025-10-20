@@ -40,10 +40,16 @@ enum ClockConstants {
     static let labelRingFontSizeRatio: CGFloat = 0.06   // IATA коды на кольцах
 
     // Параметры стрелок (сдвинуты к центру)
-    static let arrowLineEndRadius: CGFloat = 0.44
     static let arrowThicknessRatio: CGFloat = 0.02
     static let weekdayNumberRadius: CGFloat = 0.51  // Пузыри с днями месяца
     static let weekdayBubbleRadiusRatio: CGFloat = 0.05
+    static let dateBubbleOrbitRadius: CGFloat = 0.36
+    static let dateBubbleRadiusRatio: CGFloat = 0.045
+    static let dateFontSizeRatio: CGFloat = 0.028
+    static let arrowToDateBubbleGap: CGFloat = 0.018
+    static let arrowLineEndRadius: CGFloat = dateBubbleOrbitRadius - dateBubbleRadiusRatio - arrowToDateBubbleGap
+    static let bubbleSpacerOrbitRadius: CGFloat = 0.43
+    static let bubbleSpacerDotRadiusRatio: CGFloat = 0.012
     // Точка стрелки в центре часового тика: (0.715 + 0.75) / 2 = 0.7325
     static let cityMarkerRadius: CGFloat = 0.7325
     static let deadZoneRadiusRatio: CGFloat = 0.25   // Радиус зоны, блокирующей drag

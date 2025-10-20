@@ -10,6 +10,7 @@ struct CityArrowsView: View {
     let size: CGSize
     let cities: [WorldCity]
     let currentTime: Date
+    let minutesOffset: Int
     let palette: ClockColorPalette
     let containerRotation: Double
     
@@ -22,7 +23,10 @@ struct CityArrowsView: View {
     }
     
     var body: some View {
-        let snapshots = CityArrowsView.buildSnapshots(for: cities, currentTime: currentTime)
+        let snapshots = CityArrowsView.buildSnapshots(
+            for: cities,
+            currentTime: currentTime
+        )
         let localIdentifier = TimeZone.current.identifier
 
         // Сортируем: сначала все не-локальные, затем локальная стрелка (чтобы она была сверху)
@@ -46,6 +50,8 @@ struct CityArrowsView: View {
                     baseRadius: baseRadius,
                     center: center,
                     containerRotation: containerRotation,
+                    currentTime: currentTime,
+                    minutesOffset: minutesOffset,
                     arrowColor: isLocal ? palette.arrow : palette.numbers,
                     markerColor: palette.arrow,  // Все точки красные
                     labelColor: palette.weekdayText,
@@ -67,7 +73,6 @@ extension CityArrowsView {
     struct CitySnapshot: Identifiable {
         let city: WorldCity
         let angle: Double
-        let minute: Int
 
         var id: UUID { city.id }
     }
@@ -86,7 +91,7 @@ extension CityArrowsView {
 
             let angle = ClockConstants.calculateArrowAngle(hour: hour, minute: minute)
 
-            return CitySnapshot(city: city, angle: angle, minute: minute)
+            return CitySnapshot(city: city, angle: angle)
         }
     }
 }
@@ -97,6 +102,8 @@ struct CityArrowView: View {
     let baseRadius: CGFloat
     let center: CGPoint
     let containerRotation: Double
+    let currentTime: Date
+    let minutesOffset: Int
     let arrowColor: Color
     let markerColor: Color
     let labelColor: Color
@@ -106,7 +113,6 @@ struct CityArrowView: View {
 
     private var city: WorldCity { snapshot.city }
     private var arrowAngle: Double { snapshot.angle }
-    private var minute: Int { snapshot.minute }
     
     private var arrowStartPosition: CGPoint {
         // Стрелка должна выходить строго из центра
@@ -129,6 +135,22 @@ struct CityArrowView: View {
         )
     }
 
+    private var dateBubblePosition: CGPoint {
+        AngleCalculations.pointOnCircle(
+            center: center,
+            radius: baseRadius * ClockConstants.dateBubbleOrbitRadius,
+            angle: arrowAngle
+        )
+    }
+
+    private var bubbleSpacerPosition: CGPoint {
+        AngleCalculations.pointOnCircle(
+            center: center,
+            radius: baseRadius * ClockConstants.bubbleSpacerOrbitRadius,
+            angle: arrowAngle
+        )
+    }
+
     private var markerPosition: CGPoint {
         AngleCalculations.pointOnCircle(
             center: center,
@@ -138,6 +160,9 @@ struct CityArrowView: View {
     }
     
     var body: some View {
+        let displayMinute = adjustedComponents.minute ?? 0
+        let displayDay = adjustedComponents.day ?? 1
+
         ZStack {
             // Линия стрелки (без разрыва)
             ArrowLineView(
@@ -150,7 +175,7 @@ struct CityArrowView: View {
             // Минуты на конце стрелки
             MinuteBubbleView(
                 position: weekdayPosition,
-                minute: minute,
+                minute: displayMinute,
                 angle: arrowAngle,
                 containerRotation: containerRotation,
                 bubbleRadius: baseRadius * ClockConstants.weekdayBubbleRadiusRatio,
@@ -159,6 +184,25 @@ struct CityArrowView: View {
                 backgroundColor: weekdayBackgroundColor
             )
 
+            DateBubbleView(
+                position: dateBubblePosition,
+                day: displayDay,
+                angle: arrowAngle,
+                containerRotation: containerRotation,
+                bubbleRadius: baseRadius * ClockConstants.dateBubbleRadiusRatio,
+                fontSize: baseRadius * 2 * ClockConstants.dateFontSizeRatio,
+                textColor: .white,
+                backgroundColor: markerColor
+            )
+
+            Circle()
+                .fill(arrowColor)
+                .frame(
+                    width: baseRadius * 2 * ClockConstants.bubbleSpacerDotRadiusRatio,
+                    height: baseRadius * 2 * ClockConstants.bubbleSpacerDotRadiusRatio
+                )
+                .position(bubbleSpacerPosition)
+
             Circle()
                 .fill(markerColor)
                 .frame(width: baseRadius * 0.03, height: baseRadius * 0.03)
@@ -166,6 +210,15 @@ struct CityArrowView: View {
         }
     }
     
+}
+
+private extension CityArrowView {
+    var adjustedComponents: DateComponents {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = snapshot.city.timeZone ?? .current
+        let adjustedDate = calendar.date(byAdding: .minute, value: minutesOffset, to: currentTime) ?? currentTime
+        return calendar.dateComponents([.day, .minute], from: adjustedDate)
+    }
 }
 
 // MARK: - Arrow Line View
@@ -330,6 +383,56 @@ struct MinuteBubbleView: View {
     }
 }
 
+// MARK: - Date Bubble View
+struct DateBubbleView: View {
+    let position: CGPoint
+    let day: Int
+    let angle: Double
+    let containerRotation: Double
+    let bubbleRadius: CGFloat
+    let fontSize: CGFloat
+    let textColor: Color
+    let backgroundColor: Color
+
+    @State private var displayedAngle: Double = 0
+    @State private var hasAppeared = false
+
+    var body: some View {
+        let targetAngle = angle + Double.pi / 2
+
+        return ZStack {
+            Circle()
+                .fill(backgroundColor)
+                .frame(width: bubbleRadius * 2, height: bubbleRadius * 2)
+
+            Text(String(format: "%02d", day))
+                .font(.system(size: fontSize, weight: .medium, design: .monospaced))
+                .foregroundColor(textColor)
+                .rotationEffect(.radians(displayedAngle))
+        }
+        .position(position)
+        .onAppear {
+            displayedAngle = targetAngle
+            hasAppeared = true
+        }
+        .onChange(of: targetAngle) { _, newValue in
+            let continuous = displayedAngle + normalizePi(newValue - displayedAngle)
+            if hasAppeared {
+                withAnimation(.easeInOut(duration: 0.28)) {
+                    displayedAngle = continuous
+                }
+            } else {
+                displayedAngle = continuous
+                hasAppeared = true
+            }
+        }
+    }
+
+    private func normalizePi(_ a: Double) -> Double {
+        atan2(sin(a), cos(a))
+    }
+}
+
 // MARK: - Globe View
 struct GlobeView: View {
     let baseRadius: CGFloat
@@ -404,6 +507,7 @@ struct CityArrowsView_Previews: PreviewProvider {
             size: CGSize(width: 400, height: 400),
             cities: WorldCity.defaultCities,
             currentTime: Date(),
+            minutesOffset: 0,
             palette: ClockColorPalette.system(colorScheme: .light),
             containerRotation: 0
         )

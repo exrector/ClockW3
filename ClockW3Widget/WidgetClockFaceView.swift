@@ -67,6 +67,7 @@ struct WidgetClockFaceView: View {
                         size: size,
                         cities: cities,
                         currentTime: date,
+                        minutesOffset: 0,
                         palette: palette,
                         containerRotation: 0
                     )
@@ -98,4 +99,3 @@ struct WidgetClockFaceView: View {
         .allowsHitTesting(false)
     }
 }
-
