@@ -25,8 +25,10 @@ struct Provider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> Void) {
         // Читаем настройку цветовой схемы при каждом обновлении timeline
-        let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
         let appGroupOK = appGroupAvailable()
+        print("📱 Widget getTimeline - appGroupOK: \(appGroupOK)")
+        let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
+        print("📱 Widget getTimeline - colorPref: \(colorPref)")
         let build = buildString()
 
         var entries: [SimpleEntry] = []
@@ -66,7 +68,7 @@ struct Provider: TimelineProvider {
 
     private func appGroupAvailable() -> Bool {
         // Если suiteName не удаётся создать — в расширении нет App Group
-        return UserDefaults(suiteName: "group.exrector.mow") != nil
+        return SharedUserDefaults.usingAppGroup
     }
 
     private func buildString() -> String {
@@ -116,9 +118,10 @@ struct ClockW3WidgetEntryView: View {
             default:
                 ZStack(alignment: .topLeading) {
                     palette.background
-                    WidgetClockFaceView(
-                        date: entry.date,
-                        colorScheme: effectiveColorScheme
+                    ClockFaceView(
+                        interactivityEnabled: false,
+                        overrideTime: entry.date,
+                        overrideColorScheme: effectiveColorScheme
                     )
                     .frame(width: frameSize.width, height: frameSize.height)
                     .scaleEffect(0.98)
@@ -130,7 +133,9 @@ struct ClockW3WidgetEntryView: View {
             }
         }
         .ignoresSafeArea()
-        .widgetBackground(ClockColorPalette.system(colorScheme: effectiveColorScheme).background)
+        .containerBackground(for: .widget) {
+            ClockColorPalette.system(colorScheme: effectiveColorScheme).background
+        }
     }
 }
 
@@ -155,19 +160,8 @@ struct ClockW3Widget: Widget {
 }
 
 // MARK: - Preview
-#if DEBUG
-@available(iOSApplicationExtension 17.0, *)
-struct ClockW3Widget_Previews: PreviewProvider {
-    static var previews: some View {
-        ClockW3WidgetEntryView(
-            entry: SimpleEntry(
-                date: .now,
-                colorSchemePreference: "system",
-                buildVersion: "0.0(0)",
-                appGroupOK: true
-            )
-        )
-        .previewContext(WidgetPreviewContext(family: .systemMedium))
-    }
+#Preview(as: .systemMedium) {
+    ClockW3Widget()
+} timeline: {
+    SimpleEntry(date: .now, colorSchemePreference: "system", buildVersion: "0.0(0)", appGroupOK: true)
 }
-#endif

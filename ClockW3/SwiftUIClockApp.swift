@@ -391,64 +391,9 @@ struct SettingsView: View {
 #endif
 
                     // Пузыри для выбора темы и ориентации (на macOS)
-                    HStack(spacing: 16) {
-                        ColorSchemeButton(
-                            title: "System",
-                            systemImage: "circle.lefthalf.filled",
-                            isSelected: colorSchemePreference == "system",
-                            colorScheme: colorScheme
-                        ) {
-                            colorSchemePreference = "system"
-                        }
-
-                        ColorSchemeButton(
-                            title: "Light",
-                            systemImage: "sun.max.fill",
-                            isSelected: colorSchemePreference == "light",
-                            colorScheme: colorScheme
-                        ) {
-                            colorSchemePreference = "light"
-                        }
-
-                        ColorSchemeButton(
-                            title: "Dark",
-                            systemImage: "moon.fill",
-                            isSelected: colorSchemePreference == "dark",
-                            colorScheme: colorScheme
-                        ) {
-                            colorSchemePreference = "dark"
-                        }
-
-#if os(macOS)
-                    ColorSchemeButton(
-                        title: "Port.",
-                        systemImage: "rectangle.portrait",
-                        isSelected: windowOrientationPreference == "portrait",
-                        colorScheme: colorScheme
-                    ) {
-                        windowOrientationPreference = "portrait"
-                    }
-
-                    ColorSchemeButton(
-                        title: "Land.",
-                        systemImage: "rectangle",
-                        isSelected: windowOrientationPreference == "landscape",
-                        colorScheme: colorScheme
-                    ) {
-                        windowOrientationPreference = "landscape"
-                        }
-#endif
-                        PremiumAccessButton(
-                            isUnlocked: premiumUnlocked,
-                            isProcessing: storeManager.isPurchasing,
-                            colorScheme: colorScheme,
-                            priceText: storeManager.priceText,
-                            onPurchase: { Task { await attemptPurchase() } },
-                            onRestore: { Task { await attemptRestore() } }
-                        )
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 16)
+                    themeControls
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 16)
 
                     designedByFooter
                         .padding(.top, 12)
@@ -460,7 +405,10 @@ struct SettingsView: View {
             .scrollIndicators(.hidden)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .onAppear { loadSelection() }
+        .onAppear {
+            loadSelection()
+            initializeColorSchemeIfNeeded()
+        }
         .onChange(of: selectedIds) { _, _ in
             persistSelection()
         }
@@ -525,6 +473,117 @@ struct SettingsView: View {
 extension SettingsView {
     private var localCityIdentifier: String {
         TimeZone.current.identifier
+    }
+
+    private var manualThemeTitle: String {
+        if colorSchemePreference == "dark" {
+            return "Dark"
+        } else if colorSchemePreference == "light" {
+            return "Light"
+        } else {
+            return "Theme"
+        }
+    }
+
+    private var manualThemeIcon: String {
+        if colorSchemePreference == "dark" {
+            return "moon.fill"
+        } else if colorSchemePreference == "light" {
+            return "sun.max.fill"
+        } else {
+            return "circle.lefthalf.filled"
+        }
+    }
+
+    private var isManualThemeSelected: Bool {
+        colorSchemePreference != "system"
+    }
+
+#if os(macOS)
+    private var orientationIsPortrait: Bool {
+        windowOrientationPreference == "portrait"
+    }
+
+    private var orientationTitle: String {
+        orientationIsPortrait ? "Portrait" : "Landscape"
+    }
+
+    private var orientationIcon: String {
+        orientationIsPortrait ? "rectangle.portrait" : "rectangle"
+    }
+
+    private var orientationAccessibilityLabel: String {
+        "Window orientation: \(orientationIsPortrait ? "portrait" : "landscape")"
+    }
+#endif
+
+    @ViewBuilder
+    private var themeControls: some View {
+        HStack(spacing: 16) {
+            ColorSchemeButton(
+                title: "System",
+                systemImage: "circle.lefthalf.filled",
+                isSelected: colorSchemePreference == "system",
+                colorScheme: colorScheme,
+                accessibilityLabel: nil,
+                action: {
+                    colorSchemePreference = "system"
+                }
+            )
+
+            ColorSchemeButton(
+                title: manualThemeTitle,
+                systemImage: manualThemeIcon,
+                isSelected: false,
+                colorScheme: colorScheme,
+                accessibilityLabel: "Toggle light or dark appearance",
+                action: {
+                    if colorSchemePreference == "light" {
+                        colorSchemePreference = "dark"
+                    } else {
+                        colorSchemePreference = "light"
+                    }
+                }
+            )
+
+            orientationButton
+
+            PremiumAccessButton(
+                isUnlocked: premiumUnlocked,
+                isProcessing: storeManager.isPurchasing,
+                colorScheme: colorScheme,
+                priceText: storeManager.priceText,
+                onPurchase: { Task { await attemptPurchase() } },
+                onRestore: { Task { await attemptRestore() } }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var orientationButton: some View {
+#if os(macOS)
+        ColorSchemeButton(
+            title: orientationTitle,
+            systemImage: orientationIcon,
+            isSelected: false,
+            colorScheme: colorScheme,
+            accessibilityLabel: orientationAccessibilityLabel,
+            action: {
+                windowOrientationPreference = orientationIsPortrait ? "landscape" : "portrait"
+            }
+        )
+#else
+        EmptyView()
+#endif
+    }
+
+    private func initializeColorSchemeIfNeeded() {
+        // Если значение еще не установлено, записываем значение по умолчанию
+        if SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) == nil {
+            SharedUserDefaults.shared.set(colorSchemePreference, forKey: SharedUserDefaults.colorSchemeKey)
+            SharedUserDefaults.shared.synchronize()
+            print("🎨 Initialized colorScheme to: \(colorSchemePreference)")
+        }
     }
 
     private func loadSelection() {
@@ -1097,19 +1156,20 @@ private struct CityRow: View {
 private extension SettingsView {
     func reloadWidgets() {
         // Проверяем что значение действительно записалось в SharedUserDefaults
-        if SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) != nil {
-        } else {
-        }
-        
+        let savedValue = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey)
+        print("🔄 reloadWidgets called - saved colorScheme: \(savedValue ?? "nil")")
+
         // Принудительно синхронизируем
         SharedUserDefaults.shared.synchronize()
-        
+
         // Перезагружаем виджеты
         WidgetCenter.shared.reloadAllTimelines()
-        
+
         // Также попробуем перезагрузить конкретный kind
         WidgetCenter.shared.reloadTimelines(ofKind: "MOWWidget")
         WidgetCenter.shared.reloadTimelines(ofKind: "MOWSmallWidget")
+
+        print("✅ Widget reload requested")
     }
 }
 #else
@@ -1521,6 +1581,7 @@ private struct ColorSchemeButton: View {
     let systemImage: String
     let isSelected: Bool
     let colorScheme: ColorScheme
+    let accessibilityLabel: String?
     let action: () -> Void
     
     var body: some View {
@@ -1547,7 +1608,7 @@ private struct ColorSchemeButton: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(title) color scheme")
+        .accessibilityLabel(accessibilityLabel ?? "\(title) color scheme")
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }

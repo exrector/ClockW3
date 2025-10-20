@@ -24,7 +24,10 @@ struct SmallWidgetProvider: TimelineProvider {
         var entries: [SmallWidgetEntry] = []
 
         // Читаем настройку цветовой схемы при каждом обновлении timeline
+        let appGroupOK = SharedUserDefaults.usingAppGroup
+        print("📱 SmallWidget getTimeline - appGroupOK: \(appGroupOK)")
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
+        print("📱 SmallWidget getTimeline - colorPref: \(colorPref)")
 
         // Генерируем timeline на следующие 60 минут с обновлением каждую минуту
         let currentDate = Date()

@@ -5,21 +5,29 @@ import Foundation
 enum SharedUserDefaults {
     /// ID App Group (должен быть настроен в Xcode: Signing & Capabilities → App Groups)
     private static let appGroupID = "group.exrector.mow"
+    private static let fallbackStore = UserDefaults()
+    private static let resolvedStore = UserDefaults(suiteName: appGroupID)
+    private static var didLogMissingGroup = false
 
     /// Общий UserDefaults для приложения и виджета
     /// ВАЖНО: без entitlement на App Group этот вызов вернёт nil.
     /// Мы НЕ падаем в стандартные UserDefaults, чтобы не маскировать проблему.
     static let shared: UserDefaults = {
-        if let ud = UserDefaults(suiteName: appGroupID) {
+        if let ud = resolvedStore {
             return ud
         } else {
             // Явно логируем проблему, чтобы её заметить в консоли
             // Возвращаем отдельный volatile контейнер, чтобы не писать в стандартный и не вводить в заблуждение.
             // Можно использовать UserDefaults() (in-memory) или всё же .standard, но с явным префиксом ключей.
-            let volatile = UserDefaults() // отдельный in-memory defaults
-            return volatile
+            logMissingAppGroup()
+            return fallbackStore
         }
     }()
+
+    /// Флаг, который помогает быстро проверить наличие App Group
+    static var usingAppGroup: Bool {
+        resolvedStore != nil
+    }
 
     /// Ключи
     static let selectedCitiesKey = "selectedCityIdentifiers"
@@ -32,4 +40,13 @@ enum SharedUserDefaults {
     // DEPRECATED: Custom trial removed in favor of App Store subscriptions
     static let premiumTrialEndKey = "premiumTrialEnd"
     static let premiumTrialUsedKey = "premiumTrialUsed"
+
+    private static func logMissingAppGroup() {
+        guard !didLogMissingGroup else { return }
+        didLogMissingGroup = true
+#if DEBUG
+        print("⚠️ [SharedUserDefaults] App Group '\(appGroupID)' is missing. Using in-memory defaults. Check entitlements.")
+#endif
+        assertionFailure("App Group '\(appGroupID)' is not configured. Widgets will not sync settings.")
+    }
 }
