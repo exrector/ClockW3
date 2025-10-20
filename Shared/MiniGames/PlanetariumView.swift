@@ -1,4 +1,4 @@
-
+#if !WIDGET_EXTENSION
 import SwiftUI
 
 struct PlanetariumView: View, MiniGameScene {
@@ -575,4 +575,6 @@ struct PlanetariumView_Previews: PreviewProvider {
             .preferredColorScheme(.dark)
     }
 }
+#endif
+
 #endif

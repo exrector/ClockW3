@@ -22,9 +22,15 @@ struct ReminderLiveActivity: Widget {
                 // Compact leading - не показываем
                 EmptyView()
             } compactTrailing: {
-                ReminderIslandBadge(isDone: context.state.hasTriggered)
+                TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                    let isDone = context.state.hasTriggered || context.state.scheduledDate <= timeline.date
+                    ReminderIslandBadge(isDone: isDone)
+                }
             } minimal: {
-                ReminderIslandBadge(isDone: context.state.hasTriggered)
+                TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                    let isDone = context.state.hasTriggered || context.state.scheduledDate <= timeline.date
+                    ReminderIslandBadge(isDone: isDone)
+                }
             }
         }
     }
@@ -35,60 +41,64 @@ private struct ReminderLiveActivityContentView: View {
     let context: ActivityViewContext<ReminderLiveActivityAttributes>
 
     var body: some View {
-        HStack(spacing: 16) {
-            // Left side - Icon and Title
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "bell.fill")
-                        .foregroundStyle(.red)
-                        .font(.title3)
+        TimelineView(.periodic(from: .now, by: 1)) { timeline in
+            let isDone = context.state.hasTriggered || context.state.scheduledDate <= timeline.date
 
-                    Text(context.attributes.title)
-                        .font(.headline)
-                        .fontWeight(.semibold)
+            HStack(spacing: 16) {
+                // Left side - Icon and Title
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bell.fill")
+                            .foregroundStyle(.red)
+                            .font(.title3)
+
+                        Text(context.attributes.title)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+
+                    Text(context.state.scheduledDate, format: Date.FormatStyle()
+                            .weekday(.abbreviated)
+                            .month(.abbreviated)
+                            .day()
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
-                Text(context.state.scheduledDate, format: Date.FormatStyle()
-                        .weekday(.abbreviated)
-                        .month(.abbreviated)
-                        .day()
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
+                Spacer()
 
-            Spacer()
+                // Right side - Time and Countdown
+                VStack(alignment: .trailing, spacing: 8) {
+                    Text(context.state.scheduledDate, style: .time)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .multilineTextAlignment(.trailing)
 
-            // Right side - Time and Countdown
-            VStack(alignment: .trailing, spacing: 8) {
-                Text(context.state.scheduledDate, style: .time)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .multilineTextAlignment(.trailing)
-
-                if context.state.hasTriggered {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.green)
-                        Text("DONE")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.green)
-                    }
-                } else {
-                    HStack(spacing: 4) {
-                        Image(systemName: "hourglass")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(context.state.scheduledDate, style: .timer)
-                            .font(.caption.monospacedDigit())
-                            .fontWeight(.medium)
-                            .foregroundStyle(.secondary)
+                    if isDone {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.green)
+                            Text("DONE")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.green)
+                        }
+                    } else {
+                        HStack(spacing: 4) {
+                            Image(systemName: "hourglass")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(context.state.scheduledDate, style: .timer)
+                                .font(.caption.monospacedDigit())
+                                .fontWeight(.medium)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
+            .padding(16)
         }
-        .padding(16)
     }
 }
 

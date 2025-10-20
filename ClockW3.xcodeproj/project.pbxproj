@@ -59,6 +59,18 @@
 			);
 			target = AD2AE4312E9C09AC003A9381 /* MOWWidgetExtension */;
 		};
+		AD7B08602EA690A7005C4CC2 /* Exceptions for "Shared" folder in "MOWWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				MiniGames/MinigameProtocol.swift,
+				MiniGames/MiniGameRegistry.swift,
+				MiniGames/PlanetariumView.swift,
+				MiniGames/SolarSystemView.swift,
+				Views/ClockFaceView.swift,
+				Views/ClockMechanismView.swift,
+			);
+			target = AD2AE4312E9C09AC003A9381 /* MOWWidgetExtension */;
+		};
 		ADD4DAFB2E97D4D800439B5F /* Exceptions for "ClockW3" folder in "MOW" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -79,6 +91,9 @@
 		};
 		AD2AE4E32E9C1500003A9381 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AD7B08602EA690A7005C4CC2 /* Exceptions for "Shared" folder in "MOWWidgetExtension" target */,
+			);
 			path = Shared;
 			sourceTree = "<group>";
 		};

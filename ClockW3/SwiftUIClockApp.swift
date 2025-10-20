@@ -184,10 +184,6 @@ struct SettingsView: View {
         SharedUserDefaults.use12HourFormatKey,
         store: SharedUserDefaults.shared
     ) private var use12HourFormat: Bool = false
-    @AppStorage(
-        SharedUserDefaults.mechanismDebugKey,
-        store: SharedUserDefaults.shared
-    ) private var mechanismDebugEnabled: Bool = false
 
 #if os(macOS)
     // Ориентация окна для macOS
@@ -548,19 +544,6 @@ extension SettingsView {
                     reloadWidgets()
                 }
             )
-
-#if DEBUG
-            ColorSchemeButton(
-                title: "Gears",
-                systemImage: mechanismDebugEnabled ? "gearshape.2.fill" : "gearshape.2",
-                isSelected: mechanismDebugEnabled,
-                colorScheme: colorScheme,
-                accessibilityLabel: mechanismDebugEnabled ? "Disable mechanism preview" : "Enable mechanism preview",
-                action: {
-                    mechanismDebugEnabled.toggle()
-                }
-            )
-#endif
 
             orientationButton
 

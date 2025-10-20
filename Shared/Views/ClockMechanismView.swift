@@ -1,8 +1,13 @@
+#if !WIDGET_EXTENSION
 import SwiftUI
 
-/// Точка входа пасхалки. По умолчанию показывает планетарий.
 struct ClockMechanismView: View {
-    var body: some View {
-        PlanetariumView()
+    private let scene: AnyView
+
+    init() {
+        self.scene = MiniGameRegistry.nextSceneView()
     }
+
+    var body: some View { scene }
 }
+#endif
