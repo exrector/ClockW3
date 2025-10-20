@@ -95,9 +95,10 @@ struct SimplifiedClockFace: View {
     private let staticArrowAngle: Double = -Double.pi / 4  // 315°
     private let tickDotRadiusRatio: CGFloat = 0.86
     private let numberRingRadiusRatio: CGFloat = 0.72
-    private let hourAngleStep: Double = .pi / 6  // 30°
+    private let hourAngleStep: Double = ClockConstants.hourTickStepRadians  // 15°
     private let minuteBubbleRadiusRatio: CGFloat = 0.075
     private let minuteBubbleGapRatio: CGFloat = 0.03
+    private let totalHourMarks = 24
 
     var body: some View {
         Canvas { context, size in
@@ -151,7 +152,7 @@ struct SimplifiedClockFace: View {
     ) {
         let minutesPerTick: Double = 10
         let ticksPerHour = Int(60 / minutesPerTick)  // 6
-        let totalTicks = ticksPerHour * 12          // 72 (12 часов)
+        let totalTicks = ticksPerHour * totalHourMarks
         let sizeScale: CGFloat = 1.3 * 1.15         // +30% и дополнительно +15%
 
         for index in 0..<totalTicks {
@@ -198,8 +199,7 @@ struct SimplifiedClockFace: View {
         baseRadius: CGFloat,
         rotationAngle: Double
     ) {
-        let fontSize = baseRadius * 2 * ClockConstants.numberFontSizeRatio * 1.2
-        let totalHourMarks = 12
+        let fontSize = baseRadius * 2 * ClockConstants.numberFontSizeRatio
         let baseHour = 18
 
         for index in 0..<totalHourMarks {
@@ -430,8 +430,7 @@ struct SimplifiedClockFace: View {
 
         let hour24 = Double(hour) + Double(minute) / 60.0
         let baseAngle = ClockConstants.calculateArrowAngle(hour24: hour24)
-        let scaledAngle = baseAngle * 2.0  // 30° на час вместо 15°
-        return ClockConstants.normalizeAngle(staticArrowAngle - scaledAngle)
+        return ClockConstants.normalizeAngle(staticArrowAngle - baseAngle)
     }
 
     private func calculateFreeRanges(
