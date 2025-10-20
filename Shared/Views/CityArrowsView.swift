@@ -67,7 +67,7 @@ extension CityArrowsView {
     struct CitySnapshot: Identifiable {
         let city: WorldCity
         let angle: Double
-        let dayOfMonth: Int
+        let minute: Int
 
         var id: UUID { city.id }
     }
@@ -79,14 +79,14 @@ extension CityArrowsView {
         return cities.compactMap { city in
             guard let timeZone = city.timeZone else { return nil }
             calendar.timeZone = timeZone
-            let components = calendar.dateComponents([.hour, .minute, .day], from: currentTime)
-            guard let hour = components.hour, let minute = components.minute, let day = components.day else {
+            let components = calendar.dateComponents([.hour, .minute], from: currentTime)
+            guard let hour = components.hour, let minute = components.minute else {
                 return nil
             }
 
             let angle = ClockConstants.calculateArrowAngle(hour: hour, minute: minute)
 
-            return CitySnapshot(city: city, angle: angle, dayOfMonth: day)
+            return CitySnapshot(city: city, angle: angle, minute: minute)
         }
     }
 }
@@ -103,10 +103,10 @@ struct CityArrowView: View {
     let labelBackgroundColor: Color
     let weekdayNumberColor: Color
     let weekdayBackgroundColor: Color
-    
+
     private var city: WorldCity { snapshot.city }
     private var arrowAngle: Double { snapshot.angle }
-    private var dayOfMonth: Int { snapshot.dayOfMonth }
+    private var minute: Int { snapshot.minute }
     
     private var arrowStartPosition: CGPoint {
         // Стрелка должна выходить строго из центра
@@ -147,10 +147,10 @@ struct CityArrowView: View {
                 thickness: baseRadius * ClockConstants.arrowThicknessRatio
             )
 
-            // День месяца на конце стрелки
-            MonthDayBubbleView(
+            // Минуты на конце стрелки
+            MinuteBubbleView(
                 position: weekdayPosition,
-                dayOfMonth: dayOfMonth,
+                minute: minute,
                 angle: arrowAngle,
                 containerRotation: containerRotation,
                 bubbleRadius: baseRadius * ClockConstants.weekdayBubbleRadiusRatio,
@@ -278,10 +278,10 @@ struct CityLabelView: View {
     }
 }
 
-// MARK: - Month Day Bubble View
-struct MonthDayBubbleView: View {
+// MARK: - Minute Bubble View
+struct MinuteBubbleView: View {
     let position: CGPoint
-    let dayOfMonth: Int
+    let minute: Int
     let angle: Double
     let containerRotation: Double
     let bubbleRadius: CGFloat
@@ -301,8 +301,8 @@ struct MonthDayBubbleView: View {
                 .fill(backgroundColor)
                 .frame(width: bubbleRadius * 2, height: bubbleRadius * 2)
 
-            // Цифра дня месяца
-            Text(String(format: "%02d", dayOfMonth))
+            // Цифра минут
+            Text(String(format: "%02d", minute))
                 .font(.system(size: fontSize, weight: .medium, design: .monospaced))
                 .foregroundColor(textColor)
                 .rotationEffect(.radians(displayedAngle))
