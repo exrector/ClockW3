@@ -91,6 +91,10 @@ final class StoreManager: ObservableObject {
         isPurchasing = true
         defer { isPurchasing = false }
 
+        // Product.purchase(...) is unavailable on visionOS. Avoid calling it there.
+        #if os(visionOS)
+        throw StoreError.productUnavailable
+        #else
         let result = try await product.purchase()
 
         switch result {
@@ -106,6 +110,7 @@ final class StoreManager: ObservableObject {
         @unknown default:
             return .cancelled
         }
+        #endif
     }
 
     func restorePurchases() async throws {

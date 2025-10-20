@@ -88,6 +88,7 @@ private struct FlipDateCard: View {
 }
 
 // MARK: - Widget Entry View
+@available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct ClockW3SmallWidgetEntryView: View {
     var entry: SmallWidgetProvider.Entry
     @Environment(\.colorScheme) private var systemColorScheme
@@ -560,6 +561,7 @@ struct SimplifiedClockFace: View {
 }
 
 // MARK: - Widget
+@available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct ClockW3SmallWidget: Widget {
     let kind: String = "MOWSmallWidget"
 
@@ -571,7 +573,7 @@ struct ClockW3SmallWidget: Widget {
         .description("Compact time display")
         .supportedFamilies([.systemSmall])
 
-        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, *) {
+        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *) {
             return configuration.contentMarginsDisabled()
         } else {
             return configuration

@@ -4,7 +4,11 @@ import SwiftUI
 enum MiniGameRegistry {
     private static let availableScenes: [any MiniGameScene.Type] = [
         PlanetariumView.self,
-        SolarSystemView.self
+        SolarSystemView.self,
+        AtomModelView.self,
+        QuantumFieldView.self,
+        FlowerOfLifeView.self,
+        RingSystemsView.self,
     ]
 
     // Счетчик для показа пасхалок по очереди

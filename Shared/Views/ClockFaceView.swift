@@ -252,6 +252,17 @@ struct ClockFaceView: View {
                 )
             }
         }
+        #if !WIDGET_EXTENSION
+        .overlay(alignment: .topLeading) {
+            if interactivityEnabled {
+                GearDebugButton(isActive: mechanismDebugEnabled) {
+                    handleGearShortcutTap()
+                }
+                .padding(.top, 18)
+                .padding(.leading, 18)
+            }
+        }
+        #endif
         .onAppear {
             // ВАЖНО: При загрузке приложения ВСЕГДА показываем циферблат, а не пасхалку
             // Сбрасываем режим пасхалки и все состояния
@@ -316,6 +327,34 @@ struct ClockFaceView: View {
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: date)
         return hour < 12 ? "AM" : "PM"
+    }
+
+    private func handleGearShortcutTap() {
+        #if !WIDGET_EXTENSION
+        if mechanismDebugEnabled {
+            exitEasterEggMode()
+        } else {
+            currentEasterEggScene = MiniGameRegistry.nextSceneView()
+            withAnimation(.easeInOut(duration: 0.45)) {
+                mechanismDebugEnabled = true
+            }
+            #if os(iOS)
+            HapticFeedback.shared.playImpact(intensity: .light)
+            #endif
+        }
+        #endif
+    }
+
+    private func exitEasterEggMode() {
+        withAnimation(.easeInOut(duration: 0.35)) {
+            mechanismDebugEnabled = false
+            currentEasterEggScene = nil
+        }
+        screwsUnlocked = [false, false, false, false]
+        screwsRotation = [0, 0, 0, 0]
+        #if os(iOS)
+        HapticFeedback.shared.playImpact(intensity: .light)
+        #endif
     }
 
     @ViewBuilder
@@ -453,6 +492,34 @@ private extension View {
         }
     }
 }
+
+#if !WIDGET_EXTENSION
+private struct GearDebugButton: View {
+    let isActive: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "gearshape.fill")
+                .symbolRenderingMode(.hierarchical)
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(isActive ? 1.0 : 0.85))
+                .padding(12)
+                .background(
+                    Circle()
+                        .fill(.black.opacity(isActive ? 0.55 : 0.4))
+                )
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(isActive ? 0.35 : 0.25), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 4)
+        .accessibilityLabel(isActive ? "Закрыть пасхалку" : "Открыть пасхалку")
+    }
+}
+#endif
 
 #if DEBUG
 struct ClockFaceView_Previews: PreviewProvider {

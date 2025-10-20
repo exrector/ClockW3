@@ -1,6 +1,7 @@
 import WidgetKit
 import SwiftUI
 
+@available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct ClockW3ClassicSmallWidgetEntryView: View {
     var entry: Provider.Entry
     @Environment(\.colorScheme) private var systemColorScheme
@@ -39,6 +40,7 @@ struct ClockW3ClassicSmallWidgetEntryView: View {
     }
 }
 
+@available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct ClockW3ClassicSmallWidget: Widget {
     let kind: String = "MOWClassicSmallWidget"
 
@@ -50,7 +52,7 @@ struct ClockW3ClassicSmallWidget: Widget {
         .description("Original full-face clock in compact size")
         .supportedFamilies([.systemSmall])
 
-        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, *) {
+        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *) {
             return configuration.contentMarginsDisabled()
         } else {
             return configuration

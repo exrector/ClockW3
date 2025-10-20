@@ -88,6 +88,7 @@ struct SimpleEntry: TimelineEntry {
 }
 
 // MARK: - Widget View
+@available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct ClockW3WidgetEntryView: View {
     @Environment(\.widgetFamily) var widgetFamily
     @Environment(\.colorScheme) var systemColorScheme
@@ -139,6 +140,7 @@ struct ClockW3WidgetEntryView: View {
 }
 
 // MARK: - Widget Configuration
+@available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct ClockW3Widget: Widget {
     let kind: String = "MOWWidget"
 
@@ -150,7 +152,7 @@ struct ClockW3Widget: Widget {
         .description("M.O.W TIME - 24-hour world clock with time zones")
         .supportedFamilies([.systemMedium, .systemLarge])
 
-        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, *) {
+        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *) {
             return configuration.contentMarginsDisabled()
         } else {
             return configuration

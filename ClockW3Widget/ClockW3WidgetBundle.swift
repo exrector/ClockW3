@@ -8,6 +8,7 @@
 import WidgetKit
 import SwiftUI
 
+@available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 @main
 struct ClockW3WidgetBundle: WidgetBundle {
     @WidgetBundleBuilder

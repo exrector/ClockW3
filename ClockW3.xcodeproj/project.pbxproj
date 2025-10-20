@@ -62,9 +62,14 @@
 		AD7B08602EA690A7005C4CC2 /* Exceptions for "Shared" folder in "MOWWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				MiniGames/AtomModelView.swift,
+				MiniGames/FlowerOfLifeView.swift,
 				MiniGames/MinigameProtocol.swift,
 				MiniGames/MiniGameRegistry.swift,
+				MiniGames/MiniGameShaders.metal,
 				MiniGames/PlanetariumView.swift,
+				MiniGames/QuantumFieldView.swift,
+				MiniGames/RingSystemsView.swift,
 				MiniGames/SolarSystemView.swift,
 				Views/ClockFaceView.swift,
 				Views/ClockMechanismView.swift,
