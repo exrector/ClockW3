@@ -10,7 +10,7 @@ struct ClockFaceView: View {
     @StateObject private var viewModel = SimpleClockViewModel()  // НОВАЯ ПРОСТАЯ ВЕРСИЯ!
     @State private var isDragBlocked = false
     @Environment(\.colorScheme) private var environmentColorScheme
-    
+
     private enum ActiveGestureMode { case rotate, scroll }
     @State private var activeMode: ActiveGestureMode? = nil
 
@@ -23,6 +23,10 @@ struct ClockFaceView: View {
         SharedUserDefaults.seededDefaultsKey,
         store: SharedUserDefaults.shared
     ) private var hasSeededDefaults: Bool = false
+    @AppStorage(
+        SharedUserDefaults.use12HourFormatKey,
+        store: SharedUserDefaults.shared
+    ) private var use12HourFormat: Bool = false
     var interactivityEnabled: Bool = true
     var overrideTime: Date? = nil  // Для виджетов - передаем время из timeline entry
     var overrideColorScheme: ColorScheme? = nil  // Для виджетов - передаем цветовую схему
@@ -53,7 +57,8 @@ struct ClockFaceView: View {
                     StaticBackgroundView(
                         size: size,
                         colors: palette,
-                        currentTime: currentTime
+                        currentTime: currentTime,
+                        use12HourFormat: use12HourFormat
                     )
 
                     // Декоративные винты в углах
@@ -95,13 +100,24 @@ struct ClockFaceView: View {
                                     width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
                                     height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
                                 )
-                            Circle()
-                                .fill(palette.centerCircle)
-                                .frame(
-                                    width: baseRadius * 2 * ClockConstants.centerButtonVisualRatio,
-                                    height: baseRadius * 2 * ClockConstants.centerButtonVisualRatio
-                                )
-                                .shadow(color: palette.centerCircle.opacity(0.4), radius: baseRadius * 0.02)
+
+                            // Центральный пузырь с AM/PM текстом
+                            ZStack {
+                                Circle()
+                                    .fill(palette.centerCircle)
+                                    .shadow(color: palette.centerCircle.opacity(0.4), radius: baseRadius * 0.02)
+
+                                if use12HourFormat {
+                                    let ampmText = getAMPM(for: currentTime)
+                                    Text(ampmText)
+                                        .font(.system(size: baseRadius * 0.05, weight: .semibold, design: .default))
+                                        .foregroundColor(colorScheme == .light ? .white : .black)
+                                }
+                            }
+                            .frame(
+                                width: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio),
+                                height: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio)
+                            )
                         }
                         .contentShape(Circle())
                         .frame(
@@ -127,16 +143,25 @@ struct ClockFaceView: View {
                         )
                         .accessibilityLabel("Reset rotation or hold to confirm reminder")
                     } else {
-                        Circle()
-                            .fill(palette.centerCircle)
-                            .frame(
-                                width: baseRadius * 2 * ClockConstants.centerButtonVisualRatio,
-                                height: baseRadius * 2 * ClockConstants.centerButtonVisualRatio
-                            )
-                            .frame(
-                                width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
-                                height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
-                            )
+                        ZStack {
+                            Circle()
+                                .fill(palette.centerCircle)
+
+                            if use12HourFormat {
+                                let ampmText = getAMPM(for: currentTime)
+                                Text(ampmText)
+                                    .font(.system(size: baseRadius * 0.05, weight: .semibold, design: .default))
+                                    .foregroundColor(colorScheme == .light ? .white : .black)
+                            }
+                        }
+                        .frame(
+                            width: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio),
+                            height: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio)
+                        )
+                        .frame(
+                            width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
+                            height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
+                        )
                     }
                 }
                 .frame(width: size.width, height: size.height)
@@ -222,6 +247,12 @@ struct ClockFaceView: View {
         let dx = point.x - center.x
         let dy = point.y - center.y
         return hypot(dx, dy) <= baseRadius * ClockConstants.deadZoneRadiusRatio
+    }
+
+    private func getAMPM(for date: Date) -> String {
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: date)
+        return hour < 12 ? "AM" : "PM"
     }
 }
 

@@ -9,6 +9,10 @@ struct WidgetClockFaceView: View {
         ClockColorPalette.system(colorScheme: colorScheme)
     }
 
+    private var use12HourFormat: Bool {
+        SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
+    }
+
     private var cities: [WorldCity] {
         let stored = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.selectedCitiesKey) ?? ""
         var identifiers = stored
@@ -22,6 +26,12 @@ struct WidgetClockFaceView: View {
         }
 
         return WorldCity.cities(from: identifiers)
+    }
+
+    private func getAMPM(for date: Date) -> String {
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: date)
+        return hour < 12 ? "AM" : "PM"
     }
 
     var body: some View {
@@ -38,7 +48,8 @@ struct WidgetClockFaceView: View {
                     StaticBackgroundView(
                         size: size,
                         colors: palette,
-                        currentTime: date
+                        currentTime: date,
+                        use12HourFormat: use12HourFormat
                     )
 
                     // Декоративные винты в углах
@@ -60,16 +71,25 @@ struct WidgetClockFaceView: View {
                         containerRotation: 0
                     )
 
-                    Circle()
-                        .fill(palette.centerCircle)
-                        .frame(
-                            width: baseRadius * 2 * ClockConstants.centerButtonVisualRatio,
-                            height: baseRadius * 2 * ClockConstants.centerButtonVisualRatio
-                        )
-                        .frame(
-                            width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
-                            height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
-                        )
+                    ZStack {
+                        Circle()
+                            .fill(palette.centerCircle)
+
+                        if use12HourFormat {
+                            let ampmText = getAMPM(for: date)
+                            Text(ampmText)
+                                .font(.system(size: baseRadius * 0.05, weight: .semibold, design: .default))
+                                .foregroundColor(colorScheme == .light ? .white : .black)
+                        }
+                    }
+                    .frame(
+                        width: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio),
+                        height: baseRadius * 2 * (use12HourFormat ? ClockConstants.weekdayBubbleRadiusRatio : ClockConstants.centerButtonVisualRatio)
+                    )
+                    .frame(
+                        width: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio,
+                        height: baseRadius * 2 * ClockConstants.deadZoneRadiusRatio
+                    )
                 }
                 .frame(width: size.width, height: size.height)
                 .clipped()

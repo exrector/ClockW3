@@ -179,6 +179,12 @@ struct SettingsView: View {
         store: SharedUserDefaults.shared
     ) private var colorSchemePreference: String = "system"
 
+    // 12/24-часовой формат
+    @AppStorage(
+        SharedUserDefaults.use12HourFormatKey,
+        store: SharedUserDefaults.shared
+    ) private var use12HourFormat: Bool = false
+
 #if os(macOS)
     // Ориентация окна для macOS
     @AppStorage(
@@ -543,6 +549,18 @@ extension SettingsView {
                     } else {
                         colorSchemePreference = "light"
                     }
+                }
+            )
+
+            ColorSchemeButton(
+                title: use12HourFormat ? "12h" : "24h",
+                systemImage: "clock",
+                isSelected: false,
+                colorScheme: colorScheme,
+                accessibilityLabel: "Toggle 12/24 hour format",
+                action: {
+                    use12HourFormat.toggle()
+                    reloadWidgets()
                 }
             )
 

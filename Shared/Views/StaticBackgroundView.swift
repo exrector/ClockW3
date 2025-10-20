@@ -5,15 +5,16 @@ struct StaticBackgroundView: View {
     let size: CGSize
     let colors: ClockColorPalette
     let currentTime: Date
-    
+    let use12HourFormat: Bool
+
     private var baseRadius: CGFloat {
         min(size.width, size.height) / 2.0 * ClockConstants.clockSizeRatio
     }
-    
+
     private var center: CGPoint {
         CGPoint(x: size.width / 2, y: size.height / 2)
     }
-    
+
     var body: some View {
         ZStack {
             // Основной фон
@@ -29,12 +30,13 @@ struct StaticBackgroundView: View {
                 minorTicksColor: colors.minorTicks
             )
 
-            // Цифры часов (24 штуки)
+            // Цифры часов (24 или 12 штук)
             HourNumbersView(
                 baseRadius: baseRadius,
                 center: center,
                 fontSize: baseRadius * 2 * ClockConstants.numberFontSizeRatio,
-                numbersColor: colors.numbers
+                numbersColor: colors.numbers,
+                use12HourFormat: use12HourFormat
             )
 
             // Отладочный круг базового радиуса (закомментирован)
@@ -105,20 +107,42 @@ struct HourNumbersView: View {
     let center: CGPoint
     let fontSize: CGFloat
     let numbersColor: Color
-    
+    let use12HourFormat: Bool
+
     var body: some View {
-        ForEach(1...24, id: \.self) { hour in
-            let angle = ClockConstants.hourNumberAngle(hour: hour)
-            let position = AngleCalculations.pointOnCircle(
-                center: center,
-                radius: baseRadius * ClockConstants.numberRadius,
-                angle: angle
-            )
-            
-            Text(String(format: "%02d", hour))
-                .font(.system(size: fontSize, design: .monospaced))
-                .foregroundColor(numbersColor)
-                .position(position)
+        if use12HourFormat {
+            // В 12-часовом формате показываем только 12 цифр
+            ForEach(1...12, id: \.self) { hour in
+                // Каждая цифра появляется дважды на циферблате (для AM и PM)
+                ForEach([hour, hour + 12], id: \.self) { actualHour in
+                    let angle = ClockConstants.hourNumberAngle(hour: actualHour)
+                    let position = AngleCalculations.pointOnCircle(
+                        center: center,
+                        radius: baseRadius * ClockConstants.numberRadius,
+                        angle: angle
+                    )
+
+                    Text(String(format: "%02d", hour == 12 && actualHour == 24 ? 12 : hour))
+                        .font(.system(size: fontSize, design: .monospaced))
+                        .foregroundColor(numbersColor)
+                        .position(position)
+                }
+            }
+        } else {
+            // В 24-часовом формате показываем все 24 цифры
+            ForEach(1...24, id: \.self) { hour in
+                let angle = ClockConstants.hourNumberAngle(hour: hour)
+                let position = AngleCalculations.pointOnCircle(
+                    center: center,
+                    radius: baseRadius * ClockConstants.numberRadius,
+                    angle: angle
+                )
+
+                Text(String(format: "%02d", hour))
+                    .font(.system(size: fontSize, design: .monospaced))
+                    .foregroundColor(numbersColor)
+                    .position(position)
+            }
         }
     }
 }
@@ -129,7 +153,8 @@ struct StaticBackgroundView_Previews: PreviewProvider {
         StaticBackgroundView(
             size: CGSize(width: 400, height: 400),
             colors: ClockColorPalette.system(colorScheme: .light),
-            currentTime: Date()
+            currentTime: Date(),
+            use12HourFormat: false
         )
     }
 }
