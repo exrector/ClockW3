@@ -48,6 +48,45 @@ struct SmallWidgetEntry: TimelineEntry {
     let colorSchemePreference: String
 }
 
+/// Bubble-style date badge for the small widget.
+private struct FlipDateCard: View {
+    let day: Int
+    let palette: ClockColorPalette
+    let size: CGFloat
+
+    private var formattedDay: String {
+        String(format: "%02d", day)
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            palette.monthDayBackground.opacity(0.9),
+                            palette.monthDayBackground.opacity(0.78)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            Text(formattedDay)
+                .font(.system(size: size * 0.6, weight: .heavy, design: .rounded))
+                .foregroundStyle(palette.monthDayText)
+        }
+        .frame(width: size, height: size)
+        .overlay(
+            Circle()
+                .stroke(palette.arrow.opacity(0.18), lineWidth: max(size * 0.02, CGFloat(1)))
+        )
+        .shadow(color: .black.opacity(0.12), radius: size * 0.12, y: size * 0.04)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Day")
+        .accessibilityValue("\(day)")
+    }
+}
+
 // MARK: - Widget Entry View
 struct ClockW3SmallWidgetEntryView: View {
     var entry: SmallWidgetProvider.Entry
@@ -69,6 +108,7 @@ struct ClockW3SmallWidgetEntryView: View {
             let widgetSize = min(geometry.size.width, geometry.size.height)
             let fullClockSize = widgetSize * 2
             let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
+            let day = Calendar.current.component(.day, from: entry.date)
 
             ZStack {
                 palette.background
@@ -83,6 +123,16 @@ struct ClockW3SmallWidgetEntryView: View {
             }
             .frame(width: widgetSize, height: widgetSize)
             .clipped()
+            .overlay(alignment: .topTrailing) {
+                FlipDateCard(
+                    day: day,
+                    palette: palette,
+                    size: widgetSize * 0.22
+                )
+                .padding(.top, widgetSize * 0.045)
+                .padding(.trailing, widgetSize * 0.045)
+                .allowsHitTesting(false)
+            }
         }
         .widgetBackground(ClockColorPalette.system(colorScheme: effectiveColorScheme).background)
     }
