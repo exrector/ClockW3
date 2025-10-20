@@ -31,6 +31,9 @@ struct ClockFaceView: View {
         SharedUserDefaults.mechanismDebugKey,
         store: SharedUserDefaults.shared
     ) private var mechanismDebugEnabled: Bool = false
+    @State private var screwsUnlocked: [Bool] = [false, false, false, false]
+    @State private var screwsRotation: [Double] = [0, 0, 0, 0]
+    @State private var initialScrewsRotation: [Double] = [0, 0, 0, 0]
     var interactivityEnabled: Bool = true
     var overrideTime: Date? = nil  // Для виджетов - передаем время из timeline entry
     var overrideColorScheme: ColorScheme? = nil  // Для виджетов - передаем цветовую схему
@@ -58,8 +61,20 @@ struct ClockFaceView: View {
                     ClockMechanismView()
                         .frame(width: dialDiameter, height: dialDiameter)
                         .clipShape(Circle())
+                        .onTapGesture {
+                            // Выход из режима пасхалки при нажатии
+                            #if os(iOS)
+                            HapticFeedback.shared.playImpact(intensity: .light)
+                            #endif
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                mechanismDebugEnabled = false
+                                screwsUnlocked = [false, false, false, false]
+                                screwsRotation = [0, 0, 0, 0]
+                            }
+                        }
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
             } else {
                 ZStack {
                     // Фон приложения
@@ -107,7 +122,12 @@ struct ClockFaceView: View {
                             viewModel.isDragging ? .none : .easeOut(duration: 0.3),
                             value: viewModel.rotationAngle
                         )
-                        
+
+                        // Интерактивные винты для входа в пасхалку (размещаем ДО центральной кнопки)
+                        if interactivityEnabled {
+                            allInteractiveScrews(size: size, palette: palette)
+                        }
+
                         if interactivityEnabled {
                             ZStack {
                                 Circle()
@@ -183,6 +203,7 @@ struct ClockFaceView: View {
                     .frame(width: size.width, height: size.height)
                     .clipped()
                 }
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 // Высокий приоритет, но с фильтрацией направления, чтобы не мешать скроллу
                 .highPriorityGesture(
                     DragGesture(minimumDistance: 2)
@@ -219,6 +240,11 @@ struct ClockFaceView: View {
             }
         }
         .onAppear {
+            // Инициализируем углы всех 4 винтов из кэша декоративных винтов
+            for i in 0..<4 {
+                initialScrewsRotation[i] = CornerScrewDecorationView.getRotationAngle(for: i)
+            }
+
             syncCitiesToViewModel()
             if interactivityEnabled {
                 viewModel.resumePhysics()
@@ -271,6 +297,123 @@ struct ClockFaceView: View {
         let hour = calendar.component(.hour, from: date)
         return hour < 12 ? "AM" : "PM"
     }
+
+    @ViewBuilder
+    private func allInteractiveScrews(size: CGSize, palette: ClockColorPalette) -> some View {
+        ForEach(0..<4, id: \.self) { index in
+            interactiveScrew(index: index, size: size, palette: palette)
+        }
+    }
+
+    @ViewBuilder
+    private func interactiveScrew(index: Int, size: CGSize, palette: ClockColorPalette) -> some View {
+        let layout = screwLayout(for: size, index: index)
+        let screwDiameter = layout.diameter
+        let position = layout.position
+        let isLight = colorScheme == .light
+        let faceFill: Color = isLight ? .black : .white
+        let slotColor: Color = isLight ? .white : .black
+
+        let slotLength = screwDiameter * 0.56
+        let slotThickness = screwDiameter * 0.16
+        let slotCorner = slotThickness * 0.45
+
+        ZStack {
+            Color.clear
+
+            // Отверстие (появляется когда винт откручивается)
+            Circle()
+                .stroke(faceFill, lineWidth: screwDiameter * 0.15)
+                .frame(width: screwDiameter * 0.6, height: screwDiameter * 0.6)
+                .opacity(screwsUnlocked[index] ? 1 : 0)
+                .animation(.easeIn(duration: 0.3).delay(0.9), value: screwsUnlocked[index])
+                .position(position)
+
+            // Винт (исчезает когда откручивается)
+            ZStack {
+                Circle()
+                    .fill(faceFill)
+
+                // Горизонтальный слот
+                RoundedRectangle(cornerRadius: slotCorner)
+                    .fill(slotColor)
+                    .frame(width: slotLength, height: slotThickness)
+
+                // Вертикальный слот
+                RoundedRectangle(cornerRadius: slotCorner)
+                    .fill(slotColor)
+                    .frame(width: slotThickness, height: slotLength)
+            }
+            .frame(width: screwDiameter, height: screwDiameter)
+            .rotationEffect(.degrees(initialScrewsRotation[index] + screwsRotation[index]))
+            .opacity(screwsUnlocked[index] ? 0 : 1)
+            .animation(.easeOut(duration: 0.3).delay(0.6), value: screwsUnlocked[index])
+            .position(position)
+            .onTapGesture(count: 2) { unlockScrew(index: index) }
+        }
+        .frame(width: size.width, height: size.height)
+    }
+
+    private func unlockScrew(index: Int) {
+        guard !screwsUnlocked[index] else { return }
+        screwsUnlocked[index] = true
+        withAnimation(.spring(response: 1.2, dampingFraction: 0.7)) {
+            screwsRotation[index] -= 360
+        }
+        #if os(iOS)
+        HapticFeedback.shared.playImpact(intensity: .medium)
+        #endif
+
+        // Проверяем, все ли винты откручены
+        let allUnlocked = screwsUnlocked.allSatisfy { $0 == true }
+
+        if allUnlocked {
+            // Включаем режим пасхалки с задержкой после анимации вращения последнего винта
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    mechanismDebugEnabled = true
+                }
+            }
+        }
+    }
+
+    private func screwLayout(for size: CGSize, index: Int) -> (position: CGPoint, diameter: CGFloat) {
+        let minDimension = min(size.width, size.height)
+        let centerX = size.width / 2
+        let centerY = size.height / 2
+        let isCircular = abs(size.width - size.height) < 10
+
+        if isCircular {
+            let nutSize = minDimension * 0.095 * 0.7
+            let diameter = minDimension * ClockConstants.clockSizeRatio
+            let baseRadius = diameter / 2
+            let desiredDistance = baseRadius * 1.2
+            let maxDistance = max(0, (minDimension / 2 - nutSize / 2) * CGFloat(sqrt(2.0)))
+            let radialDistance = min(desiredDistance, maxDistance)
+            let diagonal = radialDistance / CGFloat(sqrt(2.0))
+
+            // Вычисляем позицию в зависимости от индекса
+            // 0: левый верхний, 1: правый верхний, 2: левый нижний, 3: правый нижний
+            let dx = (index % 2 == 0) ? -diagonal : diagonal
+            let dy = (index < 2) ? -diagonal : diagonal
+
+            let position = CGPoint(x: centerX + dx, y: centerY + dy)
+            return (position, nutSize)
+        } else {
+            let nutSize = minDimension * 0.095 * 1.4
+            let horizontalInset: CGFloat = 16
+            let verticalInset: CGFloat = 8
+            let horizontalOffset = size.width / 2 - horizontalInset
+            let verticalOffset = size.height / 2 - verticalInset
+
+            // Вычисляем позицию в зависимости от индекса
+            let dx = (index % 2 == 0) ? -horizontalOffset : horizontalOffset
+            let dy = (index < 2) ? -verticalOffset : verticalOffset
+
+            let position = CGPoint(x: centerX + dx, y: centerY + dy)
+            return (position, nutSize)
+        }
+    }
 }
 
 // MARK: - Corner Decorations
@@ -300,6 +443,18 @@ struct CornerScrewDecorationView: View {
     }
 
     private static var cachedOffsets: [Double]? = nil
+
+    // Публичный метод для получения угла конкретного винта
+    static func getRotationAngle(for index: Int) -> Double {
+        guard index >= 0 && index < 4 else { return 0 }
+        if let stored = cachedOffsets {
+            return baseAngles[index] + stored[index]
+        }
+        // Если кэш пустой, инициализируем его
+        let offsets = (0..<4).map { _ in Double.random(in: -18...18) }
+        cachedOffsets = offsets
+        return baseAngles[index] + offsets[index]
+    }
 
     private var minDimension: CGFloat {
         min(size.width, size.height)
@@ -370,10 +525,8 @@ struct CornerScrewDecorationView: View {
 
     var body: some View {
         ZStack {
-            ForEach(Array(cornerDescriptors.enumerated()), id: \.offset) { descriptor in
-                cornerScrew(rotation: descriptor.element.rotation)
-                    .position(descriptor.element.position)
-            }
+            // Все декоративные винты заменены на интерактивные
+            // ForEach удалён - теперь все 4 винта интерактивные
         }
         .frame(width: size.width, height: size.height)
     }

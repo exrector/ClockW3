@@ -1,6 +1,6 @@
 import Foundation
 import Combine
-#if os(iOS) || targetEnvironment(macCatalyst)
+#if canImport(StoreKit)
 import StoreKit
 #endif
 
@@ -8,7 +8,7 @@ private enum StoreConstants {
     static let premiumProductID = "com.exrector.clockw3.premium"
 }
 
-#if os(iOS) || targetEnvironment(macCatalyst)
+#if canImport(StoreKit)
 @available(iOS 15.0, macCatalyst 15.0, *)
 @MainActor
 final class StoreManager: ObservableObject {
