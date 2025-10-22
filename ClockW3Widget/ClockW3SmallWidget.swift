@@ -22,7 +22,7 @@ struct SmallWidgetProvider: TimelineProvider {
         completion(entry)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
+    func getTimeline(in context: Context, completion: @escaping (Timeline<SmallWidgetEntry>) -> ()) {
         var entries: [SmallWidgetEntry] = []
 
         // Читаем настройки при каждом обновлении timeline
@@ -156,8 +156,11 @@ struct ClockW3SmallWidgetEntryView: View {
                 .padding(.trailing, widgetSize * 0.045)
                 .allowsHitTesting(false)
             }
+            .environment(\.colorScheme, effectiveColorScheme)
         }
         .widgetBackground(ClockColorPalette.system(colorScheme: effectiveColorScheme).background)
+        // Важно: заставляем ассеты и весь UI следовать выбранной схеме, а не системной
+        .environment(\.colorScheme, effectiveColorScheme)
     }
 }
 
@@ -284,11 +287,13 @@ struct SimplifiedClockFace: View {
     ) {
         let fontSize = baseRadius * 2 * ClockConstants.numberFontSizeRatio
         let baseHour = use12HourFormat ? 6 : 18  // Для 12-часового формата начинаем с 6, для 24-часового с 18
+        // ВАЖНО: тот же шаг, что и у рисок
+        let currentHourAngleStep = use12HourFormat ? hourAngleStep * 2 : hourAngleStep
 
         for index in 0..<totalHourMarks {
             let rawHour = (baseHour + index) % (use12HourFormat ? 12 : 24)
             let displayHour = use12HourFormat ? (rawHour == 0 ? 12 : rawHour) : (rawHour == 0 ? 24 : rawHour)
-            let angle = Double(index) * hourAngleStep + rotationAngle
+            let angle = Double(index) * currentHourAngleStep + rotationAngle
             let position = AngleCalculations.pointOnCircle(
                 center: center,
                 radius: baseRadius * numberRingRadiusRatio,
@@ -630,4 +635,3 @@ struct ClockW3SmallWidget_Previews: PreviewProvider {
     }
 }
 #endif
-

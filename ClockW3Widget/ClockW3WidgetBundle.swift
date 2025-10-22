@@ -17,6 +17,7 @@ struct ClockW3WidgetBundle: WidgetBundle {
         ClockW3SmallWidget()
         ClockW3ClassicSmallWidget()
         ClockW3Widget()
+        ClockW3LargeWidget()
 #if canImport(ActivityKit) && !os(macOS)
         if #available(iOSApplicationExtension 16.1, *) {
             ReminderLiveActivity()
