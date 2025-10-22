@@ -252,17 +252,17 @@ struct ClockFaceView: View {
                 )
             }
         }
-        #if !WIDGET_EXTENSION
-        .overlay(alignment: .topLeading) {
-            if interactivityEnabled {
-                GearDebugButton(isActive: mechanismDebugEnabled) {
-                    handleGearShortcutTap()
-                }
-                .padding(.top, 18)
-                .padding(.leading, 18)
-            }
-        }
-        #endif
+        // #if !WIDGET_EXTENSION
+        // .overlay(alignment: .topLeading) {
+        //     if interactivityEnabled {
+        //         GearDebugButton(isActive: mechanismDebugEnabled) {
+        //             handleGearShortcutTap()
+        //         }
+        //         .padding(.top, 18)
+        //         .padding(.leading, 18)
+        //     }
+        // }
+        // #endif
         .onAppear {
             // ВАЖНО: При загрузке приложения ВСЕГДА показываем циферблат, а не пасхалку
             // Сбрасываем режим пасхалки и все состояния

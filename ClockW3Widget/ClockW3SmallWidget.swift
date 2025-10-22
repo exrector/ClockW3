@@ -11,32 +11,52 @@ import SwiftUI
 // MARK: - Timeline Provider
 struct SmallWidgetProvider: TimelineProvider {
     func placeholder(in context: Context) -> SmallWidgetEntry {
-        SmallWidgetEntry(date: Date(), colorSchemePreference: "system")
+        let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
+        return SmallWidgetEntry(date: Date(), colorSchemePreference: "system", use12HourFormat: use12Hour)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SmallWidgetEntry) -> ()) {
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
-        let entry = SmallWidgetEntry(date: Date(), colorSchemePreference: colorPref)
+        let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
+        let entry = SmallWidgetEntry(date: Date(), colorSchemePreference: colorPref, use12HourFormat: use12Hour)
         completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         var entries: [SmallWidgetEntry] = []
 
-        // Читаем настройку цветовой схемы при каждом обновлении timeline
-        let appGroupOK = SharedUserDefaults.usingAppGroup
-        print("📱 SmallWidget getTimeline - appGroupOK: \(appGroupOK)")
+        // Читаем настройки при каждом обновлении timeline
+        _ = SharedUserDefaults.usingAppGroup
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
-        print("📱 SmallWidget getTimeline - colorPref: \(colorPref)")
+        let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
 
-        // Генерируем timeline на следующие 60 минут с обновлением каждую минуту
-        let currentDate = Date()
+        let now = Date()
+        let calendar = Calendar.current
+        let currentSecond = calendar.component(.second, from: now)
+        let secondsToNextMinute = 60 - currentSecond
+        
+        // Рассчитываем точное время начала следующей минуты
+        guard let nextMinuteStart = calendar.date(bySetting: .second, value: 0, of: now.addingTimeInterval(Double(secondsToNextMinute))) else {
+            // Fallback
+            let entry = SmallWidgetEntry(date: now, colorSchemePreference: colorPref, use12HourFormat: use12Hour)
+            let timeline = Timeline(entries: [entry], policy: .after(now.addingTimeInterval(60)))
+            completion(timeline)
+            return
+        }
+
+        // 1) Немедленный entry на текущий момент — чтобы изменения настроек применялись мгновенно после reload
+        entries.append(
+            SmallWidgetEntry(date: now, colorSchemePreference: colorPref, use12HourFormat: use12Hour)
+        )
+
+        // 2) Генерируем timeline на следующие 60 минут с обновлением каждую минуту, начиная с начала следующей минуты
         for minuteOffset in 0 ..< 60 {
-            let entryDate = Calendar.current.date(byAdding: .minute, value: minuteOffset, to: currentDate)!
-            let entry = SmallWidgetEntry(date: entryDate, colorSchemePreference: colorPref)
+            let entryDate = calendar.date(byAdding: .minute, value: minuteOffset, to: nextMinuteStart)!
+            let entry = SmallWidgetEntry(date: entryDate, colorSchemePreference: colorPref, use12HourFormat: use12Hour)
             entries.append(entry)
         }
 
+        // Позволяем системе перезагрузиться, когда таймлайн закончится
         let timeline = Timeline(entries: entries, policy: .atEnd)
         completion(timeline)
     }
@@ -46,6 +66,7 @@ struct SmallWidgetProvider: TimelineProvider {
 struct SmallWidgetEntry: TimelineEntry {
     let date: Date
     let colorSchemePreference: String
+    let use12HourFormat: Bool
 }
 
 /// Bubble-style date badge for the small widget.
@@ -117,7 +138,8 @@ struct ClockW3SmallWidgetEntryView: View {
 
                 SimplifiedClockFace(
                     currentTime: entry.date,
-                    palette: palette
+                    palette: palette,
+                    use12HourFormat: entry.use12HourFormat
                 )
                 .frame(width: fullClockSize, height: fullClockSize)
                 .position(x: 0, y: widgetSize)
@@ -143,13 +165,21 @@ struct ClockW3SmallWidgetEntryView: View {
 struct SimplifiedClockFace: View {
     let currentTime: Date
     let palette: ClockColorPalette
+    let use12HourFormat: Bool
     private let staticArrowAngle: Double = -Double.pi / 4  // 315°
     private let tickDotRadiusRatio: CGFloat = 0.86
     private let numberRingRadiusRatio: CGFloat = 0.72
     private let hourAngleStep: Double = ClockConstants.hourTickStepRadians  // 15°
     private let minuteBubbleRadiusRatio: CGFloat = 0.075
     private let minuteBubbleGapRatio: CGFloat = 0.03
-    private let totalHourMarks = 24
+    private let totalHourMarks: Int
+    
+    init(currentTime: Date, palette: ClockColorPalette, use12HourFormat: Bool) {
+        self.currentTime = currentTime
+        self.palette = palette
+        self.use12HourFormat = use12HourFormat
+        self.totalHourMarks = use12HourFormat ? 12 : 24
+    }
 
     var body: some View {
         Canvas { context, size in
@@ -205,6 +235,8 @@ struct SimplifiedClockFace: View {
         let ticksPerHour = Int(60 / minutesPerTick)  // 6
         let totalTicks = ticksPerHour * totalHourMarks
         let sizeScale: CGFloat = 1.3 * 1.15         // +30% и дополнительно +15%
+        // Для 12-часового формата угловой шаг должен быть больше, так как 12 часов вместо 24
+        let currentHourAngleStep = use12HourFormat ? hourAngleStep * 2 : hourAngleStep
 
         for index in 0..<totalTicks {
             let isHourTick = index % ticksPerHour == 0
@@ -225,7 +257,7 @@ struct SimplifiedClockFace: View {
             }
 
             let minutesFromBase = Double(index) * minutesPerTick
-            let angle = minutesFromBase / 60.0 * hourAngleStep + rotationAngle
+            let angle = minutesFromBase / 60.0 * currentHourAngleStep + rotationAngle
 
             let dotCenter = AngleCalculations.pointOnCircle(
                 center: center,
@@ -251,11 +283,11 @@ struct SimplifiedClockFace: View {
         rotationAngle: Double
     ) {
         let fontSize = baseRadius * 2 * ClockConstants.numberFontSizeRatio
-        let baseHour = 18
+        let baseHour = use12HourFormat ? 6 : 18  // Для 12-часового формата начинаем с 6, для 24-часового с 18
 
         for index in 0..<totalHourMarks {
-            let rawHour = (baseHour + index) % 24
-            let displayHour = rawHour == 0 ? 24 : rawHour
+            let rawHour = (baseHour + index) % (use12HourFormat ? 12 : 24)
+            let displayHour = use12HourFormat ? (rawHour == 0 ? 12 : rawHour) : (rawHour == 0 ? 24 : rawHour)
             let angle = Double(index) * hourAngleStep + rotationAngle
             let position = AngleCalculations.pointOnCircle(
                 center: center,
@@ -263,7 +295,7 @@ struct SimplifiedClockFace: View {
                 angle: angle
             )
 
-            let text = Text(String(format: "%02d", displayHour))
+            let text = Text(String(format: use12HourFormat ? "%d" : "%02d", displayHour))
                 .font(.system(size: fontSize, design: .monospaced))
                 .foregroundColor(palette.numbers)
 
@@ -479,8 +511,14 @@ struct SimplifiedClockFace: View {
             return 0
         }
 
-        let hour24 = Double(hour) + Double(minute) / 60.0
-        let baseAngle = ClockConstants.calculateArrowAngle(hour24: hour24)
+        let hourToUse = use12HourFormat ? (hour % 12 == 0 ? 12 : hour % 12) : hour
+        let hourValue = use12HourFormat ? Double(hourToUse) + Double(minute) / 60.0 : Double(hour) + Double(minute) / 60.0
+        
+        // Для 12-часового формата масштабируем угол, чтобы он соответствовал 12-часовому циферблату
+        let baseAngle = use12HourFormat ? 
+            (hourValue / 12.0) * 2.0 * .pi : 
+            ClockConstants.calculateArrowAngle(hour24: hourValue)
+        
         return ClockConstants.normalizeAngle(staticArrowAngle - baseAngle)
     }
 
@@ -586,9 +624,10 @@ struct ClockW3SmallWidget: Widget {
 struct ClockW3SmallWidget_Previews: PreviewProvider {
     static var previews: some View {
         ClockW3SmallWidgetEntryView(
-            entry: SmallWidgetEntry(date: Date(), colorSchemePreference: "system")
+            entry: SmallWidgetEntry(date: Date(), colorSchemePreference: "system", use12HourFormat: SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey))
         )
             .previewContext(WidgetPreviewContext(family: .systemSmall))
     }
 }
 #endif
+

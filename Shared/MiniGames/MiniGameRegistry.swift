@@ -4,7 +4,8 @@ import SwiftUI
 enum MiniGameRegistry {
     private static let availableScenes: [any MiniGameScene.Type] = [
         PlanetariumView.self,
-        SolarSystemView.self,
+        VaultDoorView.self,
+        VaultDoorView5.self,
         AtomModelView.self,
         QuantumFieldView.self,
         FlowerOfLifeView.self,

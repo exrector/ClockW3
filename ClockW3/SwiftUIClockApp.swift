@@ -593,7 +593,6 @@ extension SettingsView {
         if SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) == nil {
             SharedUserDefaults.shared.set(colorSchemePreference, forKey: SharedUserDefaults.colorSchemeKey)
             SharedUserDefaults.shared.synchronize()
-            print("🎨 Initialized colorScheme to: \(colorSchemePreference)")
         }
     }
 
@@ -1166,10 +1165,6 @@ private struct CityRow: View {
 #if canImport(WidgetKit)
 private extension SettingsView {
     func reloadWidgets() {
-        // Проверяем что значение действительно записалось в SharedUserDefaults
-        let savedValue = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey)
-        print("🔄 reloadWidgets called - saved colorScheme: \(savedValue ?? "nil")")
-
         // Принудительно синхронизируем
         SharedUserDefaults.shared.synchronize()
 
@@ -1179,8 +1174,14 @@ private extension SettingsView {
         // Также попробуем перезагрузить конкретный kind
         WidgetCenter.shared.reloadTimelines(ofKind: "MOWWidget")
         WidgetCenter.shared.reloadTimelines(ofKind: "MOWSmallWidget")
-
-        print("✅ Widget reload requested")
+        
+        // Дополнительная синхронизация для macOS
+        #if os(macOS)
+        Task {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 секунды
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+        #endif
     }
 }
 #else

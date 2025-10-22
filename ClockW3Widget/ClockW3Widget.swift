@@ -26,19 +26,20 @@ struct Provider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> Void) {
         // Читаем настройку цветовой схемы при каждом обновлении timeline
         let appGroupOK = appGroupAvailable()
-        print("📱 Widget getTimeline - appGroupOK: \(appGroupOK)")
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
-        print("📱 Widget getTimeline - colorPref: \(colorPref)")
         let build = buildString()
 
         var entries: [SimpleEntry] = []
         let now = Date()
 
-        // Округляем до начала следующей минуты
+        // Получаем точное время начала следующей минуты для синхронизации
         let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: now)
-        guard let startOfNextMinute = calendar.date(from: components)?.addingTimeInterval(60) else {
-            // Fallback если не удалось округлить
+        let currentSecond = calendar.component(.second, from: now)
+        let secondsToNextMinute = 60 - currentSecond
+        
+        // Рассчитываем точное время начала следующей минуты
+        guard let nextMinuteStart = calendar.date(bySetting: .second, value: 0, of: now.addingTimeInterval(Double(secondsToNextMinute))) else {
+            // Fallback если не удалось рассчитать
             let entry = SimpleEntry(
                 date: now,
                 colorSchemePreference: colorPref,
@@ -52,7 +53,7 @@ struct Provider: TimelineProvider {
 
         // Создаём entries для каждой минуты в течение часа, начиная с начала следующей минуты
         for minuteOffset in 0..<60 {
-            let entryDate = calendar.date(byAdding: .minute, value: minuteOffset, to: startOfNextMinute)!
+            let entryDate = calendar.date(byAdding: .minute, value: minuteOffset, to: nextMinuteStart)!
             let entry = SimpleEntry(
                 date: entryDate,
                 colorSchemePreference: colorPref,
@@ -62,7 +63,8 @@ struct Provider: TimelineProvider {
             entries.append(entry)
         }
 
-        let timeline = Timeline(entries: entries, policy: .atEnd)
+        // Используем .after с точным временем начала следующей минуты для синхронизации
+        let timeline = Timeline(entries: entries, policy: .after(nextMinuteStart))
         completion(timeline)
     }
 
@@ -117,13 +119,13 @@ struct ClockW3WidgetEntryView: View {
                     .frame(width: frameSize.width, height: frameSize.height)
                     .allowsHitTesting(false)
             default:
-                ZStack(alignment: .topLeading) {
+                ZStack {
                     palette.background
                     WidgetClockFaceView(
                         date: entry.date,
                         colorScheme: effectiveColorScheme
                     )
-                    .frame(width: frameSize.width, height: frameSize.width)
+                    .frame(width: frameSize.width, height: frameSize.height)
                     .scaleEffect(0.98)
                     .allowsHitTesting(false)
                 }

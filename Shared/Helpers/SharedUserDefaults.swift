@@ -47,7 +47,6 @@ enum SharedUserDefaults {
         guard !didLogMissingGroup else { return }
         didLogMissingGroup = true
 #if DEBUG
-        print("⚠️ [SharedUserDefaults] App Group '\(appGroupID)' is missing. Using in-memory defaults. Check entitlements.")
 #endif
         assertionFailure("App Group '\(appGroupID)' is not configured. Widgets will not sync settings.")
     }
