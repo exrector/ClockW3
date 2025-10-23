@@ -194,7 +194,18 @@ struct MediumClockFace: View {
             let rotationAngle = rotationOffset(for: currentTime)
 
             drawBackground(context: context, center: center, baseRadius: baseRadius)
-            drawMinuteScale(context: context, center: center, baseRadius: baseRadius, rotationAngle: rotationAngle)
+
+            let calendar = Calendar.current
+            let month = calendar.component(.month, from: currentTime)
+            let day = calendar.component(.day, from: currentTime)
+            let hour = calendar.component(.hour, from: currentTime)
+            let minute = calendar.component(.minute, from: currentTime)
+
+            drawMonthScale(context: context, center: center, baseRadius: baseRadius, currentMonth: month)
+            drawDayScale(context: context, center: center, baseRadius: baseRadius, currentDay: day)
+            drawRedRingBetweenDayAndHour(context: context, center: center, baseRadius: baseRadius)
+            drawHourScale(context: context, center: center, baseRadius: baseRadius, currentHour: hour)
+            drawMinuteScale(context: context, center: center, baseRadius: baseRadius, currentMinute: minute)
             drawLocalCityOrbit(context: context, center: center, baseRadius: baseRadius, rotationAngle: rotationAngle)
             drawArrow(context: context, center: center, baseRadius: baseRadius)
             drawCenterDisc(context: context, center: center, baseRadius: baseRadius)
@@ -214,8 +225,150 @@ struct MediumClockFace: View {
         context.fill(Path(ellipseIn: rect), with: .color(palette.background))
     }
 
-    private func drawMinuteScale(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat, rotationAngle: Double) {
+    private func drawMonthScale(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat, currentMonth: Int) {
+        // Орбита месяцев: 12 месяцев, одна строка, все цифры одинаковой высоты
+        // Вращается так, чтобы текущий месяц был под стрелкой (270°)
+        let totalMonths = 12
+
+        // Все цифры одинакового размера, как в других орбитах
+        let fontSize = baseRadius * 0.12
+
+        // Орбита месяцев (самая внутренняя, увеличенный зазор до дней 0.55)
+        let orbitRadius = baseRadius * 0.43
+
+        // Вычисляем угол для текущего месяца
+        let monthAngle = (Double(currentMonth - 1) / Double(totalMonths)) * 2.0 * .pi
+        let rotationOffset = staticArrowAngle - monthAngle
+
+        for month in 1...totalMonths {
+            let angle = (Double(month - 1) / Double(totalMonths)) * 2.0 * .pi + rotationOffset
+            let position = AngleCalculations.pointOnCircle(
+                center: center,
+                radius: orbitRadius,
+                angle: angle
+            )
+
+            var textContext = context
+            textContext.translateBy(x: position.x, y: position.y)
+            textContext.rotate(by: Angle(radians: angle + .pi / 2))
+            textContext.scaleBy(x: 0.6, y: 1.0)  // Сжимаем по ширине на 60%
+
+            let text = Text(String(format: "%02d", month))
+                .font(.system(size: fontSize, weight: .semibold, design: .monospaced).width(.condensed))
+                .foregroundColor(palette.numbers)
+
+            textContext.draw(text, at: .zero, anchor: .center)
+        }
+    }
+
+    private func drawRedRingBetweenDayAndHour(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat) {
+        // Красная окружность между орбитой дней и орбитой часов (0.70)
+        let ringRadius = baseRadius * 0.625  // Зазор 0.05 до часов
+        let ringWidth = baseRadius * 0.01   // Узкая полоска
+
+        let ringPath = Path(ellipseIn: CGRect(
+            x: center.x - ringRadius,
+            y: center.y - ringRadius,
+            width: ringRadius * 2,
+            height: ringRadius * 2
+        ))
+
+        context.stroke(
+            ringPath,
+            with: .color(palette.arrow),
+            style: StrokeStyle(lineWidth: ringWidth, lineCap: .round)
+        )
+    }
+
+    private func drawDayScale(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat, currentDay: Int) {
+        // Орбита дней месяца: 31 день, одна строка, все цифры одинаковой высоты
+        // Вращается так, чтобы текущий день был под стрелкой (270°)
+        let totalDays = 31
+
+        // Все цифры одинакового размера, как в часовой орбите
+        let fontSize = baseRadius * 0.12
+
+        // Орбита дней (зазор 0.05 до красной линии 0.625)
+        let orbitRadius = baseRadius * 0.55
+
+        // Вычисляем угол для текущего дня
+        let dayAngle = (Double(currentDay - 1) / Double(totalDays)) * 2.0 * .pi
+        let rotationOffset = staticArrowAngle - dayAngle
+
+        for day in 1...totalDays {
+            let angle = (Double(day - 1) / Double(totalDays)) * 2.0 * .pi + rotationOffset
+            let position = AngleCalculations.pointOnCircle(
+                center: center,
+                radius: orbitRadius,
+                angle: angle
+            )
+
+            var textContext = context
+            textContext.translateBy(x: position.x, y: position.y)
+            textContext.rotate(by: Angle(radians: angle + .pi / 2))
+            textContext.scaleBy(x: 0.6, y: 1.0)  // Сжимаем по ширине на 60%
+
+            let text = Text(String(format: "%02d", day))
+                .font(.system(size: fontSize, weight: .semibold, design: .monospaced).width(.condensed))
+                .foregroundColor(palette.numbers)
+
+            textContext.draw(text, at: .zero, anchor: .center)
+        }
+    }
+
+    private func drawHourScale(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat, currentHour: Int) {
+        // Часовая шкала: одна строка, все цифры одинаковой высоты, БЕЗ штрихов
+        // Вращается так, чтобы текущий час был под стрелкой (270°)
+        // Для 12-часового: 1-12 часов (вместо 0-11)
+        // Для 24-часового: 0-23 часов
+        let totalHours = use12HourFormat ? 12 : 24
+
+        // Все цифры одинакового размера, равного большим цифрам минутной орбиты
+        let fontSize = baseRadius * 0.12  // Как большие цифры в минутной орбите
+
+        // Орбита часов (увеличенный зазор до минутной орбиты)
+        let orbitRadius = baseRadius * 0.70
+
+        // Вычисляем угол для текущего часа
+        let hourToShow: Int
+        if use12HourFormat {
+            // В 12-часовом формате: 0->12, 1->1, 2->2, ..., 12->12, 13->1, ...
+            hourToShow = (currentHour % 12 == 0) ? 12 : (currentHour % 12)
+        } else {
+            hourToShow = currentHour
+        }
+
+        // Позиция на циферблате (для расчета угла используем 0-based индекс)
+        let hourIndex = use12HourFormat ? (hourToShow == 12 ? 0 : hourToShow) : hourToShow
+        let hourAngle = (Double(hourIndex) / Double(totalHours)) * 2.0 * .pi
+        let rotationOffset = staticArrowAngle - hourAngle
+
+        for hour in 0..<totalHours {
+            let angle = (Double(hour) / Double(totalHours)) * 2.0 * .pi + rotationOffset
+            let position = AngleCalculations.pointOnCircle(
+                center: center,
+                radius: orbitRadius,
+                angle: angle
+            )
+
+            var textContext = context
+            textContext.translateBy(x: position.x, y: position.y)
+            textContext.rotate(by: Angle(radians: angle + .pi / 2))
+            textContext.scaleBy(x: 0.6, y: 1.0)  // Сжимаем по ширине на 60%
+
+            // Отображаемая цифра
+            let displayHour = use12HourFormat ? (hour == 0 ? 12 : hour) : hour
+            let text = Text(String(format: "%02d", displayHour))
+                .font(.system(size: fontSize, weight: .semibold, design: .monospaced).width(.condensed))
+                .foregroundColor(palette.numbers)
+
+            textContext.draw(text, at: .zero, anchor: .center)
+        }
+    }
+
+    private func drawMinuteScale(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat, currentMinute: Int) {
         // Минутная шкала: две строки (два радиуса)
+        // Вращается так, чтобы текущая минута была под стрелкой (270°)
         // Внешняя строка - цифры, нижняя строка - штрихи
         // 0, 5, 10, 15... - большая цифра занимает ОБЕ строки, БЕЗ штрихов
         // 1, 2, 3, 4, 6, 7... - маленькая цифра на внешней строке + штрих на нижней строке
@@ -233,9 +386,13 @@ struct MediumClockFace: View {
         let outerLineRadius = centerRadius + (smallFontSize + gapSize) / 2  // Внешняя строка (для цифр)
         let innerLineRadius = centerRadius - (gapSize + tickLength) / 2     // Нижняя строка (для штрихов)
 
+        // Вычисляем угол для текущей минуты
+        let minuteAngle = (Double(currentMinute) / 60.0) * 2.0 * .pi
+        let rotationOffset = staticArrowAngle - minuteAngle
+
         for minute in 0..<totalMinutes {
             let is5MinuteMark = minute % 5 == 0
-            let angle = (Double(minute) / 60.0) * 2.0 * .pi + rotationAngle
+            let angle = (Double(minute) / 60.0) * 2.0 * .pi + rotationOffset
 
             if is5MinuteMark {
                 // 0, 5, 10, 15... - большая цифра на обеих строках, БЕЗ штриха
@@ -344,25 +501,107 @@ struct MediumClockFace: View {
                 occupiedRanges: [(start: occupiedStart, end: occupiedEnd)]
             )
 
-            let segmentWidth = baseRadius * 0.1
-
+            // Рисуем зубчики шестерёнки вместо простой дуги
             for range in freeRanges where range.end > range.start {
-                var path = Path()
-                path.addArc(
+                drawGearTeeth(
+                    context: context,
                     center: center,
-                    radius: orbitRadius,
-                    startAngle: Angle(radians: range.start),
-                    endAngle: Angle(radians: range.end),
-                    clockwise: false
-                )
-
-                context.stroke(
-                    path,
-                    with: .color(palette.secondaryColor),
-                    style: StrokeStyle(lineWidth: segmentWidth, lineCap: .butt)
+                    baseRadius: baseRadius,
+                    orbitRadius: orbitRadius,
+                    startAngle: range.start,
+                    endAngle: range.end
                 )
             }
         }
+    }
+
+    private func drawGearTeeth(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat, orbitRadius: CGFloat, startAngle: Double, endAngle: Double) {
+        // Параметры зубчиков для орбиты города
+        let segmentWidth = baseRadius * 0.1  // Ширина сегмента (полная)
+        let innerRadius = orbitRadius - segmentWidth / 2  // Внутренняя граница
+        let middleRadius = orbitRadius  // Средняя линия (где обычно дуга)
+        let outerRadius = orbitRadius + segmentWidth / 2.2  // Зубцы выступают ещё больше наружу (увеличено)
+
+        // Количество зубцов на данной дуге
+        let arcLength = endAngle - startAngle
+        let toothAngularWidth = 0.15  // Угловая ширина одного зубца (в радианах)
+        let toothCount = Int(arcLength / toothAngularWidth)
+
+        guard toothCount > 0 else { return }
+
+        let actualToothWidth = arcLength / Double(toothCount)
+        let gapRatio: CGFloat = 0.5  // 50% зубец, 50% промежуток
+
+        var path = Path()
+
+        // Начинаем с внутреннего радиуса
+        let firstPoint = CGPoint(
+            x: center.x + innerRadius * CGFloat(cos(startAngle)),
+            y: center.y + innerRadius * CGFloat(sin(startAngle))
+        )
+        path.move(to: firstPoint)
+
+        // Рисуем зубчатую внешнюю линию
+        for i in 0..<toothCount {
+            let toothStartAngle = startAngle + Double(i) * actualToothWidth
+            let toothMidAngle = toothStartAngle + actualToothWidth * Double(gapRatio) / 2
+            let toothEndAngle = toothStartAngle + actualToothWidth * Double(gapRatio)
+            let gapEndAngle = toothStartAngle + actualToothWidth
+
+            // Поднимаемся на среднюю линию
+            let middleStart = CGPoint(
+                x: center.x + middleRadius * CGFloat(cos(toothStartAngle)),
+                y: center.y + middleRadius * CGFloat(sin(toothStartAngle))
+            )
+            path.addLine(to: middleStart)
+
+            // Зубец выступает наружу
+            let outerMid = CGPoint(
+                x: center.x + outerRadius * CGFloat(cos(toothMidAngle)),
+                y: center.y + outerRadius * CGFloat(sin(toothMidAngle))
+            )
+            path.addLine(to: outerMid)
+
+            // Возвращаемся на среднюю линию
+            let middleEnd = CGPoint(
+                x: center.x + middleRadius * CGFloat(cos(toothEndAngle)),
+                y: center.y + middleRadius * CGFloat(sin(toothEndAngle))
+            )
+            path.addLine(to: middleEnd)
+
+            // Дуга по средней линии до следующего зубца (промежуток)
+            if i < toothCount - 1 {
+                path.addArc(
+                    center: center,
+                    radius: middleRadius,
+                    startAngle: Angle(radians: toothEndAngle),
+                    endAngle: Angle(radians: gapEndAngle),
+                    clockwise: false
+                )
+            } else {
+                // Последний зубец - дуга до конца
+                path.addArc(
+                    center: center,
+                    radius: middleRadius,
+                    startAngle: Angle(radians: toothEndAngle),
+                    endAngle: Angle(radians: endAngle),
+                    clockwise: false
+                )
+            }
+        }
+
+        // Возвращаемся по внутренней дуге
+        path.addArc(
+            center: center,
+            radius: innerRadius,
+            startAngle: Angle(radians: endAngle),
+            endAngle: Angle(radians: startAngle),
+            clockwise: true
+        )
+
+        path.closeSubpath()
+
+        context.fill(path, with: .color(palette.secondaryColor))
     }
 
     private func calculateFreeRanges(
@@ -435,8 +674,8 @@ struct MediumClockFace: View {
     }
 
     private func drawArrow(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat) {
-        let arrowThickness = baseRadius * ClockConstants.arrowThicknessRatio * 1.4
-        let arrowEndRadius = baseRadius * 0.5  // Короткая стрелка
+        let arrowThickness = baseRadius * 0.005  // Очень тонкая стрелка
+        let arrowEndRadius = baseRadius * 0.88  // В воздухе между минутной орбитой (0.82) и орбитой города (0.95)
         let arrowEndPosition = AngleCalculations.pointOnCircle(
             center: center,
             radius: arrowEndRadius,
@@ -466,13 +705,99 @@ struct MediumClockFace: View {
     }
 
     private func drawGear(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat) {
-        // Символ шестерёнки в центре циферблата (поверх всего)
-        let gearSize = baseRadius * 1.5  // 150% от радиуса циферблата
-        let gearText = Text("⚙︎")
-            .font(.system(size: gearSize))
-            .foregroundColor(.black)
+        // Рисуем шестерёнку с такой же геометрией как внешняя орбита
+        let gearWidth = baseRadius * 0.12  // Ширина кольца шестерёнки (уменьшена)
+        let middleRadius = baseRadius * 0.30  // Средняя линия
+        let innerRadius = middleRadius - gearWidth / 2  // Внутренняя граница
+        let outerRadius = middleRadius + gearWidth / 2.5  // Внешняя граница (зубцы выступают)
+        let holeRadius = innerRadius * 0.6  // Отверстие в центре
 
-        context.draw(gearText, at: center, anchor: .center)
+        let toothCount = 12  // Количество зубцов (уменьшено)
+        let arcLength = 2.0 * .pi
+        let actualToothWidth = arcLength / Double(toothCount)
+        let gapRatio: CGFloat = 0.5  // 50% зубец, 50% промежуток
+
+        var path = Path()
+
+        // Начинаем с внутреннего радиуса
+        let firstPoint = CGPoint(
+            x: center.x + innerRadius * CGFloat(cos(Double(0))),
+            y: center.y + innerRadius * CGFloat(sin(Double(0)))
+        )
+        path.move(to: firstPoint)
+
+        // Рисуем зубчатую внешнюю линию
+        for i in 0..<toothCount {
+            let toothStartAngle = Double(i) * actualToothWidth
+            let toothMidAngle = toothStartAngle + actualToothWidth * Double(gapRatio) / 2
+            let toothEndAngle = toothStartAngle + actualToothWidth * Double(gapRatio)
+            let gapEndAngle = toothStartAngle + actualToothWidth
+
+            // Поднимаемся на среднюю линию
+            let middleStart = CGPoint(
+                x: center.x + middleRadius * CGFloat(cos(toothStartAngle)),
+                y: center.y + middleRadius * CGFloat(sin(toothStartAngle))
+            )
+            path.addLine(to: middleStart)
+
+            // Зубец выступает наружу
+            let outerMid = CGPoint(
+                x: center.x + outerRadius * CGFloat(cos(toothMidAngle)),
+                y: center.y + outerRadius * CGFloat(sin(toothMidAngle))
+            )
+            path.addLine(to: outerMid)
+
+            // Возвращаемся на среднюю линию
+            let middleEnd = CGPoint(
+                x: center.x + middleRadius * CGFloat(cos(toothEndAngle)),
+                y: center.y + middleRadius * CGFloat(sin(toothEndAngle))
+            )
+            path.addLine(to: middleEnd)
+
+            // Дуга по средней линии до следующего зубца (промежуток)
+            if i < toothCount - 1 {
+                path.addArc(
+                    center: center,
+                    radius: middleRadius,
+                    startAngle: Angle(radians: toothEndAngle),
+                    endAngle: Angle(radians: gapEndAngle),
+                    clockwise: false
+                )
+            } else {
+                // Последний зубец - дуга до конца
+                path.addArc(
+                    center: center,
+                    radius: middleRadius,
+                    startAngle: Angle(radians: toothEndAngle),
+                    endAngle: Angle(radians: 2.0 * .pi),
+                    clockwise: false
+                )
+            }
+        }
+
+        // Возвращаемся по внутренней дуге
+        path.addArc(
+            center: center,
+            radius: innerRadius,
+            startAngle: Angle(radians: 2.0 * .pi),
+            endAngle: Angle(radians: 0),
+            clockwise: true
+        )
+
+        path.closeSubpath()
+
+        // Заливаем шестерёнку чёрным цветом
+        context.fill(path, with: .color(.black))
+
+        // Рисуем внутреннее отверстие
+        let holePath = Path(ellipseIn: CGRect(
+            x: center.x - holeRadius,
+            y: center.y - holeRadius,
+            width: holeRadius * 2,
+            height: holeRadius * 2
+        ))
+
+        context.fill(holePath, with: .color(palette.background))
     }
 
     private func rotationOffset(for time: Date) -> Double {
