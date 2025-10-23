@@ -228,8 +228,8 @@ struct MediumClockFace: View {
         let tickLength = baseRadius * 0.03       // Длина штриха
         let tickWidth = baseRadius * 0.0025      // Толщина штриха
 
-        // Две строки орбиты (рассчитываем от центра)
-        let centerRadius = baseRadius * 0.75      // Центр между цифрами и штрихами
+        // Две строки орбиты (рассчитываем от центра, ближе к орбите города 0.95)
+        let centerRadius = baseRadius * 0.82      // Центр между цифрами и штрихами
         let outerLineRadius = centerRadius + (smallFontSize + gapSize) / 2  // Внешняя строка (для цифр)
         let innerLineRadius = centerRadius - (gapSize + tickLength) / 2     // Нижняя строка (для штрихов)
 
