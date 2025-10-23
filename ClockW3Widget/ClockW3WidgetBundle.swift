@@ -18,6 +18,7 @@ struct ClockW3WidgetBundle: WidgetBundle {
     @WidgetBundleBuilder
     var body: some Widget {
         // ПОВОРОТНЫЕ ЦИФЕРБЛАТЫ (со статичной стрелкой):
+        ClockW3MediumWidget()       // Средний поворотный циферблат (ПО УМОЛЧАНИЮ В СИМУЛЯТОРЕ!)
         ClockW3SmallWidget()        // Маленький поворотный циферблат
         ClockW3ClassicSmallWidget() // Классический маленький поворотный
         ClockW3Widget()             // Основной поворотный циферблат

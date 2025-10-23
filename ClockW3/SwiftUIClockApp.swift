@@ -896,7 +896,7 @@ private struct ReminderRow: View {
                                 }
                                 .overlay {
                                     Image(systemName: "exclamationmark")
-                                        .font(.system(size: 12, weight: .bold))
+                                        .font(.system(size: 14, weight: .bold))
                                         .foregroundStyle(isTimeSensitiveEnabled ? .white : borderColor)
                                 }
                                 .shadow(color: isTimeSensitiveEnabled ? .red.opacity(0.4) : .clear, radius: 3)
@@ -1172,9 +1172,10 @@ private extension SettingsView {
         // Перезагружаем виджеты
         WidgetCenter.shared.reloadAllTimelines()
 
-        // Также попробуем перезагрузить конкретный kind
+        // Также попробуем перезагрузить конкретные kinds
         WidgetCenter.shared.reloadTimelines(ofKind: "MOWWidget")
         WidgetCenter.shared.reloadTimelines(ofKind: "MOWSmallWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: "MOWMediumWidget")
         
         // Дополнительная синхронизация для macOS
         #if os(macOS)

@@ -205,7 +205,10 @@ struct CityArrowView: View {
 
             Circle()
                 .fill(markerColor)
-                .frame(width: baseRadius * 0.04, height: baseRadius * 0.04)
+                .frame(
+                    width: baseRadius * 2 * ClockConstants.bubbleSpacerDotRadiusRatio * 1.1,
+                    height: baseRadius * 2 * ClockConstants.bubbleSpacerDotRadiusRatio * 1.1
+                )
                 .position(markerPosition)
         }
     }
