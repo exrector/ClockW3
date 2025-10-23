@@ -33,7 +33,8 @@ struct ClockW3LargeWidgetEntryView: View {
                 SimplifiedClockFace(
                     currentTime: entry.date,
                     palette: palette,
-                    use12HourFormat: entry.use12HourFormat
+                    use12HourFormat: entry.use12HourFormat,
+                    cityTimeZoneIdentifier: entry.cityTimeZoneIdentifier
                 )
                 .frame(width: fullClockSize, height: fullClockSize)
                 .position(x: 0, y: widgetHeight)
@@ -98,28 +99,27 @@ struct ClockW3LargeWidgetEntryView: View {
 
 // MARK: - Widget
 @available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
-struct ClockW3LargeWidget: Widget {
-    let kind: String = "MOWLargeWidget"
+struct LargeQuarterWidget: Widget {
+    let kind: String = "MOWLargeQuarter"
 
     var body: some WidgetConfiguration {
-        let configuration = StaticConfiguration(kind: kind, provider: LargeWidgetProvider()) { entry in
+        AppIntentConfiguration(
+            kind: kind,
+            intent: LargeWidgetConfigurationIntent.self,
+            provider: LargeWidgetProvider()
+        ) { entry in
             ClockW3LargeWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("MOW Large")
-        .description("Large clock display")
+        .configurationDisplayName("MOW Quarter Large")
+        .description("Quarter clock face with city selection")
         .supportedFamilies([.systemLarge])
-
-        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *) {
-            return configuration.contentMarginsDisabled()
-        } else {
-            return configuration
-        }
+        .contentMarginsDisabled()
     }
 }
 
 // MARK: - Preview
 #Preview(as: .systemLarge) {
-    ClockW3LargeWidget()
+    LargeQuarterWidget()
 } timeline: {
-    SmallWidgetEntry(date: .now, colorSchemePreference: "system", use12HourFormat: false)
+    SmallWidgetEntry(date: .now, colorSchemePreference: "system", use12HourFormat: false, cityTimeZoneIdentifier: nil)
 }

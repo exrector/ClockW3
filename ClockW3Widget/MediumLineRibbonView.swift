@@ -3,6 +3,7 @@ import SwiftUI
 struct MediumLineRibbonView: View {
     let date: Date
     let colorScheme: ColorScheme
+    let use12HourFormat: Bool
 
     private var cities: [WorldCity] {
         let idsString = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.selectedCitiesKey) ?? ""
@@ -31,7 +32,8 @@ struct MediumLineRibbonView: View {
                             CityTimelineRow(
                                 row: row,
                                 rowHeight: rowHeight,
-                                isDark: index.isMultiple(of: 2)
+                                isDark: index.isMultiple(of: 2),
+                                use12HourFormat: use12HourFormat
                             )
                             .frame(height: rowHeight)
                         }
@@ -100,6 +102,7 @@ private struct CityTimelineRow: View {
     let row: RowData
     let rowHeight: CGFloat
     let isDark: Bool
+    let use12HourFormat: Bool
 
     private var isLocalCity: Bool {
         row.city.timeZoneIdentifier == TimeZone.current.identifier
@@ -138,12 +141,7 @@ private struct CityTimelineRow: View {
                     .foregroundStyle(primaryColor)
                     .lineLimit(1)
 
-                Text(row.time24)
-                    .font(timeFont)
-                    .foregroundStyle(primaryColor)
-                    .lineLimit(1)
-
-                Text(row.time12.uppercased())
+                Text(use12HourFormat ? row.time12.uppercased() : row.time24)
                     .font(timeFont)
                     .foregroundStyle(primaryColor)
                     .lineLimit(1)
@@ -213,7 +211,7 @@ private extension DateFormatter {
 #if DEBUG
 struct MediumLineRibbonView_Previews: PreviewProvider {
     static var previews: some View {
-        MediumLineRibbonView(date: Date(), colorScheme: .light)
+        MediumLineRibbonView(date: Date(), colorScheme: .light, use12HourFormat: false)
             .frame(width: 584, height: 284)
     }
 }

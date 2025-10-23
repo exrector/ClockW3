@@ -17,12 +17,15 @@ import SwiftUI
 struct ClockW3WidgetBundle: WidgetBundle {
     @WidgetBundleBuilder
     var body: some Widget {
-        // ПОВОРОТНЫЕ ЦИФЕРБЛАТЫ (со статичной стрелкой):
-        ClockW3MediumWidget()       // Средний поворотный циферблат (ПО УМОЛЧАНИЮ В СИМУЛЯТОРЕ!)
-        ClockW3SmallWidget()        // Маленький поворотный циферблат
-        ClockW3ClassicSmallWidget() // Классический маленький поворотный
-        ClockW3Widget()             // Основной поворотный циферблат
-        ClockW3LargeWidget()        // Большой поворотный циферблат
+        // КЛАССИЧЕСКИЕ ВИДЖЕТЫ (используют вью из приложения):
+        MediumListWidget()          // Список городов (Medium) - ПО УМОЛЧАНИЮ В СИМУЛЯТОРЕ!
+        LargeFullFaceWidget()       // Полный циферблат (Large)
+        SmallFullFaceWidget()       // Полный циферблат (Small)
+
+        // МОДЕРНИЗИРОВАННЫЕ ВИДЖЕТЫ (своя логика рисования через Canvas):
+        MediumHalfWidget()          // Половина циферблата (Medium)
+        SmallQuarterWidget()        // Четверть циферблата (Small)
+        LargeQuarterWidget()        // Четверть циферблата (Large)
 #if canImport(ActivityKit) && !os(macOS)
         if #available(iOSApplicationExtension 16.1, *) {
             ReminderLiveActivity()  // Live Activity для напоминаний

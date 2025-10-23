@@ -2,27 +2,27 @@ import WidgetKit
 import SwiftUI
 
 // MARK: - Timeline Provider
-struct SmallFullFaceProvider: TimelineProvider {
-    func placeholder(in context: Context) -> SmallFullFaceEntry {
-        return SmallFullFaceEntry(
+struct LargeFullFaceProvider: TimelineProvider {
+    func placeholder(in context: Context) -> LargeFullFaceEntry {
+        return LargeFullFaceEntry(
             date: Date(),
             colorSchemePreference: "system"
         )
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (SmallFullFaceEntry) -> Void) {
+    func getSnapshot(in context: Context, completion: @escaping (LargeFullFaceEntry) -> Void) {
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
-        let entry = SmallFullFaceEntry(
+        let entry = LargeFullFaceEntry(
             date: Date(),
             colorSchemePreference: colorPref
         )
         completion(entry)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<SmallFullFaceEntry>) -> Void) {
+    func getTimeline(in context: Context, completion: @escaping (Timeline<LargeFullFaceEntry>) -> Void) {
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
 
-        var entries: [SmallFullFaceEntry] = []
+        var entries: [LargeFullFaceEntry] = []
         let now = Date()
 
         let calendar = Calendar.current
@@ -30,7 +30,7 @@ struct SmallFullFaceProvider: TimelineProvider {
         let secondsToNextMinute = 60 - currentSecond
 
         guard let nextMinuteStart = calendar.date(bySetting: .second, value: 0, of: now.addingTimeInterval(Double(secondsToNextMinute))) else {
-            let entry = SmallFullFaceEntry(
+            let entry = LargeFullFaceEntry(
                 date: now,
                 colorSchemePreference: colorPref
             )
@@ -41,7 +41,7 @@ struct SmallFullFaceProvider: TimelineProvider {
 
         for minuteOffset in 0..<60 {
             let entryDate = calendar.date(byAdding: .minute, value: minuteOffset, to: nextMinuteStart)!
-            let entry = SmallFullFaceEntry(
+            let entry = LargeFullFaceEntry(
                 date: entryDate,
                 colorSchemePreference: colorPref
             )
@@ -54,15 +54,16 @@ struct SmallFullFaceProvider: TimelineProvider {
 }
 
 // MARK: - Timeline Entry
-struct SmallFullFaceEntry: TimelineEntry {
+struct LargeFullFaceEntry: TimelineEntry {
     let date: Date
     let colorSchemePreference: String
 }
 
+// MARK: - Widget View
 @available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
-struct ClockW3ClassicSmallWidgetEntryView: View {
-    var entry: SmallFullFaceProvider.Entry
-    @Environment(\.colorScheme) private var systemColorScheme
+struct LargeFullFaceWidgetEntryView: View {
+    @Environment(\.colorScheme) var systemColorScheme
+    var entry: LargeFullFaceProvider.Entry
 
     private var effectiveColorScheme: ColorScheme {
         switch entry.colorSchemePreference {
@@ -77,8 +78,8 @@ struct ClockW3ClassicSmallWidgetEntryView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let frameSize = min(geometry.size.width, geometry.size.height)
             let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
+            let frameSize = geometry.size
 
             ZStack {
                 palette.background
@@ -86,29 +87,33 @@ struct ClockW3ClassicSmallWidgetEntryView: View {
                     date: entry.date,
                     colorScheme: effectiveColorScheme
                 )
-                .frame(width: frameSize, height: frameSize)
+                .frame(width: frameSize.width, height: frameSize.height)
                 .scaleEffect(0.98)
                 .allowsHitTesting(false)
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .aspectRatio(contentMode: .fill)
             .clipped()
         }
         .ignoresSafeArea()
-        .widgetBackground(ClockColorPalette.system(colorScheme: effectiveColorScheme).background)
+        .containerBackground(for: .widget) {
+            ClockColorPalette.system(colorScheme: effectiveColorScheme).background
+        }
     }
 }
 
+// MARK: - Widget Configuration
 @available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
-struct SmallFullFaceWidget: Widget {
-    let kind: String = "MOWSmallFullFace"
+struct LargeFullFaceWidget: Widget {
+    let kind: String = "MOWLargeFullFace"
 
     var body: some WidgetConfiguration {
-        let configuration = StaticConfiguration(kind: kind, provider: SmallFullFaceProvider()) { entry in
-            ClockW3ClassicSmallWidgetEntryView(entry: entry)
+        let configuration = StaticConfiguration(kind: kind, provider: LargeFullFaceProvider()) { entry in
+            LargeFullFaceWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("MOW Full Face")
-        .description("Full clock face in small size")
-        .supportedFamilies([.systemSmall])
+        .description("Full clock face display")
+        .supportedFamilies([.systemLarge])
 
         if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *) {
             return configuration.contentMarginsDisabled()
@@ -118,16 +123,9 @@ struct SmallFullFaceWidget: Widget {
     }
 }
 
-#if DEBUG
-struct ClockW3ClassicSmallWidget_Previews: PreviewProvider {
-    static var previews: some View {
-        ClockW3ClassicSmallWidgetEntryView(
-            entry: SmallFullFaceEntry(
-                date: Date(),
-                colorSchemePreference: "system"
-            )
-        )
-        .previewContext(WidgetPreviewContext(family: .systemSmall))
-    }
+// MARK: - Preview
+#Preview(as: .systemLarge) {
+    LargeFullFaceWidget()
+} timeline: {
+    LargeFullFaceEntry(date: .now, colorSchemePreference: "system")
 }
-#endif

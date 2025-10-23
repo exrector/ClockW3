@@ -78,7 +78,8 @@ class ReminderManager: ObservableObject {
     func requestPermission() async -> Bool {
         do {
             #if os(iOS)
-            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge, .timeSensitive])
+            // Time Sensitive is controlled by entitlement, not by authorization options.
+            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
             #else
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
             #endif

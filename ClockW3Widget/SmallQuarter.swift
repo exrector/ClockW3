@@ -9,56 +9,78 @@ import WidgetKit
 import SwiftUI
 
 // MARK: - Timeline Provider
-struct SmallWidgetProvider: TimelineProvider {
+struct SmallWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SmallWidgetEntry {
         let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
-        return SmallWidgetEntry(date: Date(), colorSchemePreference: "system", use12HourFormat: use12Hour)
+        return SmallWidgetEntry(
+            date: Date(),
+            colorSchemePreference: "system",
+            use12HourFormat: use12Hour,
+            cityTimeZoneIdentifier: nil
+        )
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (SmallWidgetEntry) -> ()) {
+    func snapshot(for configuration: SmallWidgetConfigurationIntent, in context: Context) async -> SmallWidgetEntry {
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
         let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
-        let entry = SmallWidgetEntry(date: Date(), colorSchemePreference: colorPref, use12HourFormat: use12Hour)
-        completion(entry)
+        return SmallWidgetEntry(
+            date: Date(),
+            colorSchemePreference: colorPref,
+            use12HourFormat: use12Hour,
+            cityTimeZoneIdentifier: configuration.city?.id
+        )
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<SmallWidgetEntry>) -> ()) {
+    func timeline(for configuration: SmallWidgetConfigurationIntent, in context: Context) async -> Timeline<SmallWidgetEntry> {
         var entries: [SmallWidgetEntry] = []
 
         // Читаем настройки при каждом обновлении timeline
         _ = SharedUserDefaults.usingAppGroup
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
         let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
+        let cityIdentifier = configuration.city?.id
 
         let now = Date()
         let calendar = Calendar.current
         let currentSecond = calendar.component(.second, from: now)
         let secondsToNextMinute = 60 - currentSecond
-        
+
         // Рассчитываем точное время начала следующей минуты
         guard let nextMinuteStart = calendar.date(bySetting: .second, value: 0, of: now.addingTimeInterval(Double(secondsToNextMinute))) else {
             // Fallback
-            let entry = SmallWidgetEntry(date: now, colorSchemePreference: colorPref, use12HourFormat: use12Hour)
-            let timeline = Timeline(entries: [entry], policy: .after(now.addingTimeInterval(60)))
-            completion(timeline)
-            return
+            let entry = SmallWidgetEntry(
+                date: now,
+                colorSchemePreference: colorPref,
+                use12HourFormat: use12Hour,
+                cityTimeZoneIdentifier: cityIdentifier
+            )
+            return Timeline(entries: [entry], policy: .after(now.addingTimeInterval(60)))
         }
 
         // 1) Немедленный entry на текущий момент — чтобы изменения настроек применялись мгновенно после reload
         entries.append(
-            SmallWidgetEntry(date: now, colorSchemePreference: colorPref, use12HourFormat: use12Hour)
+            SmallWidgetEntry(
+                date: now,
+                colorSchemePreference: colorPref,
+                use12HourFormat: use12Hour,
+                cityTimeZoneIdentifier: cityIdentifier
+            )
         )
 
         // 2) Генерируем timeline на следующие 60 минут с обновлением каждую минуту, начиная с начала следующей минуты
         for minuteOffset in 0 ..< 60 {
             let entryDate = calendar.date(byAdding: .minute, value: minuteOffset, to: nextMinuteStart)!
-            let entry = SmallWidgetEntry(date: entryDate, colorSchemePreference: colorPref, use12HourFormat: use12Hour)
+            let entry = SmallWidgetEntry(
+                date: entryDate,
+                colorSchemePreference: colorPref,
+                use12HourFormat: use12Hour,
+                cityTimeZoneIdentifier: cityIdentifier
+            )
             entries.append(entry)
         }
 
         // Позволяем системе перезагрузиться, когда таймлайн закончится
-        let timeline = Timeline(entries: entries, policy: .atEnd)
-        completion(timeline)
+        return Timeline(entries: entries, policy: .atEnd)
     }
 }
 
@@ -67,6 +89,7 @@ struct SmallWidgetEntry: TimelineEntry {
     let date: Date
     let colorSchemePreference: String
     let use12HourFormat: Bool
+    let cityTimeZoneIdentifier: String?
 }
 
 /// Bubble-style date badge for the small widget.
@@ -139,7 +162,8 @@ struct ClockW3SmallWidgetEntryView: View {
                 SimplifiedClockFace(
                     currentTime: entry.date,
                     palette: palette,
-                    use12HourFormat: entry.use12HourFormat
+                    use12HourFormat: entry.use12HourFormat,
+                    cityTimeZoneIdentifier: entry.cityTimeZoneIdentifier
                 )
                 .frame(width: fullClockSize, height: fullClockSize)
                 .position(x: 0, y: widgetSize)
@@ -169,6 +193,7 @@ struct SimplifiedClockFace: View {
     let currentTime: Date
     let palette: ClockColorPalette
     let use12HourFormat: Bool
+    let cityTimeZoneIdentifier: String?
     private let staticArrowAngle: Double = -Double.pi / 4  // 315°
     private let tickDotRadiusRatio: CGFloat = 0.86
     private let numberRingRadiusRatio: CGFloat = 0.72
@@ -177,10 +202,11 @@ struct SimplifiedClockFace: View {
     private let minuteBubbleGapRatio: CGFloat = 0.03
     private let totalHourMarks: Int
     
-    init(currentTime: Date, palette: ClockColorPalette, use12HourFormat: Bool) {
+    init(currentTime: Date, palette: ClockColorPalette, use12HourFormat: Bool, cityTimeZoneIdentifier: String? = nil) {
         self.currentTime = currentTime
         self.palette = palette
         self.use12HourFormat = use12HourFormat
+        self.cityTimeZoneIdentifier = cityTimeZoneIdentifier
         self.totalHourMarks = use12HourFormat ? 12 : 24
     }
 
@@ -490,7 +516,14 @@ struct SimplifiedClockFace: View {
     }
 
     private func makeLocalCityInfo(for time: Date) -> LocalCityInfo? {
-        let timeZone = TimeZone.current
+        // Используем выбранный город или текущий часовой пояс
+        let timeZone: TimeZone
+        if let cityTZ = cityTimeZoneIdentifier, let tz = TimeZone(identifier: cityTZ) {
+            timeZone = tz
+        } else {
+            timeZone = TimeZone.current
+        }
+
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
 
@@ -507,7 +540,14 @@ struct SimplifiedClockFace: View {
     }
     
     private func rotationOffset(for time: Date) -> Double {
-        let timeZone = TimeZone.current
+        // Используем выбранный город или текущий часовой пояс
+        let timeZone: TimeZone
+        if let cityTZ = cityTimeZoneIdentifier, let tz = TimeZone(identifier: cityTZ) {
+            timeZone = tz
+        } else {
+            timeZone = TimeZone.current
+        }
+
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
 
@@ -605,22 +645,21 @@ struct SimplifiedClockFace: View {
 
 // MARK: - Widget
 @available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
-struct ClockW3SmallWidget: Widget {
-    let kind: String = "MOWSmallWidget"
+struct SmallQuarterWidget: Widget {
+    let kind: String = "MOWSmallQuarter"
 
     var body: some WidgetConfiguration {
-        let configuration = StaticConfiguration(kind: kind, provider: SmallWidgetProvider()) { entry in
+        AppIntentConfiguration(
+            kind: kind,
+            intent: SmallWidgetConfigurationIntent.self,
+            provider: SmallWidgetProvider()
+        ) { entry in
             ClockW3SmallWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("MOW Small")
-        .description("Compact time display")
+        .configurationDisplayName("MOW Quarter")
+        .description("Quarter clock face with city selection")
         .supportedFamilies([.systemSmall])
-
-        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *) {
-            return configuration.contentMarginsDisabled()
-        } else {
-            return configuration
-        }
+        .contentMarginsDisabled()
     }
 }
 
@@ -629,7 +668,12 @@ struct ClockW3SmallWidget: Widget {
 struct ClockW3SmallWidget_Previews: PreviewProvider {
     static var previews: some View {
         ClockW3SmallWidgetEntryView(
-            entry: SmallWidgetEntry(date: Date(), colorSchemePreference: "system", use12HourFormat: SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey))
+            entry: SmallWidgetEntry(
+                date: Date(),
+                colorSchemePreference: "system",
+                use12HourFormat: SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey),
+                cityTimeZoneIdentifier: nil
+            )
         )
             .previewContext(WidgetPreviewContext(family: .systemSmall))
     }
