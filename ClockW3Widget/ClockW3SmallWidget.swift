@@ -164,12 +164,15 @@ struct ClockW3SmallWidgetEntryView: View {
     }
 }
 
-// MARK: - Simplified Clock Face (только для виджета)
+// MARK: - ПОВОРОТНЫЙ ЦИФЕРБЛАТ (Статичная стрелка)
+/// Основной компонент поворотного циферблата для виджетов
+/// Особенность: стрелка неподвижна (статичная), вращается весь циферблат
 struct SimplifiedClockFace: View {
     let currentTime: Date
     let palette: ClockColorPalette
     let use12HourFormat: Bool
-    private let staticArrowAngle: Double = -Double.pi / 4  // 315°
+    // КЛЮЧЕВАЯ ОСОБЕННОСТЬ ПОВОРОТНОГО ЦИФЕРБЛАТА:
+    private let staticArrowAngle: Double = -Double.pi / 4  // 315° - СТАТИЧНАЯ СТРЕЛКА!
     private let tickDotRadiusRatio: CGFloat = 0.86
     private let numberRingRadiusRatio: CGFloat = 0.72
     private let hourAngleStep: Double = ClockConstants.hourTickStepRadians  // 15°
@@ -416,7 +419,7 @@ struct SimplifiedClockFace: View {
             radius: baseRadius * tickDotRadiusRatio,
             angle: info.arrowAngle
         )
-        let markerSize = baseRadius * 0.03 * 1.35
+        let markerSize = baseRadius * 0.04 * 1.35
         let markerRect = CGRect(
             x: markerPosition.x - markerSize / 2,
             y: markerPosition.y - markerSize / 2,

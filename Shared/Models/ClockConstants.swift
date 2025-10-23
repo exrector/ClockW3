@@ -49,7 +49,7 @@ enum ClockConstants {
     static let arrowToDateBubbleGap: CGFloat = 0.018
     static let arrowLineEndRadius: CGFloat = dateBubbleOrbitRadius - dateBubbleRadiusRatio - arrowToDateBubbleGap
     static let bubbleSpacerOrbitRadius: CGFloat = 0.43
-    static let bubbleSpacerDotRadiusRatio: CGFloat = 0.012
+    static let bubbleSpacerDotRadiusRatio: CGFloat = 0.016
     // Точка стрелки в центре часового тика: (0.715 + 0.75) / 2 = 0.7325
     static let cityMarkerRadius: CGFloat = 0.7325
     static let deadZoneRadiusRatio: CGFloat = 0.25   // Радиус зоны, блокирующей drag

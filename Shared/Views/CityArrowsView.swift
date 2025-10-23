@@ -205,7 +205,7 @@ struct CityArrowView: View {
 
             Circle()
                 .fill(markerColor)
-                .frame(width: baseRadius * 0.03, height: baseRadius * 0.03)
+                .frame(width: baseRadius * 0.04, height: baseRadius * 0.04)
                 .position(markerPosition)
         }
     }

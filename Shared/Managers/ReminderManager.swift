@@ -78,7 +78,7 @@ class ReminderManager: ObservableObject {
     func requestPermission() async -> Bool {
         do {
             #if os(iOS)
-            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge, .criticalAlert])
+            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge, .timeSensitive])
             #else
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
             #endif
@@ -146,7 +146,7 @@ class ReminderManager: ObservableObject {
             isEnabled: reminder.isEnabled,
             liveActivityEnabled: reminder.liveActivityEnabled,
             alwaysLiveActivity: reminder.alwaysLiveActivity,
-            isCritical: reminder.isCritical
+            isTimeSensitive: reminder.isTimeSensitive
         )
         await setReminder(reminder)
     }
@@ -168,7 +168,7 @@ class ReminderManager: ObservableObject {
             isEnabled: reminder.isEnabled,
             liveActivityEnabled: reminder.liveActivityEnabled,
             alwaysLiveActivity: reminder.alwaysLiveActivity,
-            isCritical: reminder.isCritical
+            isTimeSensitive: reminder.isTimeSensitive
         )
         await setReminder(reminder)
     }
@@ -199,10 +199,10 @@ class ReminderManager: ObservableObject {
         content.body = "Check the world time \(reminder.formattedTime)"
 
         #if os(iOS)
-        if reminder.isCritical {
-            // Critical alert с максимальной громкостью
+        if reminder.isTimeSensitive {
+            // Time-Sensitive alert с максимальной громкостью
             content.sound = UNNotificationSound.defaultCriticalSound(withAudioVolume: 1.0)
-            content.interruptionLevel = .critical
+            content.interruptionLevel = .timeSensitive
         } else {
             content.sound = .default
         }
@@ -254,11 +254,11 @@ class ReminderManager: ObservableObject {
         await setReminder(reminder)
     }
 
-    /// Обновляет флаг Critical Alert
-    func updateCriticalEnabled(isEnabled: Bool) async {
+    /// Обновляет флаг Time-Sensitive Alert
+    func updateTimeSensitiveEnabled(isEnabled: Bool) async {
         guard var reminder = currentReminder else { return }
-        guard reminder.isCritical != isEnabled else { return }
-        reminder.isCritical = isEnabled
+        guard reminder.isTimeSensitive != isEnabled else { return }
+        reminder.isTimeSensitive = isEnabled
         await setReminder(reminder)
     }
 

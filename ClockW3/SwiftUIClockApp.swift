@@ -125,7 +125,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 }
 #endif
 
-// MARK: - SwiftUI Clock App
+// MARK: - ОСНОВНОЕ ПРИЛОЖЕНИЕ (Движущиеся стрелки)
+// Это основное приложение с полным функционалом и движущимися стрелками
+// В отличие от ПОВОРОТНОГО ЦИФЕРБЛАТА, здесь стрелки движутся
 @main
 struct SwiftUIClockApp: App {
     #if os(macOS)
@@ -229,9 +231,9 @@ struct SettingsView: View {
                             await reminderManager.updateLiveActivityEnabled(isEnabled: isEnabled)
                         }
                     }
-                    let criticalHandler: ((Bool) -> Void)? = { isEnabled in
+                    let timeSensitiveHandler: ((Bool) -> Void)? = { isEnabled in
                         Task {
-                            await reminderManager.updateCriticalEnabled(isEnabled: isEnabled)
+                            await reminderManager.updateTimeSensitiveEnabled(isEnabled: isEnabled)
                         }
                     }
                     let alwaysLiveActivityHandler: ((Bool) -> Void)? = { isEnabled in
@@ -246,7 +248,7 @@ struct SettingsView: View {
                         onModeChange: modeChangeHandler,
                         onLiveActivityToggle: liveActivityHandler,
                         onAlwaysLiveActivityToggle: alwaysLiveActivityHandler,
-                        onCriticalToggle: criticalHandler,
+                        onTimeSensitiveToggle: timeSensitiveHandler,
                         onEdit: {
                             editContext = ReminderEditContext(kind: .current, reminder: reminder)
                         },
@@ -285,7 +287,7 @@ struct SettingsView: View {
                         onModeChange: nil,
                         onLiveActivityToggle: nil,
                         onAlwaysLiveActivityToggle: nil,
-                        onCriticalToggle: nil,
+                        onTimeSensitiveToggle: nil,
                         onEdit: {
                             editContext = ReminderEditContext(kind: .preview, reminder: preview)
                         },
@@ -453,7 +455,7 @@ struct SettingsView: View {
                             isEnabled: context.reminder.isEnabled,
                             liveActivityEnabled: context.reminder.liveActivityEnabled,
                             alwaysLiveActivity: context.reminder.alwaysLiveActivity,
-                            isCritical: context.reminder.isCritical
+                            isTimeSensitive: context.reminder.isTimeSensitive
                         )
                         reminderManager.setPreviewReminder(updatedReminder)
                     }
@@ -731,7 +733,7 @@ private struct ReminderRow: View {
     let onModeChange: ((Bool) -> Void)?
     let onLiveActivityToggle: ((Bool) -> Void)?
     let onAlwaysLiveActivityToggle: ((Bool) -> Void)?
-    let onCriticalToggle: ((Bool) -> Void)?
+    let onTimeSensitiveToggle: ((Bool) -> Void)?
     let onEdit: (() -> Void)?
     let onRemove: () -> Void
     let onConfirm: (() -> Void)?
@@ -740,7 +742,7 @@ private struct ReminderRow: View {
 #if os(iOS)
     @State private var isLiveActivityEnabled: Bool
     @State private var isAlwaysLiveActivity: Bool
-    @State private var isCriticalEnabled: Bool
+    @State private var isTimeSensitiveEnabled: Bool
 #endif
     @Environment(\.colorScheme) private var colorScheme
 
@@ -750,7 +752,7 @@ private struct ReminderRow: View {
         onModeChange: ((Bool) -> Void)?,
         onLiveActivityToggle: ((Bool) -> Void)? = nil,
         onAlwaysLiveActivityToggle: ((Bool) -> Void)? = nil,
-        onCriticalToggle: ((Bool) -> Void)? = nil,
+        onTimeSensitiveToggle: ((Bool) -> Void)? = nil,
         onEdit: (() -> Void)?,
         onRemove: @escaping () -> Void,
         onConfirm: (() -> Void)?
@@ -760,7 +762,7 @@ private struct ReminderRow: View {
         self.onModeChange = onModeChange
         self.onLiveActivityToggle = onLiveActivityToggle
         self.onAlwaysLiveActivityToggle = onAlwaysLiveActivityToggle
-        self.onCriticalToggle = onCriticalToggle
+        self.onTimeSensitiveToggle = onTimeSensitiveToggle
         self.onEdit = onEdit
         self.onRemove = onRemove
         self.onConfirm = onConfirm
@@ -768,7 +770,7 @@ private struct ReminderRow: View {
 #if os(iOS)
         _isLiveActivityEnabled = State(initialValue: reminder.liveActivityEnabled)
         _isAlwaysLiveActivity = State(initialValue: reminder.alwaysLiveActivity)
-        _isCriticalEnabled = State(initialValue: reminder.isCritical)
+        _isTimeSensitiveEnabled = State(initialValue: reminder.isTimeSensitive)
 #endif
     }
 
@@ -791,8 +793,8 @@ private struct ReminderRow: View {
                     if let onModeChange = onModeChange {
                         Button {
 #if os(iOS)
-                            // Блокируем переключение на Every day если включен Critical
-                            guard !isCriticalEnabled else { return }
+                            // Блокируем переключение на Every day если включен Time-Sensitive
+                            guard !isTimeSensitiveEnabled else { return }
 #endif
                             isDailyMode.toggle()
                             onModeChange(isDailyMode)
@@ -822,14 +824,14 @@ private struct ReminderRow: View {
                                 .shadow(color: isDailyMode ? borderColor.opacity(0.25) : .clear, radius: 3)
                                 .contentShape(Circle())
 #if os(iOS)
-                                .opacity(isCriticalEnabled ? 0.3 : 1.0)
+                                .opacity(isTimeSensitiveEnabled ? 0.3 : 1.0)
 #endif
                         }
                         .buttonStyle(.plain)
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
 #if os(iOS)
-                        .disabled(isCriticalEnabled)
+                        .disabled(isTimeSensitiveEnabled)
 #endif
                         .accessibilityLabel("Toggle reminder repeat mode")
                     }
@@ -875,34 +877,33 @@ private struct ReminderRow: View {
                         .accessibilityLabel("Toggle Live Activity")
                     }
 
-                    if let onCriticalToggle = onCriticalToggle, !isPreview {
+                    if let onTimeSensitiveToggle = onTimeSensitiveToggle, !isPreview {
                         Button {
-                            isCriticalEnabled.toggle()
-                            onCriticalToggle(isCriticalEnabled)
-                            // При включении Critical автоматически переключаем на One time
-                            if isCriticalEnabled && isDailyMode {
+                            isTimeSensitiveEnabled.toggle()
+                            onTimeSensitiveToggle(isTimeSensitiveEnabled)
+                            // При включении Time-Sensitive автоматически переключаем на One time
+                            if isTimeSensitiveEnabled && isDailyMode {
                                 isDailyMode = false
                                 onModeChange?(false)
                             }
                         } label: {
                             Circle()
-                                .fill(isCriticalEnabled ? .red : .clear)
-                                .frame(width: 20, height: 20)
-                                .overlay(
+                                .fill(isTimeSensitiveEnabled ? .red : .clear)
+                                .frame(width: 28, height: 28)
+                                .overlay {
                                     Circle()
-                                        .stroke(isCriticalEnabled ? .red : borderColor, lineWidth: 1.5)
-                                )
-                                .overlay(
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 9, weight: .bold))
-                                        .foregroundStyle(isCriticalEnabled ? .white : borderColor)
-                                )
-                                .shadow(color: isCriticalEnabled ? .red.opacity(0.4) : .clear, radius: 3)
+                                        .stroke(isTimeSensitiveEnabled ? .red : borderColor, lineWidth: 1.5)
+                                }
+                                .overlay {
+                                    Image(systemName: "exclamationmark")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(isTimeSensitiveEnabled ? .white : borderColor)
+                                }
+                                .shadow(color: isTimeSensitiveEnabled ? .red.opacity(0.4) : .clear, radius: 3)
                         }
                         .buttonStyle(.plain)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .accessibilityLabel("Toggle Critical Alert")
+                        .contentShape(Circle())
+                        .accessibilityLabel("Toggle Time-Sensitive Alert")
                     }
 #endif
                 }
@@ -939,11 +940,11 @@ private struct ReminderRow: View {
                             }
                         }
 
-                        // Строка 3: Critical (всегда занимает место)
-                        if onCriticalToggle != nil {
-                            Text("Critical")
+                        // Строка 3: Time-Sensitive (всегда занимает место)
+                        if onTimeSensitiveToggle != nil {
+                            Text("Time-Sensitive")
                                 .font(.caption2)
-                                .foregroundStyle(isCriticalEnabled ? .red : .clear)
+                                .foregroundStyle(isTimeSensitiveEnabled ? .red : .clear)
                         }
 #else
                         // macOS: Строка 1 - пустая
@@ -1021,9 +1022,9 @@ private struct ReminderRow: View {
                 isAlwaysLiveActivity = newValue
             }
         }
-        .onChange(of: reminder.isCritical) { _, newValue in
-            if newValue != isCriticalEnabled {
-                isCriticalEnabled = newValue
+        .onChange(of: reminder.isTimeSensitive) { _, newValue in
+            if newValue != isTimeSensitiveEnabled {
+                isTimeSensitiveEnabled = newValue
             }
         }
 #endif

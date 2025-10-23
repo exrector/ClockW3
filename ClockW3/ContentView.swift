@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  ClockW3
+//  ОСНОВНОЕ ПРИЛОЖЕНИЕ (Движущиеся стрелки)
 //
 //  Created by AK on 10/9/25.
 //

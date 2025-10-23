@@ -10,7 +10,7 @@ struct ClockReminder: Codable, Identifiable {
     var isEnabled: Bool
     var liveActivityEnabled: Bool
     var alwaysLiveActivity: Bool // Live Activity всегда включен (даже для ежедневных)
-    var isCritical: Bool // Critical Alert - игнорирует Do Not Disturb и Silent Mode
+    var isTimeSensitive: Bool // Time-Sensitive Alert - игнорирует Do Not Disturb и Silent Mode
 
     init(
         id: UUID = UUID(),
@@ -20,7 +20,7 @@ struct ClockReminder: Codable, Identifiable {
         isEnabled: Bool = true,
         liveActivityEnabled: Bool = false,
         alwaysLiveActivity: Bool = false,
-        isCritical: Bool = false
+        isTimeSensitive: Bool = false
     ) {
         self.id = id
         self.hour = hour
@@ -30,7 +30,7 @@ struct ClockReminder: Codable, Identifiable {
         self.isEnabled = isEnabled
         self.liveActivityEnabled = liveActivityEnabled
         self.alwaysLiveActivity = alwaysLiveActivity
-        self.isCritical = isCritical
+        self.isTimeSensitive = isTimeSensitive
     }
 
     var isDaily: Bool {
@@ -154,7 +154,7 @@ extension ClockReminder {
         case isEnabled
         case liveActivityEnabled
         case alwaysLiveActivity
-        case isCritical
+        case isTimeSensitive
     }
 
     init(from decoder: Decoder) throws {
@@ -166,7 +166,7 @@ extension ClockReminder {
         isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
         liveActivityEnabled = try container.decodeIfPresent(Bool.self, forKey: .liveActivityEnabled) ?? false
         alwaysLiveActivity = try container.decodeIfPresent(Bool.self, forKey: .alwaysLiveActivity) ?? false
-        isCritical = try container.decodeIfPresent(Bool.self, forKey: .isCritical) ?? false
+        isTimeSensitive = try container.decodeIfPresent(Bool.self, forKey: .isTimeSensitive) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -182,8 +182,8 @@ extension ClockReminder {
         if alwaysLiveActivity {
             try container.encode(alwaysLiveActivity, forKey: .alwaysLiveActivity)
         }
-        if isCritical {
-            try container.encode(isCritical, forKey: .isCritical)
+        if isTimeSensitive {
+            try container.encode(isTimeSensitive, forKey: .isTimeSensitive)
         }
     }
 }

@@ -5,7 +5,10 @@ import UIKit
 import AppKit
 #endif
 
-// MARK: - Clock Face View (основной компонент циферблата)
+// MARK: - ОСНОВНОЙ ЦИФЕРБЛАТ (Движущиеся стрелки)
+/// Основной циферблат для основного приложения
+/// Особенность: стрелки движутся, циферблат неподвижен
+/// Противоположность ПОВОРОТНОМУ ЦИФЕРБЛАТУ (статичная стрелка)
 struct ClockFaceView: View {
     @StateObject private var viewModel = SimpleClockViewModel()  // НОВАЯ ПРОСТАЯ ВЕРСИЯ!
     @State private var isDragBlocked = false
