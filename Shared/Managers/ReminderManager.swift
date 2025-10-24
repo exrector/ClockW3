@@ -170,7 +170,7 @@ class ReminderManager: ObservableObject {
             date: preview.date,
             isEnabled: preview.isEnabled,
             liveActivityEnabled: autoEnableLA,            // авто-включение только для one-time
-            alwaysLiveActivity: preferences.alwaysLiveActivity, // сохраняем выбор пользователя в поле модели (для UI)
+            alwaysLiveActivity: preferences.alwaysLiveActivity, // храним предпочтение для UI
             isTimeSensitive: preview.isTimeSensitive
         )
 
@@ -229,7 +229,7 @@ class ReminderManager: ObservableObject {
             ? nil
             : ClockReminder.nextTriggerDate(hour: reminder.hour, minute: reminder.minute, from: referenceDate)
 
-        // Если переключаемся на daily — Live Activity для текущего напоминания лучше отключить (она не используется для daily)
+        // Если переключаемся на daily — Live Activity для текущего напоминания отключаем (она не используется для daily)
         let newLiveActivityEnabled = isDaily ? false : reminder.liveActivityEnabled
 
         reminder = ClockReminder(
@@ -321,7 +321,7 @@ class ReminderManager: ObservableObject {
         guard var reminder = currentReminder else { return }
         // Запрещаем включать Live Activity у ежедневных напоминаний
         if reminder.isDaily && isEnabled {
-            // Принудительно игнорируем включение для daily
+            // Игнорируем попытку включить LA для daily
             return
         }
         guard reminder.liveActivityEnabled != isEnabled else { return }
@@ -356,8 +356,7 @@ class ReminderManager: ObservableObject {
             isTimeSensitive: reminder.isTimeSensitive
         ))
 
-        // НЕ включаем Live Activity у текущего ежедневного напоминания.
-        // Для текущего one-time — менять не будем автоматически, чтобы не удивлять пользователя.
+        // НЕ включаем Live Activity у текущего daily.
         await setReminder(reminder)
     }
 

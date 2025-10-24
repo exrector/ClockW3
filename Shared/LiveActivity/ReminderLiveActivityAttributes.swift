@@ -9,6 +9,8 @@ struct ReminderLiveActivityAttributes: ActivityAttributes {
         var scheduledDate: Date
         /// Флаг, указывающий что напоминание сработало (время прошло)
         var hasTriggered: Bool
+        /// Необязательное имя выбранного города, добавляемое пользователем по тапу на плитку
+        var selectedCityName: String?
     }
 
     /// Идентификатор напоминания, чтобы синхронизировать активность и модель

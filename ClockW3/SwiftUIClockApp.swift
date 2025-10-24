@@ -402,7 +402,20 @@ struct SettingsView: View {
                             ForEach(selectedEntries, id: \.id) { entry in
                                 CityRow(
                                     entry: entry,
-                                    isRemovable: entry.id != localCityIdentifier
+                                    isRemovable: entry.id != localCityIdentifier,
+                                    // Подсветка: красим активную плитку (если LA активна и имя совпадает)
+                                    isSelected: isCityTapEnabled && (reminderManager.liveActivitySelectedCityName == entry.name),
+                                    // Тап по плитке — добавить город в Live Activity (только iOS)
+                                    isTapEnabled: isCityTapEnabled,
+                                    onTap: {
+#if os(iOS)
+                                        Task { @MainActor in
+                                            if #available(iOS 16.1, *) {
+                                                await reminderManager.updateLiveActivityCity(entry.name)
+                                            }
+                                        }
+#endif
+                                    }
                                 ) {
                                     removeCity(entry.id)
                                 }
@@ -483,7 +496,7 @@ struct SettingsView: View {
         .onChange(of: selectedCityIdentifiers) { _, _ in
             loadSelection()
         }
-        .onChange(of: colorSchemePreference) { _, newValue in
+        .onChange(of: colorSchemePreference) { _, _ in
             reloadWidgets()
         }
         .sheet(isPresented: $showTimeZonePicker) {
@@ -534,6 +547,15 @@ struct SettingsView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+    }
+
+    // Включать ли тап по плиткам городов (только iOS, когда LA активна)
+    private var isCityTapEnabled: Bool {
+        #if os(iOS)
+        return ReminderManager.shared.isLiveActivityInteractionAvailable
+        #else
+        return false
+        #endif
     }
 }
 
@@ -932,9 +954,18 @@ private struct ReminderRow: View {
                                     gestureState = currentState
                                 }
                                 .onEnded { _ in
-                                    // Long press - включаем/выключаем always-on режим
-                                    isAlwaysLiveActivity.toggle()
-                                    onAlwaysLiveActivityToggle?(isAlwaysLiveActivity)
+                                    // Long press работает в обоих состояниях:
+                                    if !isLiveActivityEnabled {
+                                        // LA выключена - включаем LA + always-on (заливаем кнопку)
+                                        isLiveActivityEnabled = true
+                                        onLiveActivityToggle(true)
+                                        isAlwaysLiveActivity = true
+                                        onAlwaysLiveActivityToggle?(true)
+                                    } else {
+                                        // LA включена - переключаем always-on режим
+                                        isAlwaysLiveActivity.toggle()
+                                        onAlwaysLiveActivityToggle?(isAlwaysLiveActivity)
+                                    }
                                     // Генерируем тактильный отклик
                                     let generator = UIImpactFeedbackGenerator(style: .medium)
                                     generator.impactOccurred()
@@ -1187,7 +1218,19 @@ private struct PremiumAccessButton: View {
 private struct CityRow: View {
     let entry: TimeZoneDirectory.Entry
     let isRemovable: Bool
+    let isSelected: Bool
+    let isTapEnabled: Bool
+    let onTap: (() -> Void)?
     let onRemove: () -> Void
+
+    init(entry: TimeZoneDirectory.Entry, isRemovable: Bool, isSelected: Bool = false, isTapEnabled: Bool = false, onTap: (() -> Void)? = nil, onRemove: @escaping () -> Void) {
+        self.entry = entry
+        self.isRemovable = isRemovable
+        self.isSelected = isSelected
+        self.isTapEnabled = isTapEnabled
+        self.onTap = onTap
+        self.onRemove = onRemove
+    }
 
     var body: some View {
         ZStack {
@@ -1195,11 +1238,18 @@ private struct CityRow: View {
             VStack(alignment: .center, spacing: 4) {
                 Text(entry.name)
                     .font(.headline)
+                    .foregroundStyle(isSelected ? .red : .primary)
                 Text(entry.gmtOffset)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard isTapEnabled else { return }
+                onTap?()
+            }
+            .opacity(isTapEnabled ? 1.0 : 0.7)
+
             // Кнопка справа поверх
             HStack {
                 Spacer()
@@ -1224,9 +1274,10 @@ private struct CityRow: View {
         .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color.primary, lineWidth: 1)
+                .strokeBorder(isSelected ? Color.red : Color.primary, lineWidth: 1)
         )
         .frame(maxWidth: 360)
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
     }
 }
 

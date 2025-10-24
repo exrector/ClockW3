@@ -50,29 +50,49 @@ private struct ReminderLiveActivityContentView: View {
             HStack(spacing: 16) {
                 // Left side - Icon and Title
                 VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "bell.fill")
-                                .foregroundStyle(.red)
-                                .font(.headline)
+                    HStack(spacing: 8) {
+                        Image(systemName: "bell.fill")
+                            .foregroundStyle(.red)
+                            .font(.headline)
 
-                            Text(context.attributes.title)
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                        }
-
-                        Text(context.state.scheduledDate, format: Date.FormatStyle()
-                                .weekday(.abbreviated)
-                                .month(.abbreviated)
-                                .day()
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        Text(context.attributes.title)
+                            .font(.headline)
+                            .fontWeight(.semibold)
                     }
 
-                    Spacer()
+                    // Дата
+                    Text(context.state.scheduledDate, format: Date.FormatStyle()
+                        .weekday(.abbreviated)
+                        .month(.abbreviated)
+                        .day()
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-                    // Right side - Time and Countdown
-                    VStack(alignment: .trailing, spacing: 8) {
+                    // Выбранный город (если есть)
+                    if let city = context.state.selectedCityName, !city.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.caption2)
+                                .foregroundStyle(.red)
+                            Text(city)
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.primary)
+                        }
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .background(
+                            Capsule()
+                                .fill(Color.primary.opacity(0.08))
+                        )
+                    }
+                }
+
+                Spacer()
+
+                // Right side - Time and Countdown
+                VStack(alignment: .trailing, spacing: 8) {
                     Text(context.state.scheduledDate, style: .time)
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .multilineTextAlignment(.trailing)
