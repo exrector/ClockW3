@@ -43,65 +43,67 @@ private struct ReminderLiveActivityContentView: View {
     let context: ActivityViewContext<ReminderLiveActivityAttributes>
 
     var body: some View {
-        // ВСЕГДА используем актуальное значение из context.state - оно обновляется через .update()
-        let isTriggered = context.state.hasTriggered
+        TimelineView(.periodic(from: .now, by: 1)) { timeline in
+            let timeHasPassed = context.state.scheduledDate <= timeline.date
+            let isTriggered = context.state.hasTriggered || timeHasPassed
 
-        HStack(spacing: 16) {
-            // Left side - Icon and Title
-            VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "bell.fill")
-                            .foregroundStyle(.red)
-                            .font(.headline)
+            HStack(spacing: 16) {
+                // Left side - Icon and Title
+                VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "bell.fill")
+                                .foregroundStyle(.red)
+                                .font(.headline)
 
-                        Text(context.attributes.title)
-                            .font(.headline)
-                            .fontWeight(.semibold)
+                            Text(context.attributes.title)
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                        }
+
+                        Text(context.state.scheduledDate, format: Date.FormatStyle()
+                                .weekday(.abbreviated)
+                                .month(.abbreviated)
+                                .day()
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
 
-                    Text(context.state.scheduledDate, format: Date.FormatStyle()
-                            .weekday(.abbreviated)
-                            .month(.abbreviated)
-                            .day()
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
+                    Spacer()
 
-                Spacer()
+                    // Right side - Time and Countdown
+                    VStack(alignment: .trailing, spacing: 8) {
+                    Text(context.state.scheduledDate, style: .time)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .multilineTextAlignment(.trailing)
 
-                // Right side - Time and Countdown
-                VStack(alignment: .trailing, spacing: 8) {
-                Text(context.state.scheduledDate, style: .time)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .multilineTextAlignment(.trailing)
-
-                // Показываем DONE если hasTriggered = true
-                if isTriggered {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.green)
-                        Text("DONE")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.green)
-                    }
-                } else {
-                    // Показываем таймер
-                    HStack(spacing: 4) {
-                        Image(systemName: "hourglass")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(context.state.scheduledDate, style: .timer)
-                            .font(.caption.monospacedDigit())
-                            .fontWeight(.medium)
-                            .foregroundStyle(.secondary)
+                    // Показываем DONE если hasTriggered = true
+                    if isTriggered {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.green)
+                            Text("DONE")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.green)
+                        }
+                    } else {
+                        // Показываем таймер
+                        HStack(spacing: 4) {
+                            Image(systemName: "hourglass")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(context.state.scheduledDate, style: .timer)
+                                .font(.caption.monospacedDigit())
+                                .fontWeight(.medium)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
+            .padding(16)
         }
-        .padding(16)
     }
 }
 
