@@ -803,6 +803,7 @@ private struct ReminderRow: View {
     @State private var isLiveActivityEnabled: Bool
     @State private var isAlwaysLiveActivity: Bool
     @State private var isTimeSensitiveEnabled: Bool
+    @GestureState private var isLongPressing = false
 #endif
     @Environment(\.colorScheme) private var colorScheme
 
@@ -917,7 +918,9 @@ private struct ReminderRow: View {
                                         .foregroundStyle(isLiveActivityEnabled ? (colorScheme == .light ? .white : .black) : borderColor)
                                 )
                                 .shadow(color: isLiveActivityEnabled ? borderColor.opacity(0.25) : .clear, radius: 3)
-                                .opacity((isDailyMode && !isAlwaysLiveActivity) ? 0.3 : 1.0)
+                                .opacity((isDailyMode && !isAlwaysLiveActivity) ? 0.3 : (isLongPressing ? 0.5 : 1.0))
+                                .scaleEffect(isLongPressing ? 0.95 : 1.0)
+                                .animation(.easeInOut(duration: 0.1), value: isLongPressing)
                         }
                         .buttonStyle(.plain)
                         .frame(width: 28, height: 28)
@@ -925,6 +928,9 @@ private struct ReminderRow: View {
                         .disabled(isDailyMode && !isAlwaysLiveActivity)
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: 0.5)
+                                .updating($isLongPressing) { currentState, gestureState, _ in
+                                    gestureState = currentState
+                                }
                                 .onEnded { _ in
                                     // Long press - включаем/выключаем always-on режим
                                     isAlwaysLiveActivity.toggle()

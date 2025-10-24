@@ -82,11 +82,11 @@ private struct ReminderLiveActivityContentView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.caption2)
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.red)
                             Text("DONE")
                                 .font(.caption)
                                 .fontWeight(.bold)
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.red)
                         }
                     } else {
                         // Показываем таймер
