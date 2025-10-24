@@ -86,11 +86,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        print("🔔 Notification will present (macOS)")
+
+        // Обновляем Live Activity при доставке уведомления (только для iOS, но метод доступен)
+        #if canImport(ActivityKit)
+        Task { @MainActor in
+            if let reminder = ReminderManager.shared.currentReminder {
+                print("🔔 Triggering Live Activity update from notification")
+                if #available(iOS 16.1, *) {
+                    await ReminderManager.shared.forceUpdateLiveActivity(for: reminder)
+                }
+            }
+        }
+        #endif
+
         if #available(macOS 11.0, *) {
             completionHandler([.banner, .list, .sound])
         } else {
             completionHandler([.alert, .sound])
         }
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        print("🔔 Notification did receive response (macOS)")
+
+        #if canImport(ActivityKit)
+        Task { @MainActor in
+            if let reminder = ReminderManager.shared.currentReminder {
+                print("🔔 Triggering Live Activity update from tap")
+                if #available(iOS 16.1, *) {
+                    await ReminderManager.shared.forceUpdateLiveActivity(for: reminder)
+                }
+            }
+        }
+        #endif
+
+        completionHandler()
     }
 }
 #else
@@ -116,11 +149,38 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        print("🔔 Notification will present (app in foreground)")
+
+        // Обновляем Live Activity при доставке уведомления
+        Task { @MainActor in
+            if let reminder = ReminderManager.shared.currentReminder {
+                print("🔔 Triggering Live Activity update from notification")
+                await ReminderManager.shared.forceUpdateLiveActivity(for: reminder)
+            }
+        }
+
         if #available(iOS 14.0, *) {
             completionHandler([.banner, .list, .sound])
         } else {
             completionHandler([.alert, .sound])
         }
+    }
+
+    // Вызывается когда пользователь взаимодействует с уведомлением
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        print("🔔 Notification did receive response (user tapped)")
+
+        // Обновляем Live Activity когда пользователь нажимает на уведомление
+        Task { @MainActor in
+            if let reminder = ReminderManager.shared.currentReminder {
+                print("🔔 Triggering Live Activity update from tap")
+                await ReminderManager.shared.forceUpdateLiveActivity(for: reminder)
+            }
+        }
+
+        completionHandler()
     }
 }
 #endif
@@ -889,20 +949,21 @@ private struct ReminderRow: View {
                         } label: {
                             Circle()
                                 .fill(isTimeSensitiveEnabled ? .red : .clear)
-                                .frame(width: 28, height: 28)
+                                .frame(width: 20, height: 20)
                                 .overlay {
                                     Circle()
                                         .stroke(isTimeSensitiveEnabled ? .red : borderColor, lineWidth: 1.5)
                                 }
                                 .overlay {
                                     Image(systemName: "exclamationmark")
-                                        .font(.system(size: 14, weight: .bold))
+                                        .font(.system(size: 10, weight: .bold))
                                         .foregroundStyle(isTimeSensitiveEnabled ? .white : borderColor)
                                 }
                                 .shadow(color: isTimeSensitiveEnabled ? .red.opacity(0.4) : .clear, radius: 3)
                         }
                         .buttonStyle(.plain)
-                        .contentShape(Circle())
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
                         .accessibilityLabel("Toggle Time-Sensitive Alert")
                     }
 #endif

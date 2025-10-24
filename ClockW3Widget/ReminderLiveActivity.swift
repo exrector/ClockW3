@@ -23,12 +23,14 @@ struct ReminderLiveActivity: Widget {
                 EmptyView()
             } compactTrailing: {
                 TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                    let isDone = context.state.hasTriggered || context.state.scheduledDate <= timeline.date
+                    let timeHasPassed = context.state.scheduledDate <= timeline.date
+                    let isDone = context.state.hasTriggered || timeHasPassed
                     ReminderIslandBadge(isDone: isDone)
                 }
             } minimal: {
                 TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                    let isDone = context.state.hasTriggered || context.state.scheduledDate <= timeline.date
+                    let timeHasPassed = context.state.scheduledDate <= timeline.date
+                    let isDone = context.state.hasTriggered || timeHasPassed
                     ReminderIslandBadge(isDone: isDone)
                 }
             }
@@ -41,16 +43,16 @@ private struct ReminderLiveActivityContentView: View {
     let context: ActivityViewContext<ReminderLiveActivityAttributes>
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { timeline in
-            let isDone = context.state.hasTriggered || context.state.scheduledDate <= timeline.date
+        // ВСЕГДА используем актуальное значение из context.state - оно обновляется через .update()
+        let isTriggered = context.state.hasTriggered
 
-            HStack(spacing: 16) {
-                // Left side - Icon and Title
-                VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 16) {
+            // Left side - Icon and Title
+            VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         Image(systemName: "bell.fill")
                             .foregroundStyle(.red)
-                            .font(.title3)
+                            .font(.headline)
 
                         Text(context.attributes.title)
                             .font(.headline)
@@ -70,35 +72,36 @@ private struct ReminderLiveActivityContentView: View {
 
                 // Right side - Time and Countdown
                 VStack(alignment: .trailing, spacing: 8) {
-                    Text(context.state.scheduledDate, style: .time)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .multilineTextAlignment(.trailing)
+                Text(context.state.scheduledDate, style: .time)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.trailing)
 
-                    if isDone {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(.green)
-                            Text("DONE")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundStyle(.green)
-                        }
-                    } else {
-                        HStack(spacing: 4) {
-                            Image(systemName: "hourglass")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text(context.state.scheduledDate, style: .timer)
-                                .font(.caption.monospacedDigit())
-                                .fontWeight(.medium)
-                                .foregroundStyle(.secondary)
-                        }
+                // Показываем DONE если hasTriggered = true
+                if isTriggered {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.green)
+                        Text("DONE")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.green)
+                    }
+                } else {
+                    // Показываем таймер
+                    HStack(spacing: 4) {
+                        Image(systemName: "hourglass")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(context.state.scheduledDate, style: .timer)
+                            .font(.caption.monospacedDigit())
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
-            .padding(16)
         }
+        .padding(16)
     }
 }
 
