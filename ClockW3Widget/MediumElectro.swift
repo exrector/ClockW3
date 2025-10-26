@@ -64,7 +64,7 @@ private struct DigitTile: View {
             let h = geo.size.height
             let r = min(6, min(w, h) * 0.08)
             let bandHeight = h * 0.68 // плитка чуть ниже
-            let bandWidth = w * 0.94   // немного уже для визуального «дыхания»
+            let bandWidth = w   // используем полную ширину для симметрии
             let shape = RoundedRectangle(cornerRadius: r, style: .continuous)
             ZStack {
                 shape
@@ -74,36 +74,14 @@ private struct DigitTile: View {
                         shape.stroke(digitColor.opacity(0.15), lineWidth: 1.0)
                             .frame(width: bandWidth, height: bandHeight)
                     )
-                // Имитируем флип: тонкая горизонтальная полоса по центру плитки,
-                // видимая везде, кроме поверх текста (текст нарисован выше и его перекрывает)
-                Rectangle()
-                    .fill(Color.red)
-                    .frame(height: 3.6)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    // Совмещаем шов на фоне со швом по цифре
-                    .offset(y: digitSeamOffset(digit: digit, h: h))
-                    .mask(
-                        shape.fill(Color.white).frame(width: bandWidth, height: bandHeight)
-                    )
+                // Цифры рисуем крупно
                 // Цифры как раньше — от высоты плитки (не трогаем)
                 let baseline = glyphBaselineCenterOffset(digit: digit, fontName: ThickMonoDigit.fontName, fontSize: h * 1.35)
                 ThickMonoDigit(digit: digit, size: h * 1.35, color: digitColor, baselineOffset: baseline)
-                // Вторая линия поверх цифры с противоположным цветом (фон палитры),
-                // маскированная формой цифры — видна только на глифе, создаёт инверсию по отношению к цифре
+                // Простой непрозрачный красный шов поверх всего (и плитки, и цифры)
                 Rectangle()
-                    // На цифре тоже красный шов
                     .fill(Color.red)
-                    .frame(height: 3.6)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    // Чуть подвинем «шов» для оптического выравнивания середины конкретной цифры
-                    .offset(y: digitSeamOffset(digit: digit, h: h))
-                    .mask(
-                        // Немного расширяем контур маски по горизонтали и смягчаем край,
-                        // чтобы исключить не прокрашенные субпиксельные контуры
-                        ThickMonoDigit(digit: digit, size: h * 1.35, color: .white, baselineOffset: baseline)
-                            .scaleEffect(x: 1.02, y: 1.0, anchor: .center)
-                            .blur(radius: 0.2)
-                    )
+                    .frame(width: bandWidth, height: 3.6)
             }
             // Не клипуем по форме, чтобы цифры оставались большого размера
         }
@@ -128,7 +106,8 @@ private struct ThickMonoDigit: View {
 
     // Используем более нейтральный моноширинный шрифт с ровной геометрией
     // Доступен на iOS/macOS: Courier New Bold (PostScript: CourierNewPS-BoldMT)
-    static let fontName = "CourierNewPS-BoldMT"
+    // Строгий гротеск: Helvetica Neue Bold (с моноширинными цифрами)
+    static let fontName = "HelveticaNeue-Bold"
     // Толщина утолщения (смещение слоёв в поинтах)
     private let t: CGFloat = 1.0
 
@@ -288,7 +267,6 @@ struct MediumElectroWidgetEntryView: View {
     }
 
     var body: some View {
-        let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
         let (h, m) = hourMinute(from: entry.date)
         let hString = String(format: "%02d", h)
         let mString = String(format: "%02d", m)
@@ -302,42 +280,74 @@ struct MediumElectroWidgetEntryView: View {
                 let tile = (effectiveColorScheme == .light) ? Color.black : Color.white
                 let digitCol = (effectiveColorScheme == .light) ? Color.white : Color.black
 
-                HStack(alignment: .center, spacing: 3) {
-                    DigitTile(digit: hDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg)
-                    DigitTile(digit: hDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg)
+                let wAvail = geo.size.width
+                let tileW = hAvail * 0.48
+                let interTile: CGFloat = 3
+                let colonW = max(2, hAvail * 0.08)
+                let gap = max(2, hAvail * 0.02)
+                let centerY = hAvail / 2
 
+                // Все элементы в одном HStack для идеальной симметрии
+                HStack(alignment: .center, spacing: gap) {
+                    // Левая группа (часы)
+                    HStack(alignment: .center, spacing: interTile) {
+                        DigitTile(digit: hDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg)
+                            .frame(width: tileW, height: hAvail)
+                        DigitTile(digit: hDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg)
+                            .frame(width: tileW, height: hAvail)
+                    }
+
+                    // Центр: двоеточие
                     MinimalColonView(height: hAvail, color: tile)
+                        .frame(width: colonW, height: hAvail)
 
-                    DigitTile(digit: mDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg)
-                    DigitTile(digit: mDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg)
+                    // Правая группа (минуты)
+                    HStack(alignment: .center, spacing: interTile) {
+                        DigitTile(digit: mDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg)
+                            .frame(width: tileW, height: hAvail)
+                        DigitTile(digit: mDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg)
+                            .frame(width: tileW, height: hAvail)
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.horizontal, 0)
-                .padding(.vertical, 0)
 
-                // Рандомные символы ⊗ / ⊕ по углам виджета (детерминированно по минуте)
-                let wAvail = geo.size.width
+                // Фиксированные винты по углам: 4 угла, один меняется раз в минуту
                 let base = Int(entry.date.timeIntervalSince1970 / 60)
-                let margin = min(wAvail, hAvail) * 0.06
+                let size = max(10, min(wAvail, hAvail) * 0.085)
+                let margin = size * 1.0
+                let highlight = (base * 7) % 4 // псевдослучайный индекс 0..3
+                let symbols: [String] = (0..<4).map { idx in idx == highlight ? "⊕" : "⊗" }
                 ZStack {
-                    ForEach(0..<4, id: \.self) { i in
-                        let jx = CGFloat(((base + i * 31) % 10)) / 10.0 * margin * 0.6
-                        let jy = CGFloat(((base + i * 17) % 10)) / 10.0 * margin * 0.6
-                        let sym = ((base + i) % 2 == 0) ? "⊗" : "⊕"
-                        let size = min(wAvail, hAvail) * 0.085
-                        let pos: CGPoint = {
-                            switch i {
-                            case 0: return CGPoint(x: margin + jx, y: margin + jy) // TL
-                            case 1: return CGPoint(x: wAvail - margin - jx, y: margin + jy) // TR
-                            case 2: return CGPoint(x: margin + jx, y: hAvail - margin - jy) // BL
-                            default: return CGPoint(x: wAvail - margin - jx, y: hAvail - margin - jy) // BR
-                            }
-                        }()
-                        Text(sym)
-                            .font(.system(size: size, weight: .heavy))
-                            .foregroundColor(tile)
-                            .position(pos)
-                    }
+                    // TL
+                    Text(symbols[0])
+                        .font(.system(size: size, weight: .heavy))
+                        .foregroundColor(tile)
+                        .position(x: margin, y: margin)
+                    // TR
+                    Text(symbols[1])
+                        .font(.system(size: size, weight: .heavy))
+                        .foregroundColor(tile)
+                        .position(x: wAvail - margin, y: margin)
+                    // BL
+                    Text(symbols[2])
+                        .font(.system(size: size, weight: .heavy))
+                        .foregroundColor(tile)
+                        .position(x: margin, y: hAvail - margin)
+                    // BR
+                    Text(symbols[3])
+                        .font(.system(size: size, weight: .heavy))
+                        .foregroundColor(tile)
+                        .position(x: wAvail - margin, y: hAvail - margin)
+                }
+
+                // AM/PM вверху по центру при 12‑часовом формате
+                if entry.use12HourFormat {
+                    let hour24 = Calendar.current.component(.hour, from: entry.date)
+                    let ampm = hour24 >= 12 ? "PM" : "AM"
+                    Text(ampm)
+                        .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
+                        .foregroundColor(tile)
+                        .position(x: wAvail / 2, y: hAvail * 0.06)
                 }
             }
         }

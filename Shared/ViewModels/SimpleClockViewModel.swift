@@ -75,7 +75,7 @@ class SimpleClockViewModel: ObservableObject {
     // MARK: - Initialization
     init() {
         startTimeUpdates()
-        setupPhysics()
+        // Физика запускается по требованию (при взаимодействии)
         hapticFeedback.prepare()
     }
     
@@ -139,6 +139,7 @@ class SimpleClockViewModel: ObservableObject {
         guard abs(inertiaVelocity) > snapVelocityThreshold else {
             inertiaVelocity = 0
             if isCoasting { isCoasting = false }
+            suspendPhysics()
             return
         }
         
@@ -180,6 +181,7 @@ class SimpleClockViewModel: ObservableObject {
     
     // MARK: - Drag Handling (ПРОСТАЯ!)
     func startDrag(at location: CGPoint, in geometry: GeometryProxy) {
+        resumePhysics()
         // Переход в Режим 2: фиксируем время, ОКРУГЛЁННОЕ к ближайшей четверти часа
         if isInTimerMode {
             isInTimerMode = false
