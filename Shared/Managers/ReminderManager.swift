@@ -8,11 +8,14 @@ import ActivityKit
 // MARK: - Live Activity Preferences
 private struct LiveActivityPreferences: Codable {
     var liveActivityEnabled: Bool
-    var alwaysLiveActivity: Bool
+    var isTimeSensitive: Bool
 
-    init(liveActivityEnabled: Bool = false, alwaysLiveActivity: Bool = false) {
+    init(
+        liveActivityEnabled: Bool = false,
+        isTimeSensitive: Bool = false
+    ) {
         self.liveActivityEnabled = liveActivityEnabled
-        self.alwaysLiveActivity = alwaysLiveActivity
+        self.isTimeSensitive = isTimeSensitive
     }
 }
 
@@ -23,27 +26,43 @@ class ReminderManager: ObservableObject {
     static let shared = ReminderManager()
 
     @Published var currentReminder: ClockReminder?
-    @Published var previewReminder: ClockReminder?  // Временное напоминание (не сохраняется)
+
+    // Временное хранение времени для неподтверждённого напоминания
+    @Published var temporaryHour: Int?
+    @Published var temporaryMinute: Int?
+    @Published var temporaryDate: Date?
+
+    // MARK: City selection for Live Activity
+    @Published var selectedCityIdentifier: String?
+    @Published var selectedCityName: String?
+    @Published var isCityTapEnabled: Bool = false
+
+    // Preview-only toggles set from temporary reminder row (before confirmation)
+    private var previewLiveActivityEnabled: Bool = false
+    private var previewTimeSensitiveEnabled: Bool = false
 
     private let userDefaults = SharedUserDefaults.shared
     private let reminderKey = "clock_reminder"
     private let notificationIdentifier = "clock_reminder_notification"
     private let liveActivityPreferencesKey = "live_activity_preferences"
     private var updateTimer: Timer?
+#if canImport(ActivityKit) && !os(macOS)
+#endif
 
     private init() {
         loadReminder()
-        // Создаем дефолтный preview при старте если нет сохраненного
+        // Если нет сохраненного напоминания, создаём временное время по умолчанию
         if currentReminder == nil {
-            createDefaultPreview()
+            setDefaultTemporaryTime()
         }
 #if canImport(ActivityKit) && !os(macOS)
         reconcileLiveActivityOnLaunch()
         startLiveActivityUpdateTimer()
 #endif
+        reevaluateCityTapEnabled()
     }
     
-    private func createDefaultPreview() {
+    private func setDefaultTemporaryTime() {
         let calendar = Calendar.current
         let now = Date()
         let currentHour = calendar.component(.hour, from: now)
@@ -61,11 +80,76 @@ class ReminderManager: ObservableObject {
             hour = (hour + 1) % 24
         }
 
-        // Создаем следующую дату для one-time напоминания
-        let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
+        temporaryHour = hour
+        temporaryMinute = minute
 
-        // Preview создаётся БЕЗ предпочтений - они применятся при confirmPreview() если нужно
-        previewReminder = ClockReminder(hour: hour, minute: minute, date: nextDate)
+        // Устанавливаем дату по умолчанию на сегодня/завтра
+        temporaryDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
+
+        // Инициализируем превью-настройки из сохранённых предпочтений (один раз при старте цикла превью)
+        let prefs = loadLiveActivityPreferences()
+        previewLiveActivityEnabled = prefs.liveActivityEnabled
+        previewTimeSensitiveEnabled = prefs.isTimeSensitive
+    }
+
+    /// Обновляет временное время (пока напоминание не подтверждено)
+    func updateTemporaryTime(hour: Int, minute: Int, date: Date? = nil) {
+        temporaryHour = hour
+        temporaryMinute = minute
+        if let date = date {
+            temporaryDate = date
+        } else if let currentDate = temporaryDate {
+            // Обновляем время в текущей дате
+            let calendar = Calendar.current
+            var components = calendar.dateComponents([.year, .month, .day], from: currentDate)
+            components.hour = hour
+            components.minute = minute
+            components.second = 0
+            temporaryDate = calendar.date(from: components) ?? ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: Date())
+        } else {
+            // Если дата не установлена, вычисляем по умолчанию
+            temporaryDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: Date())
+        }
+
+        // Ограничение: если дата дальше чем 24 часа — отключаем Live Activity в превью
+        if let tDate = temporaryDate, tDate.timeIntervalSince(Date()) > 24*60*60 {
+            previewLiveActivityEnabled = false
+            persistPreviewPreferences()
+        }
+    }
+
+    /// Подтверждает создание напоминания из временного времени
+    func confirmTemporaryReminder() async {
+        guard let hour = temporaryHour, let minute = temporaryMinute else { return }
+
+        // Используем выбранную дату или вычисляем автоматически
+        let nextDate = temporaryDate ?? ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: Date())
+
+        // При подтверждении запускаем Live Activity только если включена в превью и дата в пределах 24 часов
+        let autoEnableLA = previewLiveActivityEnabled && (nextDate.timeIntervalSince(Date()) <= 24*60*60)
+
+        // Создаём реальное напоминание
+        let newReminder = ClockReminder(
+            id: UUID(),
+            hour: hour,
+            minute: minute,
+            date: nextDate,
+            isEnabled: true,
+            liveActivityEnabled: autoEnableLA,
+            // Переносим визуальные флаги из превью в только что созданное напоминание
+            alwaysLiveActivity: false,
+            isTimeSensitive: previewTimeSensitiveEnabled,
+            preserveExactMinute: true
+        )
+
+        await setReminder(newReminder)
+
+        // Очищаем временное время
+        temporaryHour = nil
+        temporaryMinute = nil
+        temporaryDate = nil
+        // Не сбрасываем превью-настройки — сохраняем их как предпочтения пользователя
+        persistPreviewPreferences()
     }
 
     // MARK: - Storage
@@ -77,12 +161,25 @@ class ReminderManager: ObservableObject {
             return
         }
         
-        // Проверяем не истекло ли one-time напоминание
+        // Если это one-time и его время уже прошло
         if let reminderDate = reminder.date, reminderDate < Date() {
-            // Напоминание истекло, удаляем
-            currentReminder = nil
-            userDefaults.removeObject(forKey: reminderKey)
-            return
+            if reminder.liveActivityEnabled {
+                // С LA — оставляем напоминание на окно DONE (до 2 минут), чтобы LA могла показать DONE
+                let elapsed = Date().timeIntervalSince(reminderDate)
+                if elapsed > 120 {
+                    currentReminder = nil
+                    userDefaults.removeObject(forKey: reminderKey)
+                    return
+                } else {
+                    currentReminder = reminder
+                    return
+                }
+            } else {
+                // Без LA — удаляем немедленно
+                currentReminder = nil
+                userDefaults.removeObject(forKey: reminderKey)
+                return
+            }
         }
         
         currentReminder = reminder
@@ -100,12 +197,12 @@ class ReminderManager: ObservableObject {
     private func saveLiveActivityPreferences(from reminder: ClockReminder) {
         let preferences = LiveActivityPreferences(
             liveActivityEnabled: reminder.liveActivityEnabled,
-            alwaysLiveActivity: reminder.alwaysLiveActivity
+            isTimeSensitive: reminder.isTimeSensitive
         )
         if let data = try? JSONEncoder().encode(preferences) {
             userDefaults.set(data, forKey: liveActivityPreferencesKey)
             userDefaults.synchronize()
-            print("💾 Saved Live Activity preferences: liveActivityEnabled=\(preferences.liveActivityEnabled), alwaysLiveActivity=\(preferences.alwaysLiveActivity)")
+            print("💾 Saved Live Activity preferences: liveActivityEnabled=\(preferences.liveActivityEnabled), timeSensitive=\(preferences.isTimeSensitive)")
         }
     }
 
@@ -115,7 +212,7 @@ class ReminderManager: ObservableObject {
             print("📂 No saved Live Activity preferences, using defaults")
             return LiveActivityPreferences()
         }
-        print("📂 Loaded Live Activity preferences: liveActivityEnabled=\(preferences.liveActivityEnabled), alwaysLiveActivity=\(preferences.alwaysLiveActivity)")
+        print("📂 Loaded Live Activity preferences: liveActivityEnabled=\(preferences.liveActivityEnabled), timeSensitive=\(preferences.isTimeSensitive)")
         return preferences
     }
 
@@ -136,49 +233,6 @@ class ReminderManager: ObservableObject {
         }
     }
 
-    // MARK: - Preview Management
-
-    /// Устанавливает временное напоминание (для предпросмотра)
-    func setPreviewReminder(_ reminder: ClockReminder) {
-        previewReminder = reminder
-    }
-
-    /// Очищает временное напоминание
-    func clearPreviewReminder() {
-        previewReminder = nil
-        // Если нет сохраненного напоминания, сразу создаем новый preview
-        if currentReminder == nil {
-            createDefaultPreview()
-        }
-    }
-
-    /// Подтверждает preview и создаёт реальное напоминание
-    func confirmPreview() async {
-        guard let preview = previewReminder else { return }
-
-        // Загружаем сохранённые предпочтения
-        let preferences = loadLiveActivityPreferences()
-
-        // ВАЖНО: alwaysLiveActivity означает "автоматически включать LA для новых one-time напоминаний"
-        // Для ежедневных (date == nil) Live Activity НЕ включаем.
-        let autoEnableLA = preferences.alwaysLiveActivity && (preview.date != nil)
-
-        let finalReminder = ClockReminder(
-            id: preview.id,
-            hour: preview.hour,
-            minute: preview.minute,
-            date: preview.date,
-            isEnabled: preview.isEnabled,
-            liveActivityEnabled: autoEnableLA,            // авто-включение только для one-time
-            alwaysLiveActivity: preferences.alwaysLiveActivity, // храним предпочтение для UI
-            isTimeSensitive: preview.isTimeSensitive
-        )
-
-        print("✅ Confirming preview. one-time=\(preview.date != nil), autoEnableLA=\(autoEnableLA), alwaysPref=\(preferences.alwaysLiveActivity)")
-
-        await setReminder(finalReminder)
-        clearPreviewReminder()
-    }
 
     // MARK: - Reminder Management
 
@@ -187,20 +241,36 @@ class ReminderManager: ObservableObject {
         // Удаляем старое уведомление
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
 
-        currentReminder = reminder
-        saveReminder()
-
-        // Создаём новое уведомление если включено
-        if reminder.isEnabled {
-            await scheduleNotification(for: reminder)
+        // Применяем ограничение 24 часов для Live Activity у one-time
+        var adjusted = reminder
+        if let d = adjusted.date, d.timeIntervalSince(Date()) > 24*60*60 {
+            adjusted.liveActivityEnabled = false
         }
 
-        await updateLiveActivityIntegration(for: reminder)
+        currentReminder = adjusted
+        saveReminder()
+
+        // Если текущее напоминание не подходит для Live Activity выбора города — очищаем выбор
+        reevaluateCityTapEnabled()
+
+        // Создаём новое уведомление если включено
+        if adjusted.isEnabled {
+            await scheduleNotification(for: adjusted)
+        }
+
+        await updateLiveActivityIntegration(for: adjusted)
     }
 
     /// Обновляет время существующего напоминания
     func updateReminderTime(hour: Int, minute: Int) async {
         guard var reminder = currentReminder else { return }
+
+#if canImport(ActivityKit) && !os(macOS)
+        // Любое ручное изменение — завершаем текущую LA (если была), чтобы начать чистый цикл
+        if #available(iOS 16.1, *) {
+            await endLiveActivity(reminderID: reminder.id)
+        }
+#endif
 
         // Если это one-time напоминание, пересчитываем дату
         let updatedDate = reminder.date != nil
@@ -214,8 +284,8 @@ class ReminderManager: ObservableObject {
             date: updatedDate,
             isEnabled: reminder.isEnabled,
             liveActivityEnabled: reminder.liveActivityEnabled,
-            alwaysLiveActivity: reminder.alwaysLiveActivity,
-            isTimeSensitive: reminder.isTimeSensitive
+            isTimeSensitive: reminder.isTimeSensitive,
+            preserveExactMinute: true
         )
         await setReminder(reminder)
     }
@@ -224,6 +294,12 @@ class ReminderManager: ObservableObject {
     func updateReminderRepeat(isDaily: Bool, referenceDate: Date = Date()) async {
         guard var reminder = currentReminder else { return }
         guard reminder.isDaily != isDaily else { return }
+
+#if canImport(ActivityKit) && !os(macOS)
+        if #available(iOS 16.1, *) {
+            await endLiveActivity(reminderID: reminder.id)
+        }
+#endif
 
         let nextDate = isDaily
             ? nil
@@ -239,29 +315,53 @@ class ReminderManager: ObservableObject {
             date: nextDate,
             isEnabled: reminder.isEnabled,
             liveActivityEnabled: newLiveActivityEnabled,
-            alwaysLiveActivity: reminder.alwaysLiveActivity,
-            isTimeSensitive: reminder.isTimeSensitive
+            isTimeSensitive: reminder.isTimeSensitive,
+            preserveExactMinute: true
         )
         await setReminder(reminder)
     }
 
     /// Удаляет напоминание
-    func deleteReminder() {
+    /// - Parameter endLiveActivity: завершить ли активную Live Activity немедленно (по умолчанию true).
+    func deleteReminder(endLiveActivity: Bool = true) {
         let reminderID = currentReminder?.id
+#if canImport(ActivityKit) && !os(macOS)
+#endif
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
         currentReminder = nil
         saveReminder()
-        // Сразу создаем новый preview
-        print("✨ Creating new preview after deletion")
-        createDefaultPreview()
+        // Создаём временное время по умолчанию
+        print("✨ Creating temporary time after deletion")
+        setDefaultTemporaryTime()
+        clearSelectedCity()
+        reevaluateCityTapEnabled()
 
 #if canImport(ActivityKit) && !os(macOS)
-        if let reminderID, #available(iOS 16.1, *) {
-            Task {
-                await self.endLiveActivity(reminderID: reminderID)
-            }
+        if endLiveActivity, let reminderID, #available(iOS 16.1, *) {
+            Task { await self.endLiveActivity(reminderID: reminderID) }
         }
 #endif
+    }
+
+    /// Удаляет сработавшее одноразовое напоминание после окна DONE
+    private func cleanupExpiredReminderIfNeeded(now: Date = Date()) {
+        guard let reminder = currentReminder,
+              let reminderDate = reminder.date else {
+            return
+        }
+
+        if now >= reminderDate {
+            print("🗑️ Auto-removing one-time reminder at trigger time")
+            deleteReminder()
+        }
+    }
+
+    /// Публичная очистка: если одноразовое напоминание уже сработало и LA отключена — удалить немедленно.
+    func pruneExpiredReminderImmediatelyIfNeeded(now: Date = Date()) {
+        guard let reminder = currentReminder, let reminderDate = reminder.date else { return }
+        guard now >= reminderDate, reminder.liveActivityEnabled == false else { return }
+        print("🗑️ Pruning expired reminder immediately due to notification (no LA)")
+        deleteReminder()
     }
 
     // MARK: - Notification Scheduling
@@ -324,8 +424,22 @@ class ReminderManager: ObservableObject {
             // Игнорируем попытку включить LA для daily
             return
         }
+        // Ограничение 24 часа: не позволяем включить LA если дата слишком далека
+        if isEnabled, let d = reminder.date, d.timeIntervalSince(Date()) > 24*60*60 {
+            // Принудительно выключаем
+            reminder.liveActivityEnabled = false
+            await setReminder(reminder)
+            return
+        }
         guard reminder.liveActivityEnabled != isEnabled else { return }
         reminder.liveActivityEnabled = isEnabled
+#if canImport(ActivityKit) && !os(macOS)
+        if #available(iOS 16.1, *) {
+            if isEnabled == false {
+                await endLiveActivity(reminderID: reminder.id)
+            }
+        }
+#endif
         await setReminder(reminder)
     }
 
@@ -337,33 +451,80 @@ class ReminderManager: ObservableObject {
         await setReminder(reminder)
     }
 
-    /// Обновляет флаг Always Live Activity (ПРЕДПОЧТЕНИЕ для будущих one-time)
-    func updateAlwaysLiveActivity(isEnabled: Bool) async {
-        guard var reminder = currentReminder else { return }
-        guard reminder.alwaysLiveActivity != isEnabled else { return }
-        reminder.alwaysLiveActivity = isEnabled
+    // Always Live Activity removed
 
-        // Сохраняем предпочтение в отдельное хранилище
-        saveLiveActivityPreferences(from: ClockReminder(
-            id: reminder.id,
-            hour: reminder.hour,
-            minute: reminder.minute,
-            date: reminder.date,
-            isEnabled: reminder.isEnabled,
-            // В ПРЕДПОЧТЕНИИ оставляем liveActivityEnabled = true, но ТОЛЬКО для будущих one-time
-            liveActivityEnabled: true,
-            alwaysLiveActivity: isEnabled,
-            isTimeSensitive: reminder.isTimeSensitive
-        ))
+    // MARK: - Preview toggles (for temporary reminder before confirmation)
+    func setPreviewLiveActivityEnabled(_ isEnabled: Bool) {
+        previewLiveActivityEnabled = isEnabled
+        persistPreviewPreferences()
+    }
 
-        // НЕ включаем Live Activity у текущего daily.
-        await setReminder(reminder)
+    // Always Live Activity removed
+
+    func setPreviewTimeSensitiveEnabled(_ isEnabled: Bool) {
+        previewTimeSensitiveEnabled = isEnabled
+        persistPreviewPreferences()
+    }
+
+    private func persistPreviewPreferences() {
+        let stub = ClockReminder(
+            hour: 0,
+            minute: 0,
+            date: nil,
+            isEnabled: false,
+            liveActivityEnabled: previewLiveActivityEnabled,
+            alwaysLiveActivity: false,
+            isTimeSensitive: previewTimeSensitiveEnabled,
+            preserveExactMinute: true
+        )
+        saveLiveActivityPreferences(from: stub)
+    }
+
+    // Expose preview preferences for UI defaults
+    var lastPreviewLiveActivityEnabled: Bool { previewLiveActivityEnabled }
+    var lastPreviewTimeSensitiveEnabled: Bool { previewTimeSensitiveEnabled }
+
+    // MARK: - City selection API
+
+    /// Пользователь выбрал город на плитке — обновляем Live Activity.
+    func selectCity(name: String, identifier: String) async {
+        // Выбор города разрешён только до подтверждения (в режиме превью)
+        guard isCityTapEnabled else { return }
+        selectedCityIdentifier = identifier
+        selectedCityName = name
+        reevaluateCityTapEnabled()
+#if canImport(ActivityKit) && !os(macOS)
+        if #available(iOS 16.1, *) {
+            // После подтверждения города выбирать нельзя, поэтому currentReminder здесь всегда nil
+        }
+#endif
+    }
+
+    /// Сбрасывает выбранный город и обновляет Live Activity.
+    func clearSelectedCity() {
+        selectedCityIdentifier = nil
+        selectedCityName = nil
+        reevaluateCityTapEnabled()
+    }
+
+    private func reevaluateCityTapEnabled() {
+        #if os(iOS)
+        if #available(iOS 16.1, *) {
+            // Тап по городам включён только в режиме превью (до подтверждения)
+            isCityTapEnabled = (currentReminder == nil) && (temporaryHour != nil) && (temporaryMinute != nil)
+        } else {
+            isCityTapEnabled = false
+        }
+        #else
+        isCityTapEnabled = false
+        #endif
     }
 
     private func updateLiveActivityIntegration(for reminder: ClockReminder) async {
 #if canImport(ActivityKit) && !os(macOS)
         if #available(iOS 16.1, *) {
             await updateLiveActivity(for: reminder)
+            await purgeExtraneousActivities(keeping: reminder.id)
         }
 #endif
     }
@@ -375,7 +536,9 @@ class ReminderManager: ObservableObject {
             guard let self else { return }
             if let reminder = self.currentReminder {
                 await self.updateLiveActivity(for: reminder)
+                await self.purgeExtraneousActivities(keeping: reminder.id)
             } else {
+                // Нет активного напоминания — завершаем все активности
                 await self.terminateOrphanedActivities()
             }
         }
@@ -386,8 +549,12 @@ class ReminderManager: ObservableObject {
         // Обновляем Live Activity каждые 10 секунд для проверки статуса
         updateTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self, let reminder = self.currentReminder else { return }
-                await self.updateLiveActivity(for: reminder)
+                guard let self else { return }
+                self.reevaluateCityTapEnabled()
+                if let reminder = self.currentReminder {
+                    await self.updateLiveActivity(for: reminder)
+                }
+                self.cleanupExpiredReminderIfNeeded()
             }
         }
     }
@@ -403,6 +570,22 @@ class ReminderManager: ObservableObject {
                 await activity.end(dismissalPolicy: .immediate)
             }
         }
+        clearSelectedCity()
+        reevaluateCityTapEnabled()
+    }
+
+    @available(iOS 16.1, *)
+    private func purgeExtraneousActivities(keeping reminderID: UUID) async {
+        let activities = Activity<ReminderLiveActivityAttributes>.activities
+        for activity in activities where activity.attributes.reminderID != reminderID {
+            if #available(iOS 16.2, *) {
+                let content = ActivityContent(state: activity.content.state, staleDate: nil)
+                await activity.end(content, dismissalPolicy: .immediate)
+            } else {
+                await activity.end(dismissalPolicy: .immediate)
+            }
+        }
+        reevaluateCityTapEnabled()
     }
 
     @available(iOS 16.1, *)
@@ -411,12 +594,16 @@ class ReminderManager: ObservableObject {
         guard reminder.date != nil else {
             print("⏸️ Live Activity is only for one-time reminders")
             await endLiveActivity(reminderID: reminder.id)
+            clearSelectedCity()
+            reevaluateCityTapEnabled()
             return
         }
 
         guard reminder.liveActivityEnabled, reminder.isEnabled else {
             print("⏸️ Live Activity disabled or reminder disabled")
             await endLiveActivity(reminderID: reminder.id)
+            clearSelectedCity()
+            reevaluateCityTapEnabled()
             return
         }
 
@@ -429,22 +616,21 @@ class ReminderManager: ObservableObject {
 
         let scheduledDate = reminder.nextScheduledDate()
         let now = Date()
+
         let hasTriggered = scheduledDate <= now
 
         print("🔄 updateLiveActivity (one-time): scheduledDate=\(scheduledDate), now=\(now), hasTriggered=\(hasTriggered)")
 
         let contentState = ReminderLiveActivityAttributes.ContentState(
-            scheduledDate: scheduledDate,
-            hasTriggered: hasTriggered
+            endDate: scheduledDate,
+            hasFinished: hasTriggered,
+            selectedCityName: selectedCityName
         )
-
-        // Если напоминание сработало, закрываем через 2 минуты
-        let staleDate = hasTriggered ? now.addingTimeInterval(120) : nil
 
         if let existing = Activity<ReminderLiveActivityAttributes>.activities.first(where: { $0.attributes.reminderID == reminder.id }) {
             print("📝 Updating existing Live Activity with hasTriggered=\(hasTriggered)")
             if #available(iOS 16.2, *) {
-                let content = ActivityContent(state: contentState, staleDate: staleDate)
+                let content = ActivityContent(state: contentState, staleDate: nil)
                 await existing.update(content)
                 print("✅ Live Activity updated successfully")
             } else {
@@ -452,27 +638,31 @@ class ReminderManager: ObservableObject {
                 print("✅ Live Activity updated successfully (iOS 16.1)")
             }
 
+            // Обновляем флаг доступности тапов
+            reevaluateCityTapEnabled()
+
             if hasTriggered {
-                print("⏳ Scheduling reminder deletion in 2 minutes")
-                Task {
-                    try? await Task.sleep(nanoseconds: 120_000_000_000) // 2 минуты
-                    await MainActor.run {
-                        print("🗑️ Deleting triggered reminder")
-                        self.deleteReminder()
-                    }
-                }
+                // Не завершаем LA: UI сам покажет "после" по времени.
+                // Дадим системе зафиксировать контент перед удалением reminder.
+                clearSelectedCity()
+                reevaluateCityTapEnabled()
+                do { try await Task.sleep(nanoseconds: 500_000_000) } catch {}
+                print("🗑️ Deleting reminder after LA update (no end)")
+                self.deleteReminder(endLiveActivity: false)
             }
         } else {
             // Не создаем новую Live Activity если напоминание уже сработало
             guard !hasTriggered else {
                 print("❌ Not creating Live Activity - already triggered")
+                clearSelectedCity()
+                reevaluateCityTapEnabled()
                 return
             }
 
             print("🆕 Creating NEW Live Activity for reminder (one-time)")
-            let attributes = ReminderLiveActivityAttributes(reminderID: reminder.id, title: "THE M.O.W TIME")
+            let attributes = ReminderLiveActivityAttributes(reminderID: reminder.id, title: "⊕ THE M.O.W TIME ⊗")
             if #available(iOS 16.2, *) {
-                let content = ActivityContent(state: contentState, staleDate: staleDate)
+                let content = ActivityContent(state: contentState, staleDate: nil)
                 let result = try? Activity<ReminderLiveActivityAttributes>.request(
                     attributes: attributes,
                     content: content,
@@ -495,6 +685,10 @@ class ReminderManager: ObservableObject {
                     print("❌ Failed to create Live Activity (iOS 16.1)")
                 }
             }
+            // Убираем любые посторонние активности — должна быть только одна
+            await purgeExtraneousActivities(keeping: reminder.id)
+            // Новый LA создан — разрешаем тап по городам
+            reevaluateCityTapEnabled()
         }
     }
 
@@ -509,6 +703,8 @@ class ReminderManager: ObservableObject {
         } else {
             await activity.end(dismissalPolicy: .immediate)
         }
+        clearSelectedCity()
+        reevaluateCityTapEnabled()
     }
 
     // Публичный метод для принудительного обновления Live Activity (вызывается из AppDelegate при уведомлении)

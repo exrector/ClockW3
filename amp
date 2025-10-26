@@ -1,0 +1,8 @@
+Command line invocation:
+    /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild -scheme MOW -configuration Debug -sdk iphonesimulator clean build 2
+
+Build settings from command line:
+    SDKROOT = iphonesimulator26.1
+
+2025-10-25 19:16:35.926 xcodebuild[44227:699237] Writing error result bundle to /var/folders/m_/m9q214gn7k1_9yxl9c55bf_80000gn/T/ResultBundle_2025-25-10_19-16-0035.xcresult
+xcodebuild: error: Unknown build action '2'.

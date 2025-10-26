@@ -306,13 +306,24 @@ class SimpleClockViewModel: ObservableObject {
         inertiaVelocity = 0
         isInTimerMode = true
         frozenTime = nil
-        // Выходим из режима 2 — очищаем превью
-        ReminderManager.shared.clearPreviewReminder()
+        // Синхронизируем превью-таймер плитки с текущим временем
+        if ReminderManager.shared.currentReminder == nil {
+            let now = Date()
+            let calendar = Calendar.current
+            let hour = calendar.component(.hour, from: now)
+            let minute = calendar.component(.minute, from: now)
+            let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
+            ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute, date: nextDate)
+        }
+        // Выходим из режима 2 — ничего не делаем с напоминанием, оно уже сохранено
     }
-    
-    // Для совместимости с напоминаниями
+
+    // Подтверждает временное напоминание
     func confirmPreviewReminder() async {
-        await ReminderManager.shared.confirmPreview()
+        // Если нет подтверждённого напоминания - подтверждаем временное
+        if ReminderManager.shared.currentReminder == nil {
+            await ReminderManager.shared.confirmTemporaryReminder()
+        }
     }
     
     // Physics control
@@ -392,35 +403,25 @@ class SimpleClockViewModel: ObservableObject {
         return Calendar.current.date(byAdding: .minute, value: -tickIndex * minutesPerTick, to: base)
     }
     
-    // Обновляем ReminderManager.previewReminder для отображения в Settings/Preview
+    // Обновляем временное время когда пользователь крутит циферблат
     private func updatePreviewReminder() {
-        // Показываем превью только если нет сохранённого напоминания
-        if ReminderManager.shared.currentReminder != nil {
-            ReminderManager.shared.clearPreviewReminder()
+        // Если есть подтверждённое напоминание - НЕ обновляем ничего
+        guard ReminderManager.shared.currentReminder == nil else {
             return
         }
-        
-        // В режиме 1 превью очищаем
+
+        // Если нет выбранного времени (режим 1), ничего не делаем
         guard let date = selectedTimeForPreview else {
-            ReminderManager.shared.clearPreviewReminder()
             return
         }
-        
+
         var calendar = Calendar.current
         calendar.timeZone = .current
         let hour = calendar.component(.hour, from: date)
         let minute = calendar.component(.minute, from: date)
-        
-        // Формируем one-time превью с ближайшей датой
-        let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: currentTime)
-        let reminder = ClockReminder(
-            hour: hour,
-            minute: minute,
-            date: nextDate,
-            isEnabled: true,
-            liveActivityEnabled: false
-        )
-        ReminderManager.shared.setPreviewReminder(reminder)
+
+        // Обновляем только временное время
+        ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute)
     }
     
     // Автозавершение драга, если поток событий пропал (например, начался скролл)

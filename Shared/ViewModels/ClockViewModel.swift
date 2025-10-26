@@ -568,7 +568,7 @@ class ClockViewModel: ObservableObject {
         dragVelocity = 0
         dragSamples.removeAll()
         isDragging = false
-        ReminderManager.shared.clearPreviewReminder()  // Очищаем preview при сбросе
+        // Напоминание уже сохранено, не нужно его очищать
         // НЕ сбрасываем хаптику здесь — даём ей работать во время анимации возврата
 
         let normalizedOffset = ClockConstants.normalizeAngle(rotationAngle)
@@ -579,16 +579,25 @@ class ClockViewModel: ObservableObject {
             if abs(delta) > directionEpsilon {
                 lastRotationDirection = delta > 0 ? 1 : -1
             }
-            startRotationAnimation(
-                to: targetAngle,
-                duration: duration
-            ) { [weak self] in
-                guard let self else { return }
-                self.setRotationNoAnimation(0)
-                self.dragVelocity = 0
-                self.resetHapticState()
+        startRotationAnimation(
+            to: targetAngle,
+            duration: duration
+        ) { [weak self] in
+            guard let self else { return }
+            self.setRotationNoAnimation(0)
+            self.dragVelocity = 0
+            self.resetHapticState()
+            // Синхронизируем превью-таймер плитки с текущим временем
+            if ReminderManager.shared.currentReminder == nil {
+                let now = Date()
+                let calendar = Calendar.current
+                let hour = calendar.component(.hour, from: now)
+                let minute = calendar.component(.minute, from: now)
+                let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
+                ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute, date: nextDate)
             }
-            return
+        }
+        return
         }
 
         var direction = lastRotationDirection
@@ -640,6 +649,14 @@ class ClockViewModel: ObservableObject {
             self.setRotationNoAnimation(0)
             self.dragVelocity = 0
             self.resetHapticState()
+            if ReminderManager.shared.currentReminder == nil {
+                let now = Date()
+                let calendar = Calendar.current
+                let hour = calendar.component(.hour, from: now)
+                let minute = calendar.component(.minute, from: now)
+                let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
+                ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute, date: nextDate)
+            }
         }
     }
     
@@ -663,57 +680,49 @@ class ClockViewModel: ObservableObject {
             duration: 0.5
         ) { [weak self] in
             self?.resetHapticState()
+            if ReminderManager.shared.currentReminder == nil {
+                let now = Date()
+                let calendar = Calendar.current
+                let hour = calendar.component(.hour, from: now)
+                let minute = calendar.component(.minute, from: now)
+                let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
+                ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute, date: nextDate)
+            }
         }
     }
     
     // MARK: - Reminder Management
 
-    /// Обновляет preview напоминания при вращении циферблата
+    /// Обновляет временное время при вращении циферблата
     private func updatePreviewReminder() {
-        // Если есть уже сохранённое напоминание, не показываем preview
-        if ReminderManager.shared.currentReminder != nil {
-            ReminderManager.shared.clearPreviewReminder()
+        // Если есть подтверждённое напоминание - НЕ обновляем ничего
+        guard ReminderManager.shared.currentReminder == nil else {
             return
         }
 
-        // Если вращение близко к нулю, очищаем preview
+        // Если вращение близко к нулю, не обновляем
         if abs(rotationAngle) < ClockConstants.quarterTickStepRadians {
-            ReminderManager.shared.clearPreviewReminder()
             return
         }
 
-        // Создаём временное напоминание как one-time
-        var reminder = ClockReminder.fromRotationAngle(rotationAngle, currentTime: currentTime)
-        // Добавляем дату для one-time напоминания
-        let nextDate = ClockReminder.nextTriggerDate(hour: reminder.hour, minute: reminder.minute, from: currentTime)
-        reminder = ClockReminder(
-            id: reminder.id,
-            hour: reminder.hour,
-            minute: reminder.minute,
-            date: nextDate,
-            isEnabled: reminder.isEnabled,
-            liveActivityEnabled: reminder.liveActivityEnabled
-        )
-        ReminderManager.shared.setPreviewReminder(reminder)
+        // Создаём напоминание из угла поворота
+        let reminder = ClockReminder.fromRotationAngle(rotationAngle, currentTime: currentTime)
+
+        // Обновляем только временное время
+        ReminderManager.shared.updateTemporaryTime(hour: reminder.hour, minute: reminder.minute)
     }
 
-    /// Подтверждает preview напоминание (вызывается при долгом нажатии)
+    /// Подтверждает временное напоминание (вызывается при долгом нажатии)
     func confirmPreviewReminder() async {
-        // Если есть preview, подтверждаем его
-        if ReminderManager.shared.previewReminder != nil {
-            // Запрашиваем разрешение если нужно
-            let hasPermission = await ReminderManager.shared.requestPermission()
-            guard hasPermission else {
-                return
-            }
-
-            await ReminderManager.shared.confirmPreview()
-
-            #if os(iOS)
-            // Хаптический отклик о создании напоминания
-            HapticFeedback.shared.playImpact(intensity: .heavy)
-            #endif
+        // Если нет подтверждённого напоминания - подтверждаем временное
+        if ReminderManager.shared.currentReminder == nil {
+            await ReminderManager.shared.confirmTemporaryReminder()
         }
+
+        #if os(iOS)
+        // Хаптический отклик для подтверждения
+        HapticFeedback.shared.playImpact(intensity: .heavy)
+        #endif
     }
 
     /// Создаёт напоминание на основе текущего положения локальной стрелки

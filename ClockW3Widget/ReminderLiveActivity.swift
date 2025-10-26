@@ -2,37 +2,34 @@
 import ActivityKit
 import WidgetKit
 import SwiftUI
+// No AppIntents here; DONE is purely visual
 
 @available(iOSApplicationExtension 16.1, *)
 struct ReminderLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ReminderLiveActivityAttributes.self) { context in
-            // Lock Screen / Notification контент
             ReminderLiveActivityContentView(context: context)
                 .activityBackgroundTint(.clear)
                 .activitySystemActionForegroundColor(.primary)
         } dynamicIsland: { context in
-            // Без Dynamic Island - только minimal состояние (колокольчик справа)
             DynamicIsland {
-                // Expanded - не показываем
-                DynamicIslandExpandedRegion(.center) {
+            DynamicIslandExpandedRegion(.center) {
                     EmptyView()
                 }
             } compactLeading: {
-                // Compact leading - не показываем
                 EmptyView()
             } compactTrailing: {
-                TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                    let timeHasPassed = context.state.scheduledDate <= timeline.date
-                    let isDone = context.state.hasTriggered || timeHasPassed
-                    ReminderIslandBadge(isDone: isDone)
-                }
+                    TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                        let timeHasPassed = context.state.endDate <= timeline.date
+                        let isDone = context.state.hasFinished || timeHasPassed
+                        ReminderIslandBadge(isDone: isDone)
+                    }
             } minimal: {
-                TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                    let timeHasPassed = context.state.scheduledDate <= timeline.date
-                    let isDone = context.state.hasTriggered || timeHasPassed
-                    ReminderIslandBadge(isDone: isDone)
-                }
+                    TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                        let timeHasPassed = context.state.endDate <= timeline.date
+                        let isDone = context.state.hasFinished || timeHasPassed
+                        ReminderIslandBadge(isDone: isDone)
+                    }
             }
         }
     }
@@ -43,89 +40,52 @@ private struct ReminderLiveActivityContentView: View {
     let context: ActivityViewContext<ReminderLiveActivityAttributes>
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { timeline in
-            let timeHasPassed = context.state.scheduledDate <= timeline.date
-            let isTriggered = context.state.hasTriggered || timeHasPassed
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
 
             HStack(spacing: 16) {
-                // Left side - Icon and Title
+                // Left side: Title (single-line), City and Date
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "bell.fill")
-                            .foregroundStyle(.red)
-                            .font(.headline)
+                    Text(context.attributes.title)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.85)
+                        .allowsTightening(true)
 
-                        Text(context.attributes.title)
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-
-                    // Дата
-                    Text(context.state.scheduledDate, format: Date.FormatStyle()
-                        .weekday(.abbreviated)
-                        .month(.abbreviated)
-                        .day()
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                    // Выбранный город (если есть)
                     if let city = context.state.selectedCityName, !city.isEmpty {
-                        HStack(spacing: 6) {
-                            Image(systemName: "mappin.and.ellipse")
-                                .font(.caption2)
-                                .foregroundStyle(.red)
-                            Text(city)
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.primary)
-                        }
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 8)
-                        .background(
-                            Capsule()
-                                .fill(Color.primary.opacity(0.08))
-                        )
+                        Text(city)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
+                    // Always show the date as a second line
+                    // System-formatted date per device settings
+                    Text(context.state.endDate, style: .date)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    // No DONE badge; rely on a large countdown timer on the right
                 }
 
                 Spacer()
 
-                // Right side - Time and Countdown
-                VStack(alignment: .trailing, spacing: 8) {
-                    Text(context.state.scheduledDate, style: .time)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                // Right side: large countdown timer only (00:00 after end)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(timerInterval: Date.now...context.state.endDate, countsDown: true)
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
                         .multilineTextAlignment(.trailing)
-
-                    // Показываем DONE если hasTriggered = true
-                    if isTriggered {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(.red)
-                            Text("DONE")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundStyle(.red)
-                        }
-                    } else {
-                        // Показываем таймер
-                        HStack(spacing: 4) {
-                            Image(systemName: "hourglass")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text(context.state.scheduledDate, style: .timer)
-                                .font(.caption.monospacedDigit())
-                                .fontWeight(.medium)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
                 }
             }
             .padding(16)
         }
     }
 }
+
+@available(iOSApplicationExtension 16.1, *)
+private extension ReminderLiveActivityContentView {}
 
 @available(iOSApplicationExtension 16.1, *)
 private struct ReminderIslandBadge: View {

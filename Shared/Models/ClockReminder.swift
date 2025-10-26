@@ -20,12 +20,18 @@ struct ClockReminder: Codable, Identifiable {
         isEnabled: Bool = true,
         liveActivityEnabled: Bool = false,
         alwaysLiveActivity: Bool = false,
-        isTimeSensitive: Bool = false
+        isTimeSensitive: Bool = false,
+        preserveExactMinute: Bool = false
     ) {
         self.id = id
         self.hour = hour
-        // Округляем минуты до ближайших 15 минут
-        self.minute = Self.roundToQuarter(minute)
+        let clampedMinute = max(0, min(59, minute))
+        if preserveExactMinute {
+            self.minute = clampedMinute
+        } else {
+            // Округляем минуты до ближайших 15 минут
+            self.minute = Self.roundToQuarter(clampedMinute)
+        }
         self.date = date
         self.isEnabled = isEnabled
         self.liveActivityEnabled = liveActivityEnabled
