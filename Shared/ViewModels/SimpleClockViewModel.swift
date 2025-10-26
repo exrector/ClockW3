@@ -309,11 +309,13 @@ class SimpleClockViewModel: ObservableObject {
         // Синхронизируем превью-таймер плитки с текущим временем
         if ReminderManager.shared.currentReminder == nil {
             let now = Date()
-            let calendar = Calendar.current
-            let hour = calendar.component(.hour, from: now)
-            let minute = calendar.component(.minute, from: now)
-            let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
-            ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute, date: nextDate)
+            let cal = Calendar.current
+            var comps = cal.dateComponents([.year, .month, .day], from: now)
+            comps.hour = cal.component(.hour, from: now)
+            comps.minute = cal.component(.minute, from: now)
+            comps.second = 0
+            let todayDate = cal.date(from: comps) ?? now
+            ReminderManager.shared.updateTemporaryTime(hour: comps.hour ?? 0, minute: comps.minute ?? 0, date: todayDate)
         }
         // Выходим из режима 2 — ничего не делаем с напоминанием, оно уже сохранено
     }
@@ -420,8 +422,8 @@ class SimpleClockViewModel: ObservableObject {
         let hour = calendar.component(.hour, from: date)
         let minute = calendar.component(.minute, from: date)
 
-        // Обновляем только временное время
-        ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute)
+        // Обновляем превью и передаём фактическую дату из вращения (может быть >24h)
+        ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute, date: date)
     }
     
     // Автозавершение драга, если поток событий пропал (например, начался скролл)

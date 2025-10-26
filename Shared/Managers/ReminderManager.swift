@@ -31,6 +31,7 @@ class ReminderManager: ObservableObject {
     @Published var temporaryHour: Int?
     @Published var temporaryMinute: Int?
     @Published var temporaryDate: Date?
+    @Published var temporaryIsDaily: Bool = false
 
     // MARK: City selection for Live Activity
     @Published var selectedCityIdentifier: String?
@@ -85,6 +86,7 @@ class ReminderManager: ObservableObject {
 
         // Устанавливаем дату по умолчанию на сегодня/завтра
         temporaryDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
+        temporaryIsDaily = false
 
         // Инициализируем превью-настройки из сохранённых предпочтений (один раз при старте цикла превью)
         let prefs = loadLiveActivityPreferences()
@@ -118,29 +120,52 @@ class ReminderManager: ObservableObject {
         }
     }
 
+    /// Обновляет временный режим (ежедневный или одноразовый)
+    func updateTemporaryMode(isDaily: Bool) {
+        temporaryIsDaily = isDaily
+        if isDaily {
+            // Для daily Live Activity не используется — отключаем превью-переключатель
+            previewLiveActivityEnabled = false
+            persistPreviewPreferences()
+        }
+        reevaluateCityTapEnabled()
+    }
+
     /// Подтверждает создание напоминания из временного времени
     func confirmTemporaryReminder() async {
         guard let hour = temporaryHour, let minute = temporaryMinute else { return }
 
-        // Используем выбранную дату или вычисляем автоматически
-        let nextDate = temporaryDate ?? ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: Date())
-
-        // При подтверждении запускаем Live Activity только если включена в превью и дата в пределах 24 часов
-        let autoEnableLA = previewLiveActivityEnabled && !isBeyond24Hours(nextDate)
-
-        // Создаём реальное напоминание
-        let newReminder = ClockReminder(
-            id: UUID(),
-            hour: hour,
-            minute: minute,
-            date: nextDate,
-            isEnabled: true,
-            liveActivityEnabled: autoEnableLA,
-            // Переносим визуальные флаги из превью в только что созданное напоминание
-            alwaysLiveActivity: false,
-            isTimeSensitive: previewTimeSensitiveEnabled,
-            preserveExactMinute: true
-        )
+        let now = Date()
+        // Daily: дата = nil, LA отключена. One‑time: используем выбранную/авто дату, LA по превью и ограничению 24ч.
+        let newReminder: ClockReminder = {
+            if temporaryIsDaily {
+                return ClockReminder(
+                    id: UUID(),
+                    hour: hour,
+                    minute: minute,
+                    date: nil,
+                    isEnabled: true,
+                    liveActivityEnabled: false,
+                    alwaysLiveActivity: false,
+                    isTimeSensitive: previewTimeSensitiveEnabled,
+                    preserveExactMinute: true
+                )
+            } else {
+                let nextDate = temporaryDate ?? ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
+                let autoEnableLA = previewLiveActivityEnabled && !isBeyond24Hours(nextDate)
+                return ClockReminder(
+                    id: UUID(),
+                    hour: hour,
+                    minute: minute,
+                    date: nextDate,
+                    isEnabled: true,
+                    liveActivityEnabled: autoEnableLA,
+                    alwaysLiveActivity: false,
+                    isTimeSensitive: previewTimeSensitiveEnabled,
+                    preserveExactMinute: true
+                )
+            }
+        }()
 
         await setReminder(newReminder)
 
@@ -148,6 +173,7 @@ class ReminderManager: ObservableObject {
         temporaryHour = nil
         temporaryMinute = nil
         temporaryDate = nil
+        temporaryIsDaily = false
         // Не сбрасываем превью-настройки — сохраняем их как предпочтения пользователя
         persistPreviewPreferences()
     }
@@ -464,6 +490,7 @@ class ReminderManager: ObservableObject {
     func setPreviewLiveActivityEnabled(_ isEnabled: Bool) {
         previewLiveActivityEnabled = isEnabled
         persistPreviewPreferences()
+        reevaluateCityTapEnabled()
     }
 
     // Always Live Activity removed
@@ -518,8 +545,10 @@ class ReminderManager: ObservableObject {
     private func reevaluateCityTapEnabled() {
         #if os(iOS)
         if #available(iOS 16.1, *) {
-            // Тап по городам включён только в режиме превью (до подтверждения)
-            isCityTapEnabled = (currentReminder == nil) && (temporaryHour != nil) && (temporaryMinute != nil)
+            // Правило: в превью тапы по городам доступны только когда переключатель LA включён.
+            // После подтверждения напоминания — тапы всегда отключены.
+            let inPreview = (currentReminder == nil) && (temporaryHour != nil) && (temporaryMinute != nil)
+            isCityTapEnabled = inPreview && previewLiveActivityEnabled
         } else {
             isCityTapEnabled = false
         }

@@ -19,11 +19,11 @@ struct ReminderLiveActivity: Widget {
             } compactLeading: {
                 EmptyView()
             } compactTrailing: {
-                    let isDone = context.state.hasFinished
-                    ReminderIslandBadge(isDone: isDone)
+                // Убираем иконку колокольчика — компактный трейлинг пустой
+                EmptyView()
             } minimal: {
-                    let isDone = context.state.hasFinished
-                    ReminderIslandBadge(isDone: isDone)
+                // Убираем иконку колокольчика — минимальный вид пустой
+                EmptyView()
             }
         }
     }
@@ -78,20 +78,5 @@ private struct ReminderLiveActivityContentView: View {
 @available(iOSApplicationExtension 16.1, *)
 private extension ReminderLiveActivityContentView {}
 
-@available(iOSApplicationExtension 16.1, *)
-private struct ReminderIslandBadge: View {
-    let isDone: Bool
-
-    private var iconColor: Color {
-        isDone ? .green : .red
-    }
-
-    var body: some View {
-        Image(systemName: isDone ? "bell.badge.fill" : "bell.fill")
-            .symbolRenderingMode(.palette)
-            .foregroundStyle(.primary, iconColor)
-            .font(.system(size: 17, weight: .semibold))
-            .shadow(color: .black.opacity(0.25), radius: 1, x: 0, y: 1)
-    }
-}
+// (Badge removed — no bell icon in Dynamic Island)
 #endif

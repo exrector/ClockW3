@@ -40,6 +40,9 @@ struct ContentView: View {
             .onAppear {
                 // Показываем настройки сразу
                 showSettings = true
+#if os(macOS)
+                applyAppAppearance(for: colorSchemePreference)
+#endif
             }
     }
 
@@ -62,9 +65,16 @@ struct ContentView: View {
                     if hostingWindow !== window {
                         hostingWindow = window
                         configureWindow(window, orientation: windowOrientationPreference)
+                        applyWindowAppearance(window, preference: colorSchemePreference)
                     }
                 }
             )
+            .onChange(of: colorSchemePreference) { _, newValue in
+                applyAppAppearance(for: newValue)
+                if let window = hostingWindow {
+                    applyWindowAppearance(window, preference: newValue)
+                }
+            }
             .onChange(of: windowOrientationPreference) { _, newValue in
                 guard let window = hostingWindow else { return }
                 applyWindowSize(to: window, orientation: newValue, animated: true)
@@ -116,7 +126,10 @@ struct ContentView: View {
         }
         .frame(width: targetSize.width, height: targetSize.height)
         .background(Color("ClockBackground"))
-        .preferredColorScheme(preferredColorScheme)
+        // Не форсируем .preferredColorScheme на macOS — используем NSWindow/NSApp.appearance
+        // Форсируем полное перестроение при смене режима System/Light/Dark,
+        // чтобы убрать/применить override цветовой схемы корректно.
+        .id("appearance-\(colorSchemePreference)")
         .fixedSize()
     }
 #else
@@ -198,6 +211,18 @@ private struct WindowAccessor: NSViewRepresentable {
     }
 }
 
+// Применяет внешность приложения на macOS (System/Light/Dark)
+private func applyAppAppearance(for preference: String) {
+    switch preference {
+    case "light":
+        NSApp.appearance = NSAppearance(named: .aqua)
+    case "dark":
+        NSApp.appearance = NSAppearance(named: .darkAqua)
+    default:
+        NSApp.appearance = nil // следовать системной теме
+    }
+}
+
 private func macOSContentSize(for orientation: String) -> CGSize {
     orientation == "landscape"
         ? CGSize(width: 1000, height: 600)
@@ -214,6 +239,17 @@ private func configureWindow(_ window: NSWindow, orientation: String) {
     window.collectionBehavior.remove(.fullScreenPrimary)
     window.contentResizeIncrements = NSSize(width: 1, height: 1)
     applyWindowSize(to: window, orientation: orientation, animated: false)
+}
+
+private func applyWindowAppearance(_ window: NSWindow, preference: String) {
+    switch preference {
+    case "light":
+        window.appearance = NSAppearance(named: .aqua)
+    case "dark":
+        window.appearance = NSAppearance(named: .darkAqua)
+    default:
+        window.appearance = nil // следовать системной теме
+    }
 }
 
 private func applyWindowSize(to window: NSWindow, orientation: String, animated: Bool) {

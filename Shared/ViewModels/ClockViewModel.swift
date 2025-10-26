@@ -587,14 +587,16 @@ class ClockViewModel: ObservableObject {
             self.setRotationNoAnimation(0)
             self.dragVelocity = 0
             self.resetHapticState()
-            // Синхронизируем превью-таймер плитки с текущим временем
+            // Синхронизируем превью-таймер плитки с текущим временем (с датой = сегодня)
             if ReminderManager.shared.currentReminder == nil {
                 let now = Date()
-                let calendar = Calendar.current
-                let hour = calendar.component(.hour, from: now)
-                let minute = calendar.component(.minute, from: now)
-                let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
-                ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute, date: nextDate)
+                let cal = Calendar.current
+                var comps = cal.dateComponents([.year, .month, .day], from: now)
+                comps.hour = cal.component(.hour, from: now)
+                comps.minute = cal.component(.minute, from: now)
+                comps.second = 0
+                let todayDate = cal.date(from: comps) ?? now
+                ReminderManager.shared.updateTemporaryTime(hour: comps.hour ?? 0, minute: comps.minute ?? 0, date: todayDate)
             }
         }
         return
@@ -651,11 +653,13 @@ class ClockViewModel: ObservableObject {
             self.resetHapticState()
             if ReminderManager.shared.currentReminder == nil {
                 let now = Date()
-                let calendar = Calendar.current
-                let hour = calendar.component(.hour, from: now)
-                let minute = calendar.component(.minute, from: now)
-                let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
-                ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute, date: nextDate)
+                let cal = Calendar.current
+                var comps = cal.dateComponents([.year, .month, .day], from: now)
+                comps.hour = cal.component(.hour, from: now)
+                comps.minute = cal.component(.minute, from: now)
+                comps.second = 0
+                let todayDate = cal.date(from: comps) ?? now
+                ReminderManager.shared.updateTemporaryTime(hour: comps.hour ?? 0, minute: comps.minute ?? 0, date: todayDate)
             }
         }
     }
@@ -682,11 +686,13 @@ class ClockViewModel: ObservableObject {
             self?.resetHapticState()
             if ReminderManager.shared.currentReminder == nil {
                 let now = Date()
-                let calendar = Calendar.current
-                let hour = calendar.component(.hour, from: now)
-                let minute = calendar.component(.minute, from: now)
-                let nextDate = ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: now)
-                ReminderManager.shared.updateTemporaryTime(hour: hour, minute: minute, date: nextDate)
+                let cal = Calendar.current
+                var comps = cal.dateComponents([.year, .month, .day], from: now)
+                comps.hour = cal.component(.hour, from: now)
+                comps.minute = cal.component(.minute, from: now)
+                comps.second = 0
+                let todayDate = cal.date(from: comps) ?? now
+                ReminderManager.shared.updateTemporaryTime(hour: comps.hour ?? 0, minute: comps.minute ?? 0, date: todayDate)
             }
         }
     }
@@ -708,8 +714,9 @@ class ClockViewModel: ObservableObject {
         // Создаём напоминание из угла поворота
         let reminder = ClockReminder.fromRotationAngle(rotationAngle, currentTime: currentTime)
 
-        // Обновляем только временное время
-        ReminderManager.shared.updateTemporaryTime(hour: reminder.hour, minute: reminder.minute)
+        // Обновляем временное время и вычисляем корректную дату (с учётом перехода суток)
+        let nextDate = ClockReminder.nextTriggerDate(hour: reminder.hour, minute: reminder.minute, from: Date())
+        ReminderManager.shared.updateTemporaryTime(hour: reminder.hour, minute: reminder.minute, date: nextDate)
     }
 
     /// Подтверждает временное напоминание (вызывается при долгом нажатии)

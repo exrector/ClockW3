@@ -408,12 +408,7 @@ struct SettingsView: View {
             }
 #endif
         }
-#if os(iOS)
-.presentationDetents([.fraction(0.5)])
-.presentationDragIndicator(.hidden)
-.interactiveDismissDisabled(true)
-.presentationBackgroundInteraction(.disabled)
-#endif
+// iOS sheet detents are attached inside the sheet content above
         .alert(item: $purchaseAlert) { alert in
             Alert(
                 title: Text(alert.title),
@@ -440,10 +435,11 @@ struct SettingsView: View {
     private func temporaryReminderRow(hour: Int, minute: Int) -> some View {
         // Создаём временный объект для отображения
         let effectiveDate = reminderManager.temporaryDate ?? ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: Date())
+        let isDailyPreview = reminderManager.temporaryIsDaily
         let temporaryReminder = ClockReminder(
             hour: hour,
             minute: minute,
-            date: effectiveDate,
+            date: isDailyPreview ? nil : effectiveDate,
             isEnabled: false,
             liveActivityEnabled: ReminderManager.shared.lastPreviewLiveActivityEnabled,
             alwaysLiveActivity: false,
@@ -453,7 +449,7 @@ struct SettingsView: View {
 
 #if os(iOS)
         let modeChangeHandler: (Bool) -> Void = { isDaily in
-            reminderManager.updateTemporaryTime(hour: hour, minute: minute)
+            reminderManager.updateTemporaryMode(isDaily: isDaily)
         }
         let liveActivityHandler: (Bool) -> Void = { isEnabled in
             // Сохраняем состояние LA для превью
@@ -484,7 +480,7 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, alignment: .center)
 #else
         let modeChangeHandler: (Bool) -> Void = { isDaily in
-            reminderManager.updateTemporaryTime(hour: hour, minute: minute)
+            reminderManager.updateTemporaryMode(isDaily: isDaily)
         }
 
         ReminderRow(
@@ -523,13 +519,14 @@ struct SettingsView: View {
                 await reminderManager.updateTimeSensitiveEnabled(isEnabled: isEnabled)
             }
         }
-
+        // Кнопки Live/Time‑Sensitive остаются на месте и после подтверждения,
+        // но становятся визуально приглушёнными и неактивными.
+        // Статусные 3 строки всегда на месте.
         ReminderRow(
             reminder: reminder,
             isPreview: false,
             onModeChange: modeChangeHandler,
             onLiveActivityToggle: liveActivityHandler,
-            
             onTimeSensitiveToggle: timeSensitiveHandler,
             onEdit: {
                 editContext = ReminderEditContext(reminder: reminder)
@@ -587,16 +584,19 @@ struct SettingsView: View {
 
         // UI реакция: подсветка активной плитки и возможность тапать только при активной LA
         let isSelected = reminderManager.selectedCityIdentifier == entry.id
-        let isPreviewActive = reminderManager.currentReminder == nil &&
-                              reminderManager.temporaryHour != nil &&
-                              reminderManager.temporaryMinute != nil
+        #if os(iOS)
+        // Тапы по плиткам городов разрешены ТОЛЬКО когда активна Live Activity
+        let isTapEnabled = reminderManager.isCityTapEnabled
+        #else
+        let isTapEnabled = false
+        #endif
 
         CityRow(
             entry: entry,
             isRemovable: removable,
             isSelected: isSelected,
-            // Тап активен ТОЛЬКО в режиме предварительного напоминания (до подтверждения)
-            isTapEnabled: isPreviewActive,
+            // Тап активен только если Live Activity реально активна
+            isTapEnabled: isTapEnabled,
             onTap: {
                 // Тоггл выбора города: повторный тап снимает выбор (только в превью)
                 Task { @MainActor in
@@ -921,6 +921,25 @@ private struct ReminderRow: View {
 #endif
     }
 
+    private var isPastSelection: Bool {
+#if os(iOS)
+        let now = Date()
+        if isPreview {
+            if reminder.isDaily {
+                let cal = Calendar.current
+                let nowHour = cal.component(.hour, from: now)
+                let nowMinute = cal.component(.minute, from: now)
+                if reminder.hour < nowHour { return true }
+                if reminder.hour == nowHour && reminder.minute < nowMinute { return true }
+                return false
+            } else if let d = reminder.date {
+                return d < now
+            }
+        }
+#endif
+        return false
+    }
+
     var body: some View {
         ZStack {
             // Раскладка элементов строки
@@ -978,12 +997,30 @@ private struct ReminderRow: View {
                 onEdit?()
             }
         } label: {
-            Text(reminder.formattedTime)
-                .font(.headline)
-                .foregroundColor(isPreview ? .primary : .red)
+            VStack(spacing: 2) {
+                Text(reminder.formattedTime)
+                    .font(.headline)
+                    .foregroundColor(isPreview ? Color.primary : Color.red)
+                // Всегда показываем строку даты под временем.
+                // Для one-time используем дату напоминания.
+                // Для daily вычисляем ближайшую дату срабатывания по времени.
+                let dateToShow: Date? = {
+                    if isDailyMode {
+                        return ClockReminder.nextTriggerDate(hour: reminder.hour, minute: reminder.minute, from: Date())
+                    } else {
+                        return reminder.date
+                    }
+                }()
+                if let d = dateToShow {
+                    Text(d, format: Date.FormatStyle().day().month(.wide).year())
+                        .font(.caption2)
+                        .foregroundColor(isPreview ? (isPastSelection ? Color.red : Color.primary) : Color.red)
+                }
+            }
+            .foregroundStyle(.primary)
         }
         .buttonStyle(.plain)
-        .disabled(!isPreview) // Блокируем для подтверждённого
+        // Не используем disabled, чтобы не делать текст тусклым; действие и так срабатывает только в превью
         .accessibilityLabel("Edit reminder time")
     }
 
@@ -1130,7 +1167,7 @@ private struct ReminderRow: View {
             // Line 1: repeat mode (always visible)
             Text(isDailyMode ? "Every day" : "One time")
                 .font(.caption2)
-                .foregroundStyle(.primary)
+                .foregroundStyle(isPastSelection ? .red : .primary)
                 .multilineTextAlignment(.center)
 
             // Line 2: Live + MAX24 hint (if >24h)
@@ -1205,7 +1242,7 @@ private struct ReminderRow: View {
                     .foregroundStyle(.primary)
             }
             .buttonStyle(.plain)
-            .disabled(isConfirming)
+            .disabled(isConfirming || isPastSelection)
             .accessibilityLabel("Confirm reminder")
         } else if let onRemove = onRemove {
             Button(action: onRemove) {
@@ -1361,28 +1398,26 @@ private struct CityRow: View {
                 .strokeBorder(isSelected ? Color.red : Color.primary, lineWidth: 1)
         )
         .frame(maxWidth: 360)
+        #if os(iOS)
         .overlay(
             GeometryReader { geo in
-                Color.clear
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onEnded { value in
-                                guard isTapEnabled else { return }
-                                let location = value.location
-                                let width = geo.size.width
-                                // Правая зона кнопки удаления: ~44pt + внутренний отступ 16pt
-                                let deleteTouchWidth: CGFloat = 44
-                                let horizontalPadding: CGFloat = 16
-                                let deleteThreshold = width - (deleteTouchWidth + horizontalPadding)
-                                if isRemovable && location.x >= deleteThreshold {
-                                    return
-                                }
-                                onTap?()
-                            }
-                    )
+                // Зона тапа, которая исключает правую область с кнопкой удаления.
+                let deleteTouchWidth: CGFloat = 44
+                let horizontalPadding: CGFloat = 16
+                let tappableWidth = max(0, geo.size.width - (deleteTouchWidth + horizontalPadding))
+                HStack(spacing: 0) {
+                    Color.clear
+                        .frame(width: tappableWidth, height: geo.size.height)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            guard isTapEnabled else { return }
+                            onTap?()
+                        }
+                    Spacer(minLength: deleteTouchWidth + horizontalPadding)
+                }
             }
         )
+        #endif
         .animation(.easeInOut(duration: 0.15), value: isSelected)
     }
 }
@@ -1751,6 +1786,7 @@ private struct EditReminderView: View {
                 }
                 .keyboardShortcut(.defaultAction)
                 .fontWeight(.semibold)
+                .disabled(!reminder.isDaily && selectedDate < Date())
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -1821,13 +1857,15 @@ private struct EditReminderView: View {
             )
 #endif
 
-            // Notice about Live Activity limit
+            #if os(iOS)
+            // Notice about Live Activity limit (iOS only)
             Text("Changing date beyond 24 hours will deactivate Live Activity.")
                 .font(.footnote)
                 .foregroundStyle(.red)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
+            #endif
         }
 #if os(iOS)
         // Let the system sheet card (with rounded corners) show through
@@ -1853,6 +1891,7 @@ private struct EditReminderView: View {
                     dismiss()
                 }
                 .fontWeight(.semibold)
+                .disabled(!reminder.isDaily && selectedDate < Date())
             }
         }
 #endif
