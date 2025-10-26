@@ -112,7 +112,7 @@ class ReminderManager: ObservableObject {
         }
 
         // Ограничение: если дата дальше чем 24 часа — отключаем Live Activity в превью
-        if let tDate = temporaryDate, tDate.timeIntervalSince(Date()) > 24*60*60 {
+        if isBeyond24Hours(temporaryDate) {
             previewLiveActivityEnabled = false
             persistPreviewPreferences()
         }
@@ -126,7 +126,7 @@ class ReminderManager: ObservableObject {
         let nextDate = temporaryDate ?? ClockReminder.nextTriggerDate(hour: hour, minute: minute, from: Date())
 
         // При подтверждении запускаем Live Activity только если включена в превью и дата в пределах 24 часов
-        let autoEnableLA = previewLiveActivityEnabled && (nextDate.timeIntervalSince(Date()) <= 24*60*60)
+        let autoEnableLA = previewLiveActivityEnabled && !isBeyond24Hours(nextDate)
 
         // Создаём реальное напоминание
         let newReminder = ClockReminder(
@@ -243,7 +243,7 @@ class ReminderManager: ObservableObject {
 
         // Применяем ограничение 24 часов для Live Activity у one-time
         var adjusted = reminder
-        if let d = adjusted.date, d.timeIntervalSince(Date()) > 24*60*60 {
+        if isBeyond24Hours(adjusted.date) {
             adjusted.liveActivityEnabled = false
         }
 
@@ -425,7 +425,7 @@ class ReminderManager: ObservableObject {
             return
         }
         // Ограничение 24 часа: не позволяем включить LA если дата слишком далека
-        if isEnabled, let d = reminder.date, d.timeIntervalSince(Date()) > 24*60*60 {
+        if isEnabled, isBeyond24Hours(reminder.date) {
             // Принудительно выключаем
             reminder.liveActivityEnabled = false
             await setReminder(reminder)
@@ -441,6 +441,13 @@ class ReminderManager: ObservableObject {
         }
 #endif
         await setReminder(reminder)
+    }
+
+    // MARK: - Helpers
+    /// Возвращает true если дата дальше чем через 24 часа от текущего момента
+    func isBeyond24Hours(_ date: Date?) -> Bool {
+        guard let date = date else { return false }
+        return date.timeIntervalSince(Date()) > 24 * 60 * 60
     }
 
     /// Обновляет флаг Time-Sensitive Alert
@@ -491,7 +498,8 @@ class ReminderManager: ObservableObject {
         // Выбор города разрешён только до подтверждения (в режиме превью)
         guard isCityTapEnabled else { return }
         selectedCityIdentifier = identifier
-        selectedCityName = name
+        // В Live Activity показываем ТОЛЬКО название города (без региона/прочего)
+        selectedCityName = TimeZoneDirectory.cityName(forIdentifier: identifier)
         reevaluateCityTapEnabled()
 #if canImport(ActivityKit) && !os(macOS)
         if #available(iOS 16.1, *) {

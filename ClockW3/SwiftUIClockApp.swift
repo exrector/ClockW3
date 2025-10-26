@@ -893,6 +893,7 @@ private struct ReminderRow: View {
     @State private var isLiveActivityEnabled: Bool
     @State private var isTimeSensitiveEnabled: Bool
 #endif
+    @State private var isConfirming = false
     @Environment(\.colorScheme) private var colorScheme
 
     init(
@@ -1061,7 +1062,7 @@ private struct ReminderRow: View {
             // Переключатель LA доступен только для one-time
             guard !isDailyMode else { return }
             // Ограничение 24 часа: не даём включать LA, если дата слишком далека
-            if let d = reminder.date, d.timeIntervalSince(Date()) > 24*60*60 { return }
+            if ReminderManager.shared.isBeyond24Hours(reminder.date) { return }
             isLiveActivityEnabled.toggle()
             onLiveActivityToggle(isLiveActivityEnabled)
         } label: {
@@ -1079,12 +1080,12 @@ private struct ReminderRow: View {
                 )
                 .shadow(color: isLiveActivityEnabled ? borderColor.opacity(0.25) : .clear, radius: 3)
                 // Если daily, подтверждённое или >24h — затемняем и блокируем визуально
-                .opacity(((isDailyMode || !isPreview) || ((reminder.date?.timeIntervalSince(Date()) ?? 0) > 24*60*60)) ? 0.3 : 1.0)
+                .opacity(((isDailyMode || !isPreview) || ReminderManager.shared.isBeyond24Hours(reminder.date)) ? 0.3 : 1.0)
         }
         .buttonStyle(.plain)
         .frame(width: 28, height: 28)
         .contentShape(Rectangle())
-        .disabled(!isPreview || ((reminder.date?.timeIntervalSince(Date()) ?? 0) > 24*60*60))
+        .disabled(!isPreview || ReminderManager.shared.isBeyond24Hours(reminder.date))
         .accessibilityLabel("Toggle Live Activity")
     }
 
@@ -1124,23 +1125,33 @@ private struct ReminderRow: View {
 
     @ViewBuilder
     private var statusStack: some View {
-        VStack(alignment: .trailing, spacing: 2) {
+        VStack(alignment: .center, spacing: 2) {
 #if os(iOS)
             // Line 1: repeat mode (always visible)
             Text(isDailyMode ? "Every day" : "One time")
                 .font(.caption2)
                 .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
 
-            // Line 2: Live Activity state (keeps space when unavailable)
+            // Line 2: Live + MAX24 hint (if >24h)
             if onLiveActivityToggle != nil {
-                if isLiveActivityEnabled {
+                if ReminderManager.shared.isBeyond24Hours(reminder.date) {
+                    HStack(spacing: 4) {
+                        Text("Live")
+                            .font(.caption2)
+                            .foregroundStyle(.primary)
+                        Text("MAX24")
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                    }
+                } else if isLiveActivityEnabled {
                     HStack(spacing: 2) {
-                        Text("Live Activity")
+                        Text("Live")
                             .font(.caption2)
                             .foregroundStyle(.primary)
                     }
                 } else {
-                    Text("Live Activity")
+                    Text("Live")
                         .font(.caption2)
                         .foregroundStyle(.clear)
                 }
@@ -1169,6 +1180,7 @@ private struct ReminderRow: View {
             Text(isDailyMode ? "Every day" : "One time")
                 .font(.caption2)
                 .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
 
             Text(" ")
                 .font(.caption2)
@@ -1180,12 +1192,20 @@ private struct ReminderRow: View {
     @ViewBuilder
     private var trailingActionButton: some View {
         if isPreview, let onConfirm = onConfirm {
-            Button(action: onConfirm) {
+            Button {
+                guard !isConfirming else { return }
+                isConfirming = true
+                onConfirm()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    isConfirming = false
+                }
+            } label: {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title3)
                     .foregroundStyle(.primary)
             }
             .buttonStyle(.plain)
+            .disabled(isConfirming)
             .accessibilityLabel("Confirm reminder")
         } else if let onRemove = onRemove {
             Button(action: onRemove) {

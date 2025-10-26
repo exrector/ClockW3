@@ -19,17 +19,11 @@ struct ReminderLiveActivity: Widget {
             } compactLeading: {
                 EmptyView()
             } compactTrailing: {
-                    TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                        let timeHasPassed = context.state.endDate <= timeline.date
-                        let isDone = context.state.hasFinished || timeHasPassed
-                        ReminderIslandBadge(isDone: isDone)
-                    }
+                    let isDone = context.state.hasFinished
+                    ReminderIslandBadge(isDone: isDone)
             } minimal: {
-                    TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                        let timeHasPassed = context.state.endDate <= timeline.date
-                        let isDone = context.state.hasFinished || timeHasPassed
-                        ReminderIslandBadge(isDone: isDone)
-                    }
+                    let isDone = context.state.hasFinished
+                    ReminderIslandBadge(isDone: isDone)
             }
         }
     }
@@ -40,9 +34,7 @@ private struct ReminderLiveActivityContentView: View {
     let context: ActivityViewContext<ReminderLiveActivityAttributes>
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { _ in
-
-            HStack(spacing: 16) {
+        HStack(spacing: 16) {
                 // Left side: Title (single-line), City and Date
                 VStack(alignment: .leading, spacing: 8) {
                     Text(context.attributes.title)
@@ -80,7 +72,6 @@ private struct ReminderLiveActivityContentView: View {
                 }
             }
             .padding(16)
-        }
     }
 }
 
