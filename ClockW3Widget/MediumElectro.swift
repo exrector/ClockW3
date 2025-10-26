@@ -285,7 +285,6 @@ struct MediumElectroWidgetEntryView: View {
                 let interTile: CGFloat = 3
                 let colonW = max(2, hAvail * 0.08)
                 let gap = max(2, hAvail * 0.02)
-                let centerY = hAvail / 2
 
                 // Все элементы в одном HStack для идеальной симметрии
                 HStack(alignment: .center, spacing: gap) {
