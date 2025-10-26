@@ -7,6 +7,11 @@ struct StaticBackgroundView: View {
     let currentTime: Date
     let use12HourFormat: Bool
 
+    #if os(macOS)
+    @AppStorage("transparentModeActive", store: UserDefaults.standard)
+    private var transparentModeActive: Bool = false
+    #endif
+
     private var baseRadius: CGFloat {
         min(size.width, size.height) / 2.0 * ClockConstants.clockSizeRatio
     }
@@ -17,10 +22,18 @@ struct StaticBackgroundView: View {
 
     var body: some View {
         ZStack {
-            // Основной фон
+            // Основной фон (убираем если активна прозрачность на macOS)
+            #if os(macOS)
+            if !transparentModeActive {
+                Circle()
+                    .fill(colors.background)
+                    .frame(width: baseRadius * 2, height: baseRadius * 2)
+            }
+            #else
             Circle()
                 .fill(colors.background)
                 .frame(width: baseRadius * 2, height: baseRadius * 2)
+            #endif
 
             // Тики (96 штук)
             TicksView(

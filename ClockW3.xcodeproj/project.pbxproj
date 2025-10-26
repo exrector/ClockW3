@@ -71,6 +71,7 @@
 				MiniGames/PlanetariumView.swift,
 				MiniGames/QuantumFieldView.swift,
 				MiniGames/RingSystemsView.swift,
+				MiniGames/TransparentLayersView.swift,
 				MiniGames/VaultDoorView.swift,
 				MiniGames/VaultDoorView5.swift,
 				Views/ClockFaceView.swift,

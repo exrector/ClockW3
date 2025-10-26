@@ -2,15 +2,21 @@
 import SwiftUI
 
 enum MiniGameRegistry {
-    private static let availableScenes: [any MiniGameScene.Type] = [
-        PlanetariumView.self,
-        VaultDoorView.self,
-        VaultDoorView5.self,
-        AtomModelView.self,
-        QuantumFieldView.self,
-        FlowerOfLifeView.self,
-        RingSystemsView.self,
-    ]
+    private static var availableScenes: [any MiniGameScene.Type] {
+        var scenes: [any MiniGameScene.Type] = [
+            PlanetariumView.self,
+            //VaultDoorView.self,
+            //VaultDoorView5.self,
+            //AtomModelView.self,
+            //QuantumFieldView.self,
+            //FlowerOfLifeView.self,
+            //RingSystemsView.self,
+        ]
+        #if os(macOS)
+        scenes.append(TransparentLayersView.self)
+        #endif
+        return scenes
+    }
 
     // Счетчик для показа пасхалок по очереди
     @AppStorage("easterEggCounter", store: UserDefaults.standard)

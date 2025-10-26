@@ -34,6 +34,10 @@ struct ClockFaceView: View {
         SharedUserDefaults.mechanismDebugKey,
         store: SharedUserDefaults.shared
     ) private var mechanismDebugEnabled: Bool = false
+    #if os(macOS)
+    @AppStorage("transparentModeActive", store: UserDefaults.standard)
+    private var transparentModeActive: Bool = false
+    #endif
     @State private var screwsUnlocked: [Bool] = [false, false, false, false]
     @State private var screwsRotation: [Double] = [0, 0, 0, 0]
     @State private var initialScrewsRotation: [Double] = [0, 0, 0, 0]
@@ -62,7 +66,15 @@ struct ClockFaceView: View {
             // 3. Сцена выбрана (currentEasterEggScene != nil)
             let showEasterEgg = mechanismDebugEnabled && interactivityEnabled && currentEasterEggScene != nil
 
-            if showEasterEgg {
+            // Если прозрачность активна (только macOS) - показываем циферблат БЕЗ фонов
+            // Если обычная пасхалка - показываем только пасхалку
+            #if os(macOS)
+            let isTransparentMode = showEasterEgg && transparentModeActive
+            #else
+            let isTransparentMode = false
+            #endif
+
+            if showEasterEgg && !isTransparentMode {
                 ZStack {
                     palette.background
                         .ignoresSafeArea()
@@ -91,9 +103,16 @@ struct ClockFaceView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             } else {
                 ZStack {
-                    // Фон приложения
+                    // Фон приложения (убираем если активна прозрачность на macOS)
+                    #if os(macOS)
+                    if !transparentModeActive {
+                        palette.background
+                            .ignoresSafeArea()
+                    }
+                    #else
                     palette.background
                         .ignoresSafeArea()
+                    #endif
 
                     // Основной циферблат
                     ZStack {
@@ -218,6 +237,25 @@ struct ClockFaceView: View {
                     }
                     .frame(width: size.width, height: size.height)
                     .clipped()
+
+                    // Если прозрачность активна - рендерим пасхалку поверх (для TransparentLayersView чтобы onAppear сработал)
+                    // Только на macOS - на iOS прозрачность NSWindow не работает
+                    #if !WIDGET_EXTENSION && os(macOS)
+                    if transparentModeActive, showEasterEgg, let easterEggScene = currentEasterEggScene {
+                        easterEggScene
+                            .frame(width: dialDiameter, height: dialDiameter)
+                            .clipShape(Circle())
+                            .onTapGesture {
+                                // Выход из режима прозрачности при нажатии
+                                withAnimation(.easeInOut(duration: 0.5)) {
+                                    mechanismDebugEnabled = false
+                                    screwsUnlocked = [false, false, false, false]
+                                    screwsRotation = [0, 0, 0, 0]
+                                    currentEasterEggScene = nil
+                                }
+                            }
+                    }
+                    #endif
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 // Высокий приоритет, но с фильтрацией направления, чтобы не мешать скроллу

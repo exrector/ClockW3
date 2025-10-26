@@ -21,6 +21,8 @@ struct ContentView: View {
         SharedUserDefaults.windowOrientationKey,
         store: SharedUserDefaults.shared
     ) private var windowOrientationPreference: String = "landscape"
+    @AppStorage("transparentModeActive", store: UserDefaults.standard)
+    private var transparentModeActive: Bool = false
 #endif
     @State private var showSettings = false
 #if os(macOS)
@@ -104,6 +106,7 @@ struct ContentView: View {
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color("ClockBackground"))
                     }
                 } else {
                     VStack(spacing: 0) {
@@ -111,21 +114,24 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity)
                             .frame(maxHeight: portraitClockMaxHeight)
 
-                        if showSettings {
-                            SettingsView()
-                                .frame(maxWidth: .infinity)
-                                .frame(maxHeight: .infinity, alignment: .topLeading)
-                        } else {
-                            Button("Settings") { showSettings = true }
-                                .frame(maxHeight: .infinity)
+                        VStack(spacing: 0) {
+                            if showSettings {
+                                SettingsView()
+                                    .frame(maxWidth: .infinity)
+                                    .frame(maxHeight: .infinity, alignment: .topLeading)
+                            } else {
+                                Button("Settings") { showSettings = true }
+                                    .frame(maxHeight: .infinity)
+                            }
                         }
+                        .frame(maxHeight: .infinity)
+                        .background(Color("ClockBackground"))
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(width: targetSize.width, height: targetSize.height)
-        .background(Color("ClockBackground"))
         // Не форсируем .preferredColorScheme на macOS — используем NSWindow/NSApp.appearance
         // Форсируем полное перестроение при смене режима System/Light/Dark,
         // чтобы убрать/применить override цветовой схемы корректно.
@@ -157,27 +163,31 @@ struct ContentView: View {
                                 }
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color("ClockBackground"))
                         }
                     } else {
                         VStack(spacing: 0) {
                             ClockFaceView()
                                 .frame(maxWidth: .infinity, maxHeight: height * 0.6)
 
-                            if showSettings {
-                                SettingsView()
-                                    .frame(maxWidth: .infinity)
-                                    .frame(maxHeight: .infinity, alignment: .topLeading)
-                            } else {
-                                Button("Settings") { showSettings = true }
-                                    .frame(maxHeight: .infinity)
+                            VStack(spacing: 0) {
+                                if showSettings {
+                                    SettingsView()
+                                        .frame(maxWidth: .infinity)
+                                        .frame(maxHeight: .infinity, alignment: .topLeading)
+                                } else {
+                                    Button("Settings") { showSettings = true }
+                                        .frame(maxHeight: .infinity)
+                                }
                             }
+                            .frame(maxHeight: .infinity)
+                            .background(Color("ClockBackground"))
                         }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color("ClockBackground"))
         .preferredColorScheme(preferredColorScheme)
     }
     }
