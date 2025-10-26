@@ -17,8 +17,11 @@ import SwiftUI
 struct ClockW3WidgetBundle: WidgetBundle {
     @WidgetBundleBuilder
     var body: some Widget {
+        // ПО УМОЛЧАНИЮ В СИМУЛЯТОРЕ — новый флип‑виджет (Medium)
+        MediumElectroWidget()
+
         // КЛАССИЧЕСКИЕ ВИДЖЕТЫ (используют вью из приложения):
-        MediumListWidget()          // Список городов (Medium) - ПО УМОЛЧАНИЮ В СИМУЛЯТОРЕ!
+        MediumListWidget()          // Список городов (Medium)
         LargeFullFaceWidget()       // Полный циферблат (Large)
         SmallFullFaceWidget()       // Полный циферблат (Small)
 
