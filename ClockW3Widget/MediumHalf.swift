@@ -10,26 +10,36 @@ import WidgetKit
 import SwiftUI
 
 // MARK: - Timeline Provider для Medium виджета
-struct MediumWidgetProvider: TimelineProvider {
+struct MediumWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> MediumWidgetEntry {
         let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
-        return MediumWidgetEntry(date: Date(), colorSchemePreference: "system", use12HourFormat: use12Hour)
+        return MediumWidgetEntry(
+            date: Date(),
+            colorSchemePreference: "system",
+            use12HourFormat: use12Hour,
+            cityTimeZoneIdentifier: nil
+        )
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (MediumWidgetEntry) -> ()) {
+    func snapshot(for configuration: MediumWidgetConfigurationIntent, in context: Context) async -> MediumWidgetEntry {
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
         let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
-        let entry = MediumWidgetEntry(date: Date(), colorSchemePreference: colorPref, use12HourFormat: use12Hour)
-        completion(entry)
+        return MediumWidgetEntry(
+            date: Date(),
+            colorSchemePreference: colorPref,
+            use12HourFormat: use12Hour,
+            cityTimeZoneIdentifier: configuration.city?.id
+        )
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<MediumWidgetEntry>) -> ()) {
+    func timeline(for configuration: MediumWidgetConfigurationIntent, in context: Context) async -> Timeline<MediumWidgetEntry> {
         var entries: [MediumWidgetEntry] = []
 
         // Читаем настройки при каждом обновлении timeline
         _ = SharedUserDefaults.usingAppGroup
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
         let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
+        let cityIdentifier = configuration.city?.id
 
         let now = Date()
         let calendar = Calendar.current
@@ -39,25 +49,39 @@ struct MediumWidgetProvider: TimelineProvider {
         // Рассчитываем точное время начала следующей минуты
         guard let nextMinuteStart = calendar.date(bySetting: .second, value: 0, of: now.addingTimeInterval(Double(secondsToNextMinute))) else {
             // Fallback
-            let entry = MediumWidgetEntry(date: now, colorSchemePreference: colorPref, use12HourFormat: use12Hour)
-            let timeline = Timeline(entries: [entry], policy: .after(now.addingTimeInterval(60)))
-            completion(timeline)
-            return
+            let entry = MediumWidgetEntry(
+                date: now,
+                colorSchemePreference: colorPref,
+                use12HourFormat: use12Hour,
+                cityTimeZoneIdentifier: cityIdentifier
+            )
+            return Timeline(entries: [entry], policy: .after(now.addingTimeInterval(60)))
         }
 
         // 1) Немедленный entry на текущий момент — чтобы изменения настроек применялись мгновенно после reload
-        entries.append(MediumWidgetEntry(date: now, colorSchemePreference: colorPref, use12HourFormat: use12Hour))
+        entries.append(
+            MediumWidgetEntry(
+                date: now,
+                colorSchemePreference: colorPref,
+                use12HourFormat: use12Hour,
+                cityTimeZoneIdentifier: cityIdentifier
+            )
+        )
 
         // 2) Генерируем timeline на следующие 60 минут с обновлением каждую минуту, начиная с начала следующей минуты
         for minuteOffset in 0 ..< 60 {
             let entryDate = calendar.date(byAdding: .minute, value: minuteOffset, to: nextMinuteStart)!
-            let entry = MediumWidgetEntry(date: entryDate, colorSchemePreference: colorPref, use12HourFormat: use12Hour)
+            let entry = MediumWidgetEntry(
+                date: entryDate,
+                colorSchemePreference: colorPref,
+                use12HourFormat: use12Hour,
+                cityTimeZoneIdentifier: cityIdentifier
+            )
             entries.append(entry)
         }
 
         // Позволяем системе перезагрузиться, когда таймлайн закончится
-        let timeline = Timeline(entries: entries, policy: .atEnd)
-        completion(timeline)
+        return Timeline(entries: entries, policy: .atEnd)
     }
 }
 
@@ -66,6 +90,7 @@ struct MediumWidgetEntry: TimelineEntry {
     let date: Date
     let colorSchemePreference: String
     let use12HourFormat: Bool
+    let cityTimeZoneIdentifier: String?
 }
 
 /// Bubble-style date badge for the medium widget.
@@ -112,9 +137,6 @@ private struct FlipDateCard: View {
 struct ClockW3MediumWidgetEntryView: View {
     var entry: MediumWidgetProvider.Entry
     @Environment(\.colorScheme) private var systemColorScheme
-    #if os(macOS)
-    @Environment(\.widgetRenderingMode) var widgetRenderingMode
-    #endif
 
     private var effectiveColorScheme: ColorScheme {
         switch entry.colorSchemePreference {
@@ -127,36 +149,25 @@ struct ClockW3MediumWidgetEntryView: View {
         }
     }
 
-    private var palette: ClockColorPalette {
-        #if os(macOS)
-        if widgetRenderingMode == .fullColor {
-            return ClockColorPalette.system(colorScheme: effectiveColorScheme)
-        } else {
-            return ClockColorPalette.forMacWidget(colorScheme: effectiveColorScheme)
-        }
-        #else
-        return ClockColorPalette.system(colorScheme: effectiveColorScheme)
-        #endif
-    }
-
     var body: some View {
         GeometryReader { geometry in
             let widgetSize = geometry.size
             let widgetHeight = widgetSize.height
             let scale: CGFloat = 1.1  // Увеличиваем масштаб на 10%
             let fullClockSize = widgetHeight * 2 * scale  // Полный циферблат = двойная высота виджета * масштаб
+            let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
 
             ZStack {
-#if !os(macOS)
                 palette.background
                     .ignoresSafeArea()
-#endif
+
                 // ПОВОРОТНЫЙ ЦИФЕРБЛАТ С МИНУТНОЙ ШКАЛОЙ: показываем верхнюю половину
                 // Стрелка статична на 270° (вертикально вверх), циферблат вращается
                 MediumClockFace(
                     currentTime: entry.date,
                     palette: palette,
-                    use12HourFormat: entry.use12HourFormat
+                    use12HourFormat: entry.use12HourFormat,
+                    cityTimeZoneIdentifier: entry.cityTimeZoneIdentifier
                 )
                 .frame(width: fullClockSize, height: fullClockSize)
                 .position(x: widgetSize.width / 2, y: fullClockSize / 2)  // Центр циферблата, верхний край у верха виджета
@@ -165,11 +176,7 @@ struct ClockW3MediumWidgetEntryView: View {
             .clipped()
             .environment(\.colorScheme, effectiveColorScheme)
         }
-        #if os(macOS)
-        .containerBackground(.ultraThinMaterial, for: .widget)
-        #else
-        .widgetBackground(palette.background)
-        #endif
+        .widgetBackground(ClockColorPalette.system(colorScheme: effectiveColorScheme).background)
         // Важно: заставляем ассеты и весь UI следовать выбранной схеме, а не системной
         .environment(\.colorScheme, effectiveColorScheme)
     }
@@ -181,18 +188,17 @@ struct MediumHalfWidget: Widget {
     let kind: String = "MOWMediumHalf"
 
     var body: some WidgetConfiguration {
-        let configuration = StaticConfiguration(kind: kind, provider: MediumWidgetProvider()) { entry in
+        AppIntentConfiguration(
+            kind: kind,
+            intent: MediumWidgetConfigurationIntent.self,
+            provider: MediumWidgetProvider()
+        ) { entry in
             ClockW3MediumWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("MOW Medium")
-        .description("Upper half of rotating clock face")
+        .configurationDisplayName("MOW Half")
+        .description("Half of rotating clock face with city selection")
         .supportedFamilies([.systemMedium])
-
-        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *) {
-            return configuration.contentMarginsDisabled()
-        } else {
-            return configuration
-        }
+        .contentMarginsDisabled()
     }
 }
 
@@ -201,6 +207,7 @@ struct MediumClockFace: View {
     let currentTime: Date
     let palette: ClockColorPalette
     let use12HourFormat: Bool
+    let cityTimeZoneIdentifier: String?
 
     private let staticArrowAngle: Double = -Double.pi / 2  // 270° - стрелка вертикально вверх
 
@@ -212,7 +219,11 @@ struct MediumClockFace: View {
 
             drawBackground(context: context, center: center, baseRadius: baseRadius)
 
-            let calendar = Calendar.current
+            // Используем календарь с часовым поясом выбранного города
+            var calendar = Calendar.current
+            if let cityTZ = cityTimeZoneIdentifier, let timeZone = TimeZone(identifier: cityTZ) {
+                calendar.timeZone = timeZone
+            }
             let month = calendar.component(.month, from: currentTime)
             let day = calendar.component(.day, from: currentTime)
             let hour = calendar.component(.hour, from: currentTime)
@@ -223,7 +234,7 @@ struct MediumClockFace: View {
             drawRedRingBetweenDayAndHour(context: context, center: center, baseRadius: baseRadius)
             drawHourScale(context: context, center: center, baseRadius: baseRadius, currentHour: hour)
             drawMinuteScale(context: context, center: center, baseRadius: baseRadius, currentMinute: minute)
-            drawLocalCityOrbit(context: context, center: center, baseRadius: baseRadius, rotationAngle: rotationAngle)
+            drawLocalCityOrbit(context: context, center: center, baseRadius: baseRadius, rotationAngle: rotationAngle, cityTimeZoneIdentifier: cityTimeZoneIdentifier)
 
             // Шестерёнка в центре ЦИФЕРБЛАТА (там где начинается стрелка)
             // Рисуем её ДО стрелки и центрального диска, чтобы поворот canvas не влиял на остальные элементы
@@ -282,7 +293,7 @@ struct MediumClockFace: View {
 
     private func drawRedRingBetweenDayAndHour(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat) {
         // Красная окружность между орбитой дней и орбитой часов (0.70)
-        let ringRadius = baseRadius * 0.625  // Зазор 0.05 до часов
+        let ringRadius = baseRadius * 0.625  // Узкая полоска
         let ringWidth = baseRadius * 0.01   // Узкая полоска
 
         let ringPath = Path(ellipseIn: CGRect(
@@ -379,7 +390,6 @@ struct MediumClockFace: View {
             let displayHour = use12HourFormat ? (hour == 0 ? 12 : hour) : hour
             let text = Text(String(format: "%02d", displayHour))
                 .font(.system(size: fontSize, weight: .semibold, design: .monospaced).width(.condensed))
-                .foregroundColor(palette.numbers)
 
             textContext.draw(text, at: .zero, anchor: .center)
         }
@@ -477,22 +487,41 @@ struct MediumClockFace: View {
         }
     }
 
-    private func drawLocalCityOrbit(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat, rotationAngle: Double) {
+    private func drawLocalCityOrbit(context: GraphicsContext, center: CGPoint, baseRadius: CGFloat, rotationAngle: Double, cityTimeZoneIdentifier: String?) {
         let orbitRadius = baseRadius * ClockConstants.outerLabelRingRadius
         let fontSize = baseRadius * 2 * ClockConstants.labelRingFontSizeRatio
-        let cityName = TimeZone.current.identifier.components(separatedBy: "/").last ?? "LOCAL"
-        let characters = Array(cityName.uppercased())
 
-        // Рисуем название города БЕЗ подложки, как в оригинале
+        // Используем выбранный город из конфигурации или локальный
+        let identifier = cityTimeZoneIdentifier ?? TimeZone.current.identifier
+        let cityName = TimeZoneDirectory.cityName(forIdentifier: identifier)
+        let characters = Array(cityName.uppercased())
+        // Новая логика: шестерёнка не рисуется под текстом — только на свободных сегментах
         if !characters.isEmpty {
             let letterSpacing = Double(fontSize) * 0.8
             let totalWidth = Double(max(characters.count - 1, 0)) * letterSpacing
+            let angularWidth = totalWidth / Double(orbitRadius)
+            let padding = (Double(fontSize) * 0.8) / Double(baseRadius) * 0.7
 
-            // Название города центрируется над статичной стрелкой
-            let startAngle = staticArrowAngle - totalWidth / (2 * Double(orbitRadius))
+            let occupiedStart = staticArrowAngle - angularWidth / 2 - padding
+            let occupiedEnd = staticArrowAngle + angularWidth / 2 + padding
+            let freeRanges = calculateFreeRanges(occupiedRanges: [(start: occupiedStart, end: occupiedEnd)])
 
+            // Рисуем зубцы на свободных сегментах
+            for range in freeRanges where range.end > range.start {
+                drawGearTeeth(
+                    context: context,
+                    center: center,
+                    baseRadius: baseRadius,
+                    orbitRadius: orbitRadius,
+                    startAngle: range.start,
+                    endAngle: range.end
+                )
+            }
+
+            // Теперь рисуем буквы поверх зубцов
+            let textStartAngle = staticArrowAngle - totalWidth / (2 * Double(orbitRadius))
             for (index, character) in characters.enumerated() {
-                let letterAngle = startAngle + Double(index) * letterSpacing / Double(orbitRadius)
+                let letterAngle = textStartAngle + Double(index) * letterSpacing / Double(orbitRadius)
                 let position = AngleCalculations.pointOnCircle(
                     center: center,
                     radius: orbitRadius,
@@ -511,27 +540,16 @@ struct MediumClockFace: View {
                     letterContext.draw(text, at: .zero, anchor: .center)
                 }
             }
-
-            // Рисуем зубчатую дугу на свободных участках (без подложки под текстом)
-            let angularWidth = totalWidth / Double(orbitRadius)
-            let padding = (Double(fontSize) * 0.8) / Double(baseRadius) * 0.7
-            let occupiedStart = staticArrowAngle - angularWidth / 2 - padding
-            let occupiedEnd = staticArrowAngle + angularWidth / 2 + padding
-
-            let freeRanges = calculateFreeRanges(
-                occupiedRanges: [(start: occupiedStart, end: occupiedEnd)]
+        } else {
+            // Текста нет — рисуем полный круг зубцов
+            drawGearTeeth(
+                context: context,
+                center: center,
+                baseRadius: baseRadius,
+                orbitRadius: orbitRadius,
+                startAngle: 0,
+                endAngle: 2.0 * .pi
             )
-
-            for range in freeRanges where range.end > range.start {
-                drawGearTeeth(
-                    context: context,
-                    center: center,
-                    baseRadius: baseRadius,
-                    orbitRadius: orbitRadius,
-                    startAngle: range.start,
-                    endAngle: range.end
-                )
-            }
         }
     }
 
@@ -551,6 +569,9 @@ struct MediumClockFace: View {
 
         let actualToothWidth = arcLength / Double(toothCount)
         let gapRatio: CGFloat = 0.5  // 50% зубец, 50% промежуток
+
+        // Поворот так, чтобы центр (пик) зубца был на 270° (staticArrowAngle)
+        let rotation = staticArrowAngle - (actualToothWidth * Double(gapRatio)) / 2
 
         var path = Path()
 
@@ -621,7 +642,14 @@ struct MediumClockFace: View {
 
         path.closeSubpath()
 
-        context.fill(path, with: .color(palette.secondaryColor))
+        // Применяем поворот к path через transform
+        let rotatedPath = path.applying(
+            CGAffineTransform(translationX: center.x, y: center.y)
+                .rotated(by: rotation)
+                .translatedBy(x: -center.x, y: -center.y)
+        )
+
+        context.fill(rotatedPath, with: .color(palette.secondaryColor))
     }
 
     private func calculateFreeRanges(
@@ -737,6 +765,9 @@ struct MediumClockFace: View {
         let actualToothWidth = arcLength / Double(toothCount)
         let gapRatio: CGFloat = 0.5  // 50% зубец, 50% промежуток
 
+        // Поворот так, чтобы центр (пик) зубца был на 270°
+        let rotation = staticArrowAngle - (actualToothWidth * Double(gapRatio)) / 2
+
         var path = Path()
 
         // Начинаем с внутреннего радиуса
@@ -806,8 +837,15 @@ struct MediumClockFace: View {
 
         path.closeSubpath()
 
-        // Тип окраски как у внешней шестерёнки (palette.secondaryColor) в обычном режиме
-        context.fill(path, with: .color(palette.secondaryColor))
+        // Применяем поворот к path через transform
+        let rotatedPath = path.applying(
+            CGAffineTransform(translationX: center.x, y: center.y)
+                .rotated(by: rotation)
+                .translatedBy(x: -center.x, y: -center.y)
+        )
+
+        // Заливаем шестерёнку чёрным цветом
+        context.fill(rotatedPath, with: .color(.black))
 
         // Рисуем внутреннее отверстие
         let holePath = Path(ellipseIn: CGRect(
@@ -849,7 +887,8 @@ struct ClockW3MediumWidget_Previews: PreviewProvider {
             entry: MediumWidgetEntry(
                 date: Date(),
                 colorSchemePreference: "system",
-                use12HourFormat: false
+                use12HourFormat: false,
+                cityTimeZoneIdentifier: nil
             )
         )
         .previewContext(WidgetPreviewContext(family: .systemMedium))

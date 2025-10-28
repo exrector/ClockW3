@@ -17,7 +17,10 @@ import SwiftUI
 struct ClockW3WidgetBundle: WidgetBundle {
     @WidgetBundleBuilder
     var body: some Widget {
-        // Флип‑виджет (Medium) — ПЕРВЫМ
+        // MediumHalf — первым для удобства в симуляторе
+        MediumHalfWidget()          // Половина циферблата (Medium)
+
+        // Флип‑виджет (Medium)
         MediumElectroWidget()
 
         // Small Electro
@@ -30,7 +33,6 @@ struct ClockW3WidgetBundle: WidgetBundle {
         SmallFullFaceWidget()       // Полный циферблат (Small)
 
         // МОДЕРНИЗИРОВАННЫЕ ВИДЖЕТЫ (своя логика рисования через Canvas):
-        MediumHalfWidget()          // Половина циферблата (Medium)
         SmallQuarterWidget()        // Четверть циферблата (Small)
         LargeQuarterWidget()        // Четверть циферблата (Large)
 #if canImport(ActivityKit) && !os(macOS)
