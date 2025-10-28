@@ -288,13 +288,13 @@ struct MediumElectroWidgetEntryView: View {
                     : Color.clear
                 let tile = isFullColor
                     ? ((effectiveColorScheme == .light) ? Color.black : Color.white)
-                    : Color.white
+                    : Color.white.opacity(0.3)  // Неактивный режим: полупрозрачные плитки для vibrant эффекта
                 let digitCol = isFullColor
                     ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
-                    : Color.white  // Белые цифры в неактивном режиме (цвет фона виджета)
+                    : Color.black  // Неактивный режим: черные цифры на полупрозрачных плитках
                 let seamCol = isFullColor
                     ? Color.red
-                    : Color.white  // Белый шов в неактивном режиме (цвет фона виджета)
+                    : Color.black  // Неактивный режим: черный шов
                 #else
                 let bg = (effectiveColorScheme == .light) ? Color.white : Color.black
                 let tile = (effectiveColorScheme == .light) ? Color.black : Color.white
@@ -319,7 +319,7 @@ struct MediumElectroWidgetEntryView: View {
                     }
 
                     // Центр: двоеточие
-                    MinimalColonView(height: hAvail, color: tile)
+                    MinimalColonView(height: hAvail, color: isFullColor ? tile : digitCol)
                         .frame(width: colonW, height: hAvail)
 
                     // Правая группа (минуты)
@@ -342,22 +342,22 @@ struct MediumElectroWidgetEntryView: View {
                     // TL
                     Text(symbols[0])
                         .font(.system(size: size, weight: .heavy))
-                        .foregroundColor(tile)
+                        .foregroundColor(isFullColor ? tile : digitCol)
                         .position(x: margin, y: margin)
                     // TR
                     Text(symbols[1])
                         .font(.system(size: size, weight: .heavy))
-                        .foregroundColor(tile)
+                        .foregroundColor(isFullColor ? tile : digitCol)
                         .position(x: wAvail - margin, y: margin)
                     // BL
                     Text(symbols[2])
                         .font(.system(size: size, weight: .heavy))
-                        .foregroundColor(tile)
+                        .foregroundColor(isFullColor ? tile : digitCol)
                         .position(x: margin, y: hAvail - margin)
                     // BR
                     Text(symbols[3])
                         .font(.system(size: size, weight: .heavy))
-                        .foregroundColor(tile)
+                        .foregroundColor(isFullColor ? tile : digitCol)
                         .position(x: wAvail - margin, y: hAvail - margin)
                 }
 
@@ -367,7 +367,7 @@ struct MediumElectroWidgetEntryView: View {
                     let ampm = hour24 >= 12 ? "PM" : "AM"
                     Text(ampm)
                         .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
-                        .foregroundColor(tile)
+                        .foregroundColor(isFullColor ? tile : digitCol)
                         .position(x: wAvail / 2, y: hAvail * 0.06)
                 }
             }

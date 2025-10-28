@@ -172,11 +172,11 @@ struct SmallRightElectroWidgetEntryView: View {
                 let isFullColor = widgetRenderingMode == .fullColor
                 let tile = isFullColor
                     ? ((effectiveColorScheme == .light) ? Color.black : Color.white)
-                    : Color.white
+                    : Color.white.opacity(0.3)  // Неактивный режим: полупрозрачные плитки для vibrant эффекта
                 let digitCol = isFullColor
                     ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
-                    : Color.white  // Белые цифры в неактивном режиме (цвет фона виджета)
-                let seamCol = isFullColor ? Color.red : Color.white  // Белый шов в неактивном режиме
+                    : Color.black  // Неактивный режим: черные цифры на полупрозрачных плитках
+                let seamCol = isFullColor ? Color.red : Color.black  // Неактивный режим: черный шов
                 #else
                 let tile = (effectiveColorScheme == .light) ? Color.black : Color.white
                 let digitCol = (effectiveColorScheme == .light) ? Color.white : Color.black
@@ -197,9 +197,9 @@ struct SmallRightElectroWidgetEntryView: View {
                     let hour24 = Calendar.current.component(.hour, from: entry.date)
                     let ampm = hour24 >= 12 ? "PM" : "AM"
                     Text(ampm)
-                        .font(.system(size: hAvail * 0.112, weight: .heavy, design: .monospaced))
-                        .foregroundColor(tile)
-                        .position(x: wAvail / 2, y: hAvail * 0.08)
+                        .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
+                        .foregroundColor(isFullColor ? tile : digitCol)
+                        .position(x: wAvail / 2, y: hAvail * 0.06)
                 }
 
                 // Угловые декоративные символы (ч/б по теме)
@@ -211,8 +211,8 @@ struct SmallRightElectroWidgetEntryView: View {
                     let highlight = (base * 7) % 4
                     let symbols: [String] = (0..<4).map { idx in idx == highlight ? "⊕" : "⊗" }
                     // Right side screws only (top-right and bottom-right)
-                    Text(symbols[1]).font(.system(size: size, weight: .heavy)).foregroundColor(tile).position(x: wAvail - margin, y: margin)
-                    Text(symbols[3]).font(.system(size: size, weight: .heavy)).foregroundColor(tile).position(x: wAvail - margin, y: hAvail - margin)
+                    Text(symbols[1]).font(.system(size: size, weight: .heavy)).foregroundColor(isFullColor ? tile : digitCol).position(x: wAvail - margin, y: margin)
+                    Text(symbols[3]).font(.system(size: size, weight: .heavy)).foregroundColor(isFullColor ? tile : digitCol).position(x: wAvail - margin, y: hAvail - margin)
                 }
             }
         }

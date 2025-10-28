@@ -84,10 +84,6 @@ struct WidgetClockFaceView: View {
                         use12HourFormat: use12HourFormat
                     )
 
-                    // Декоративные винты в углах
-                    CornerScrewDecorationView(size: size, colorScheme: colorScheme)
-                        .allowsHitTesting(false)
-
                     CityLabelRingsView(
                         size: size,
                         cities: cities,
@@ -126,6 +122,32 @@ struct WidgetClockFaceView: View {
                 }
                 .frame(width: size.width, height: size.height)
                 .clipped()
+
+                // Декоративные винты в углах - поверх всего
+                #if os(macOS)
+                if widgetRenderingMode == .fullColor {
+                    CornerScrewDecorationView(size: size, colorScheme: colorScheme)
+                        .allowsHitTesting(false)
+                } else {
+                    // Неактивный режим - простые unicode символы
+                    let base = Int(date.timeIntervalSince1970 / 60)
+                    let screwSize = max(10, min(size.width, size.height) * 0.085)
+                    let margin = screwSize * 1.0
+                    let highlight = (base * 7) % 4
+                    let symbols: [String] = (0..<4).map { idx in idx == highlight ? "⊕" : "⊗" }
+                    ZStack {
+                        Text(symbols[0]).font(.system(size: screwSize, weight: .heavy)).foregroundColor(.black).position(x: margin, y: margin)
+                        Text(symbols[1]).font(.system(size: screwSize, weight: .heavy)).foregroundColor(.black).position(x: size.width - margin, y: margin)
+                        Text(symbols[2]).font(.system(size: screwSize, weight: .heavy)).foregroundColor(.black).position(x: margin, y: size.height - margin)
+                        Text(symbols[3]).font(.system(size: screwSize, weight: .heavy)).foregroundColor(.black).position(x: size.width - margin, y: size.height - margin)
+                    }
+                    .frame(width: size.width, height: size.height)
+                    .allowsHitTesting(false)
+                }
+                #else
+                CornerScrewDecorationView(size: size, colorScheme: colorScheme)
+                    .allowsHitTesting(false)
+                #endif
             }
         }
         .allowsHitTesting(false)
