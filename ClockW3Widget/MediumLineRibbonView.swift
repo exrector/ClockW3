@@ -4,6 +4,8 @@ struct MediumLineRibbonView: View {
     let date: Date
     let colorScheme: ColorScheme
     let use12HourFormat: Bool
+    // macOS desktop widgets (inactive/vibrant rendering) flag
+    var isMacInactiveMode: Bool = false
 
     private var cities: [WorldCity] {
         let idsString = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.selectedCitiesKey) ?? ""
@@ -19,10 +21,17 @@ struct MediumLineRibbonView: View {
             let rowCount = max(rows.count, 1)
             let size = geo.size
             let rowHeight = size.height / CGFloat(rowCount)
+            // База фона виджета в темной теме (чтобы ночные строки соответствовали фону)
+            let darkWidgetBackground = ClockColorPalette.system(colorScheme: .dark).background
 
             ZStack {
+#if os(macOS)
+                if !isMacInactiveMode {
+                    palette.background
+                }
+#else
                 palette.background
-
+#endif
                 if rows.isEmpty {
                     EmptyStateView(rowHeight: rowHeight, palette: palette)
                         .frame(width: size.width, height: size.height)
@@ -33,7 +42,9 @@ struct MediumLineRibbonView: View {
                                 row: row,
                                 rowHeight: rowHeight,
                                 isDark: index.isMultiple(of: 2),
-                                use12HourFormat: use12HourFormat
+                                use12HourFormat: use12HourFormat,
+                                isMacInactiveMode: isMacInactiveMode,
+                                darkWidgetBackground: darkWidgetBackground
                             )
                             .frame(height: rowHeight)
                         }
@@ -103,23 +114,38 @@ private struct CityTimelineRow: View {
     let rowHeight: CGFloat
     let isDark: Bool
     let use12HourFormat: Bool
+    let isMacInactiveMode: Bool
+    let darkWidgetBackground: Color
+
+    init(row: RowData, rowHeight: CGFloat, isDark: Bool, use12HourFormat: Bool, isMacInactiveMode: Bool = false, darkWidgetBackground: Color) {
+        self.row = row
+        self.rowHeight = rowHeight
+        self.isDark = isDark
+        self.use12HourFormat = use12HourFormat
+        self.isMacInactiveMode = isMacInactiveMode
+        self.darkWidgetBackground = darkWidgetBackground
+    }
 
     private var isLocalCity: Bool {
         row.city.timeZoneIdentifier == TimeZone.current.identifier
     }
 
     private var backgroundColor: Color {
-        switch row.symbol {
-        case "sun.max.fill": return .white
-        default: return .black
+        if isMacInactiveMode {
+            // Desktop widgets: material underlay — day adds subtle light overlay; night = clear to match widget background
+            return row.symbol == "sun.max.fill" ? Color.white.opacity(0.18) : Color.clear
+        } else {
+            // Full color: day = white, night = dark widget background (not pure black)
+            return row.symbol == "sun.max.fill" ? .white : darkWidgetBackground
         }
     }
 
     private var primaryColor: Color {
-        if isLocalCity {
-            return .red
-        }
-        return backgroundColor == .black ? .white : .black
+        if isLocalCity { return .red }
+        if isMacInactiveMode { return .primary }
+        // Full color: ensure contrast over darkWidgetBackground for night
+        let isNight = row.symbol != "sun.max.fill"
+        return isNight ? .white : .black
     }
 
     var body: some View {
@@ -211,8 +237,14 @@ private extension DateFormatter {
 #if DEBUG
 struct MediumLineRibbonView_Previews: PreviewProvider {
     static var previews: some View {
-        MediumLineRibbonView(date: Date(), colorScheme: .light, use12HourFormat: false)
-            .frame(width: 584, height: 284)
+        Group {
+            MediumLineRibbonView(date: Date(), colorScheme: .light, use12HourFormat: false)
+                .frame(width: 584, height: 284)
+                .previewDisplayName("iOS/Full color")
+            MediumLineRibbonView(date: Date(), colorScheme: .light, use12HourFormat: false, isMacInactiveMode: true)
+                .frame(width: 584, height: 284)
+                .previewDisplayName("macOS inactive")
+        }
     }
 }
 #endif

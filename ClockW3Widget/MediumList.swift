@@ -71,6 +71,9 @@ struct MediumListEntry: TimelineEntry {
 @available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct MediumListWidgetEntryView: View {
     @Environment(\.colorScheme) var systemColorScheme
+    #if os(macOS)
+    @Environment(\.widgetRenderingMode) var widgetRenderingMode
+    #endif
     var entry: MediumListProvider.Entry
 
     private var effectiveColorScheme: ColorScheme {
@@ -84,16 +87,28 @@ struct MediumListWidgetEntryView: View {
         }
     }
 
+    private var palette: ClockColorPalette {
+        return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+    }
+
     var body: some View {
+        #if os(macOS)
+        let isMacInactive = widgetRenderingMode != .fullColor
+        #else
+        let isMacInactive = false
+        #endif
         MediumLineRibbonView(
             date: entry.date,
             colorScheme: effectiveColorScheme,
-            use12HourFormat: entry.use12HourFormat
+            use12HourFormat: entry.use12HourFormat,
+            isMacInactiveMode: isMacInactive
         )
         .ignoresSafeArea()
-        .containerBackground(for: .widget) {
-            ClockColorPalette.system(colorScheme: effectiveColorScheme).background
-        }
+        #if os(macOS)
+        .containerBackground(.ultraThinMaterial, for: .widget)
+        #else
+        .widgetBackground(palette.background)
+        #endif
     }
 }
 

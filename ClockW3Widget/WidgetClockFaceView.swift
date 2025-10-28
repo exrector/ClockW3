@@ -1,12 +1,39 @@
 import SwiftUI
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// Неподвижная версия циферблата для виджета — использует только данные из timeline entry.
 struct WidgetClockFaceView: View {
     let date: Date
     let colorScheme: ColorScheme
+    var palette: ClockColorPalette? = nil
+    #if os(macOS)
+    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
+    #endif
 
-    private var palette: ClockColorPalette {
-        ClockColorPalette.system(colorScheme: colorScheme)
+    private var effectivePalette: ClockColorPalette {
+        // Если палитра передана извне - используем её
+        if let palette = palette {
+            return palette
+        }
+        // Иначе - используем стандартную для платформы
+        #if os(macOS)
+        return ClockColorPalette.forMacWidget(colorScheme: colorScheme)
+        #else
+        return ClockColorPalette.system(colorScheme: colorScheme)
+        #endif
+    }
+
+    // Лёгкий тон для светлой темы на desktop-виджетах macOS (не fullColor),
+    // чтобы избежать «чисто белого» фона циферблата.
+    private var macInactiveOverlayColor: Color? {
+        #if os(macOS)
+        if widgetRenderingMode != .fullColor {
+            return colorScheme == .light ? Color.black.opacity(0.08) : Color.white.opacity(0.06)
+        }
+        #endif
+        return nil
     }
 
     private var use12HourFormat: Bool {
@@ -41,13 +68,18 @@ struct WidgetClockFaceView: View {
             let baseRadius = minSide / 2.0 * ClockConstants.clockSizeRatio
 
             ZStack {
-                palette.background
-                    .ignoresSafeArea()
-
                 ZStack {
+                    // Подложка под циферблат только для desktop-режима macOS,
+                    // чтобы фон не был чисто белым/чёрным.
+                    if let overlay = macInactiveOverlayColor {
+                        Circle()
+                            .fill(overlay)
+                            .frame(width: baseRadius * 2, height: baseRadius * 2)
+                    }
+
                     StaticBackgroundView(
                         size: size,
-                        colors: palette,
+                        colors: effectivePalette,
                         currentTime: date,
                         use12HourFormat: use12HourFormat
                     )
@@ -60,7 +92,7 @@ struct WidgetClockFaceView: View {
                         size: size,
                         cities: cities,
                         currentTime: date,
-                        palette: palette
+                        palette: effectivePalette
                     )
 
                     CityArrowsView(
@@ -68,13 +100,13 @@ struct WidgetClockFaceView: View {
                         cities: cities,
                         currentTime: date,
                         minutesOffset: 0,
-                        palette: palette,
+                        palette: effectivePalette,
                         containerRotation: 0
                     )
 
                     ZStack {
                         Circle()
-                            .fill(palette.centerCircle)
+                            .fill(effectivePalette.centerCircle)
 
                         if use12HourFormat {
                             let ampmText = getAMPM(for: date)

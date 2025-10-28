@@ -104,6 +104,7 @@ private struct LeftDigitTile: View {
     let digit: Int
     let tileColor: Color
     let digitColor: Color
+    var seamColor: Color = .red
 
     var body: some View {
         GeometryReader { geo in
@@ -124,7 +125,7 @@ private struct LeftDigitTile: View {
                 let baseline = leftGlyphBaselineCenterOffset(digit: digit, fontName: LeftThickMonoDigit.fontName, fontSize: h * 1.35)
                 LeftThickMonoDigit(digit: digit, size: h * 1.35, color: digitColor, baselineOffset: baseline)
                 Rectangle()
-                    .fill(Color.red)
+                    .fill(seamColor)
                     .frame(width: bandWidth, height: 3.6)
             }
         }
@@ -136,6 +137,9 @@ private struct LeftDigitTile: View {
 @available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct SmallLeftElectroWidgetEntryView: View {
     @Environment(\.colorScheme) private var systemColorScheme
+    #if os(macOS)
+    @Environment(\.widgetRenderingMode) var widgetRenderingMode
+    #endif
     var entry: SmallLeftElectroProvider.Entry
 
     private var effectiveColorScheme: ColorScheme {
@@ -167,14 +171,27 @@ struct SmallLeftElectroWidgetEntryView: View {
             GeometryReader { geo in
                 let hAvail = geo.size.height
                 let wAvail = geo.size.width
+
+                #if os(macOS)
+                let isFullColor = widgetRenderingMode == .fullColor
+                let tile = isFullColor
+                    ? ((effectiveColorScheme == .light) ? Color.black : Color.white)
+                    : Color.white
+                let digitCol = isFullColor
+                    ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
+                    : Color.white  // Белые цифры в неактивном режиме (цвет фона виджета)
+                let seamCol = isFullColor ? Color.red : Color.white  // Белый шов в неактивном режиме
+                #else
                 let tile = (effectiveColorScheme == .light) ? Color.black : Color.white
                 let digitCol = (effectiveColorScheme == .light) ? Color.white : Color.black
+                let seamCol = Color.red
+                #endif
 
                 let tileW = hAvail * 0.48
                 HStack(alignment: .center, spacing: 3) {
-                    LeftDigitTile(digit: hDigits[0], tileColor: tile, digitColor: digitCol)
+                    LeftDigitTile(digit: hDigits[0], tileColor: tile, digitColor: digitCol, seamColor: seamCol)
                         .frame(width: tileW)
-                    LeftDigitTile(digit: hDigits[1], tileColor: tile, digitColor: digitCol)
+                    LeftDigitTile(digit: hDigits[1], tileColor: tile, digitColor: digitCol, seamColor: seamCol)
                         .frame(width: tileW)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -203,9 +220,13 @@ struct SmallLeftElectroWidgetEntryView: View {
                 }
             }
         }
-        .containerBackground(for: .widget) {
-            (effectiveColorScheme == .light) ? Color.white : Color.black
-        }
+        #if os(macOS)
+        .widgetBackground(widgetRenderingMode == .fullColor
+            ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
+            : Color.clear)
+        #else
+        .widgetBackground((effectiveColorScheme == .light) ? Color.white : Color.black)
+        #endif
     }
 }
 

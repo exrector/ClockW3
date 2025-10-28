@@ -57,6 +57,7 @@ private struct DigitTile: View {
     let tileColor: Color
     let digitColor: Color
     let bgColor: Color
+    var seamColor: Color = .red
 
     var body: some View {
         GeometryReader { geo in
@@ -78,9 +79,9 @@ private struct DigitTile: View {
                 // Цифры как раньше — от высоты плитки (не трогаем)
                 let baseline = glyphBaselineCenterOffset(digit: digit, fontName: ThickMonoDigit.fontName, fontSize: h * 1.35)
                 ThickMonoDigit(digit: digit, size: h * 1.35, color: digitColor, baselineOffset: baseline)
-                // Простой непрозрачный красный шов поверх всего (и плитки, и цифры)
+                // Простой непрозрачный шов поверх всего (и плитки, и цифры)
                 Rectangle()
-                    .fill(Color.red)
+                    .fill(seamColor)
                     .frame(width: bandWidth, height: 3.6)
             }
             // Не клипуем по форме, чтобы цифры оставались большого размера
@@ -244,6 +245,9 @@ private struct FlipColonView: View {
 @available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct MediumElectroWidgetEntryView: View {
     @Environment(\.colorScheme) private var systemColorScheme
+    #if os(macOS)
+    @Environment(\.widgetRenderingMode) var widgetRenderingMode
+    #endif
     var entry: MediumElectroProvider.Entry
 
     private var effectiveColorScheme: ColorScheme {
@@ -276,9 +280,27 @@ struct MediumElectroWidgetEntryView: View {
         ZStack {
             GeometryReader { geo in
                 let hAvail = geo.size.height
+                #if os(macOS)
+                // На macOS в зависимости от режима виджета
+                let isFullColor = widgetRenderingMode == .fullColor
+                let bg = isFullColor
+                    ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
+                    : Color.clear
+                let tile = isFullColor
+                    ? ((effectiveColorScheme == .light) ? Color.black : Color.white)
+                    : Color.white
+                let digitCol = isFullColor
+                    ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
+                    : Color.white  // Белые цифры в неактивном режиме (цвет фона виджета)
+                let seamCol = isFullColor
+                    ? Color.red
+                    : Color.white  // Белый шов в неактивном режиме (цвет фона виджета)
+                #else
                 let bg = (effectiveColorScheme == .light) ? Color.white : Color.black
                 let tile = (effectiveColorScheme == .light) ? Color.black : Color.white
                 let digitCol = (effectiveColorScheme == .light) ? Color.white : Color.black
+                let seamCol = Color.red
+                #endif
 
                 let wAvail = geo.size.width
                 let tileW = hAvail * 0.48
@@ -290,9 +312,9 @@ struct MediumElectroWidgetEntryView: View {
                 HStack(alignment: .center, spacing: gap) {
                     // Левая группа (часы)
                     HStack(alignment: .center, spacing: interTile) {
-                        DigitTile(digit: hDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg)
+                        DigitTile(digit: hDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
                             .frame(width: tileW, height: hAvail)
-                        DigitTile(digit: hDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg)
+                        DigitTile(digit: hDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
                             .frame(width: tileW, height: hAvail)
                     }
 
@@ -302,9 +324,9 @@ struct MediumElectroWidgetEntryView: View {
 
                     // Правая группа (минуты)
                     HStack(alignment: .center, spacing: interTile) {
-                        DigitTile(digit: mDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg)
+                        DigitTile(digit: mDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
                             .frame(width: tileW, height: hAvail)
-                        DigitTile(digit: mDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg)
+                        DigitTile(digit: mDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
                             .frame(width: tileW, height: hAvail)
                     }
                 }
@@ -350,9 +372,13 @@ struct MediumElectroWidgetEntryView: View {
                 }
             }
         }
-        .containerBackground(for: .widget) {
-            (effectiveColorScheme == .light) ? Color.white : Color.black
-        }
+        #if os(macOS)
+        .widgetBackground(widgetRenderingMode == .fullColor
+            ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
+            : Color.clear)
+        #else
+        .widgetBackground((effectiveColorScheme == .light) ? Color.white : Color.black)
+        #endif
     }
 }
 

@@ -4,6 +4,7 @@ import SwiftUI
 struct CornerScrewDecorationView: View {
     let size: CGSize
     let colorScheme: ColorScheme
+    var palette: ClockColorPalette? = nil
 
     private struct CornerDescriptor {
         let rotation: Angle
@@ -13,9 +14,10 @@ struct CornerScrewDecorationView: View {
     private static let baseAngles: [Double] = [-10, 10, -170, 170]
     private let randomOffsets: [Double]
 
-    init(size: CGSize, colorScheme: ColorScheme) {
+    init(size: CGSize, colorScheme: ColorScheme, palette: ClockColorPalette? = nil) {
         self.size = size
         self.colorScheme = colorScheme
+        self.palette = palette
 
         if let stored = CornerScrewDecorationView.cachedOffsets {
             self.randomOffsets = stored
@@ -119,9 +121,20 @@ struct CornerScrewDecorationView: View {
     }
 
     private func cornerScrew(rotation: Angle) -> some View {
-        let isLight = colorScheme == .light
-        let faceFill: Color = isLight ? .black : .white
-        let slotColor: Color = isLight ? .white : .black
+        // Если передана палитра, используем её цвета
+        let faceFill: Color
+        let slotColor: Color
+
+        if let palette = palette {
+            // Используем цвет из палитры (для виджетов)
+            faceFill = palette.numbers
+            slotColor = palette.background == .clear ? Color(white: 0.5, opacity: 0.3) : palette.background
+        } else {
+            // Стандартная логика для приложения
+            let isLight = colorScheme == .light
+            faceFill = isLight ? .black : .white
+            slotColor = isLight ? .white : .black
+        }
 
         let slotLength = nutSize * 0.56
         let slotThickness = nutSize * 0.16

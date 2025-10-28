@@ -23,8 +23,15 @@ struct ClockColorPalette {
     static func system(colorScheme: ColorScheme) -> ClockColorPalette {
         let fallback = fallbackPalette(for: colorScheme)
 
+        #if os(macOS)
+        // На macOS используем прозрачный фон для циферблата, чтобы показывался Material фон виджета
+        let clockBackground: Color = .clear
+        #else
+        let clockBackground = colorOrFallback("ClockBackground", fallback: fallback.background)
+        #endif
+
         return ClockColorPalette(
-            background: colorOrFallback("ClockBackground", fallback: fallback.background),
+            background: clockBackground,
             numbers: colorOrFallback("ClockPrimary", fallback: fallback.primary),
             hourTicks: colorOrFallback("ClockPrimary", fallback: fallback.primary),
             minorTicks: colorOrFallback("ClockSecondary", fallback: fallback.secondary),
@@ -38,6 +45,31 @@ struct ClockColorPalette {
             secondaryColor: colorOrFallback("ClockSecondary", fallback: fallback.secondary)
         )
     }
+
+    #if os(macOS)
+    /// Monochrome style tuned for macOS Desktop widgets:
+    /// - Transparent widget background (container provides Material)
+    /// - White content for maximum visibility on gray Material background
+    static func forMacWidget(colorScheme: ColorScheme) -> ClockColorPalette {
+        // Используем явно белый цвет для элементов на сером Material-фоне
+        let primary: Color = .white
+        let secondary: Color = .white.opacity(0.6)
+        return ClockColorPalette(
+            background: .clear,
+            numbers: primary,
+            hourTicks: primary,
+            minorTicks: secondary,
+            monthDayText: primary,
+            monthDayBackground: .clear,
+            currentDayText: primary,
+            weekdayText: primary,
+            weekdayBackground: .clear,
+            centerCircle: primary.opacity(0.85),
+            arrow: primary,
+            secondaryColor: secondary
+        )
+    }
+    #endif
 
     private static func colorOrFallback(_ name: String, fallback: Color) -> Color {
         // В виджетах Color Assets могут быть недоступны, используем fallback
@@ -69,7 +101,7 @@ struct ClockColorPalette {
             )
         default:
             return FallbackPalette(
-                background: .black,
+                background: Color(white: 0.15),  // Темно-серый вместо черного
                 primary: .white,
                 secondary: .white,
                 monthDayText: .black,

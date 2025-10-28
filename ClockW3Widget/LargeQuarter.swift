@@ -6,6 +6,9 @@ import SwiftUI
 struct ClockW3LargeWidgetEntryView: View {
     var entry: LargeWidgetProvider.Entry
     @Environment(\.colorScheme) private var systemColorScheme
+    #if os(macOS)
+    @Environment(\.widgetRenderingMode) var widgetRenderingMode
+    #endif
 
     private var effectiveColorScheme: ColorScheme {
         switch entry.colorSchemePreference {
@@ -18,18 +21,30 @@ struct ClockW3LargeWidgetEntryView: View {
         }
     }
 
+    private var palette: ClockColorPalette {
+        #if os(macOS)
+        if widgetRenderingMode == .fullColor {
+            return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+        } else {
+            return ClockColorPalette.forMacWidget(colorScheme: effectiveColorScheme)
+        }
+        #else
+        return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+        #endif
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let widgetWidth = geometry.size.width
             let widgetHeight = geometry.size.height
             let fullClockSize = max(widgetWidth, widgetHeight) * 2
-            let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
             let day = Calendar.current.component(.day, from: entry.date)
 
             ZStack {
+#if !os(macOS)
                 palette.background
                     .ignoresSafeArea()
-
+#endif
                 SimplifiedClockFace(
                     currentTime: entry.date,
                     palette: palette,
@@ -52,7 +67,11 @@ struct ClockW3LargeWidgetEntryView: View {
                 .allowsHitTesting(false)
             }
         }
-        .widgetBackground(ClockColorPalette.system(colorScheme: effectiveColorScheme).background)
+        #if os(macOS)
+        .containerBackground(.ultraThinMaterial, for: .widget)
+        #else
+        .widgetBackground(palette.background)
+        #endif
         // Важно: заставляем ассеты и весь UI следовать выбранной схеме, а не системной
         .environment(\.colorScheme, effectiveColorScheme)
     }

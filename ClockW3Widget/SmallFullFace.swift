@@ -63,6 +63,9 @@ struct SmallFullFaceEntry: TimelineEntry {
 struct ClockW3ClassicSmallWidgetEntryView: View {
     var entry: SmallFullFaceProvider.Entry
     @Environment(\.colorScheme) private var systemColorScheme
+    #if os(macOS)
+    @Environment(\.widgetRenderingMode) var widgetRenderingMode
+    #endif
 
     private var effectiveColorScheme: ColorScheme {
         switch entry.colorSchemePreference {
@@ -75,16 +78,33 @@ struct ClockW3ClassicSmallWidgetEntryView: View {
         }
     }
 
+    private var palette: ClockColorPalette {
+        #if os(macOS)
+        // В активном состоянии (.fullColor) - полноцветная палитра
+        // В неактивном состоянии (.accented/.vibrant) - белая монохромная
+        if widgetRenderingMode == .fullColor {
+            return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+        } else {
+            return ClockColorPalette.forMacWidget(colorScheme: effectiveColorScheme)
+        }
+        #else
+        return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+        #endif
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let frameSize = min(geometry.size.width, geometry.size.height)
-            let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
 
             ZStack {
+#if !os(macOS)
                 palette.background
+                    .ignoresSafeArea()
+#endif
                 WidgetClockFaceView(
                     date: entry.date,
-                    colorScheme: effectiveColorScheme
+                    colorScheme: effectiveColorScheme,
+                    palette: palette
                 )
                 .frame(width: frameSize, height: frameSize)
                 .scaleEffect(0.98)
@@ -94,7 +114,11 @@ struct ClockW3ClassicSmallWidgetEntryView: View {
             .clipped()
         }
         .ignoresSafeArea()
-        .widgetBackground(ClockColorPalette.system(colorScheme: effectiveColorScheme).background)
+        #if os(macOS)
+        .containerBackground(.ultraThinMaterial, for: .widget)
+        #else
+        .widgetBackground(palette.background)
+        #endif
     }
 }
 

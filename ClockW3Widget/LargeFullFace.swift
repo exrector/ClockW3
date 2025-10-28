@@ -63,6 +63,9 @@ struct LargeFullFaceEntry: TimelineEntry {
 @available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct LargeFullFaceWidgetEntryView: View {
     @Environment(\.colorScheme) var systemColorScheme
+    #if os(macOS)
+    @Environment(\.widgetRenderingMode) var widgetRenderingMode
+    #endif
     var entry: LargeFullFaceProvider.Entry
 
     private var effectiveColorScheme: ColorScheme {
@@ -76,16 +79,33 @@ struct LargeFullFaceWidgetEntryView: View {
         }
     }
 
+    private var palette: ClockColorPalette {
+        #if os(macOS)
+        // В активном состоянии (.fullColor) - полноцветная палитра
+        // В неактивном состоянии (.accented/.vibrant) - белая монохромная
+        if widgetRenderingMode == .fullColor {
+            return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+        } else {
+            return ClockColorPalette.forMacWidget(colorScheme: effectiveColorScheme)
+        }
+        #else
+        return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+        #endif
+    }
+
     var body: some View {
         GeometryReader { geometry in
-            let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
             let frameSize = geometry.size
 
             ZStack {
+#if !os(macOS)
                 palette.background
+                    .ignoresSafeArea()
+#endif
                 WidgetClockFaceView(
                     date: entry.date,
-                    colorScheme: effectiveColorScheme
+                    colorScheme: effectiveColorScheme,
+                    palette: palette
                 )
                 .frame(width: frameSize.width, height: frameSize.height)
                 .scaleEffect(0.98)
@@ -96,9 +116,11 @@ struct LargeFullFaceWidgetEntryView: View {
             .clipped()
         }
         .ignoresSafeArea()
-        .containerBackground(for: .widget) {
-            ClockColorPalette.system(colorScheme: effectiveColorScheme).background
-        }
+        #if os(macOS)
+        .containerBackground(.ultraThinMaterial, for: .widget)
+        #else
+        .widgetBackground(palette.background)
+        #endif
     }
 }
 

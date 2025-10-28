@@ -352,9 +352,13 @@ struct MinuteBubbleView: View {
         let targetAngle = angle + Double.pi / 2
 
         return ZStack {
-            // Фон пузыря
+            // Фон пузыря с окантовкой
             Circle()
                 .fill(backgroundColor)
+                .frame(width: bubbleRadius * 2, height: bubbleRadius * 2)
+
+            Circle()
+                .stroke(textColor, lineWidth: max(1.5, bubbleRadius * 0.08))
                 .frame(width: bubbleRadius * 2, height: bubbleRadius * 2)
 
             // Цифра минут
@@ -404,13 +408,18 @@ struct DateBubbleView: View {
         let targetAngle = angle + Double.pi / 2
 
         return ZStack {
+            // Прозрачный фон с окантовкой
             Circle()
-                .fill(backgroundColor)
+                .fill(Color.clear)
+                .frame(width: bubbleRadius * 2, height: bubbleRadius * 2)
+
+            Circle()
+                .stroke(backgroundColor, lineWidth: max(1.5, bubbleRadius * 0.08))
                 .frame(width: bubbleRadius * 2, height: bubbleRadius * 2)
 
             Text(String(format: "%02d", day))
                 .font(.system(size: fontSize, weight: .medium, design: .monospaced))
-                .foregroundColor(textColor)
+                .foregroundColor(backgroundColor)  // Цвет текста = цвет окантовки
                 .rotationEffect(.radians(displayedAngle))
         }
         .position(position)
