@@ -309,67 +309,69 @@ struct MediumElectroWidgetEntryView: View {
                 let colonW = max(2, hAvail * 0.08)
                 let gap = max(2, hAvail * 0.02)
 
-                // Все элементы в одном HStack для идеальной симметрии
-                HStack(alignment: .center, spacing: gap) {
-                    // Левая группа (часы)
-                    HStack(alignment: .center, spacing: interTile) {
-                        DigitTile(digit: hDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
-                            .frame(width: tileW, height: hAvail)
-                        DigitTile(digit: hDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
-                            .frame(width: tileW, height: hAvail)
-                    }
-
-                    // Центр: двоеточие
-                    MinimalColonView(height: hAvail, color: isFullColor ? tile : digitCol)
-                        .frame(width: colonW, height: hAvail)
-
-                    // Правая группа (минуты)
-                    HStack(alignment: .center, spacing: interTile) {
-                        DigitTile(digit: mDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
-                            .frame(width: tileW, height: hAvail)
-                        DigitTile(digit: mDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
-                            .frame(width: tileW, height: hAvail)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                // Фиксированные винты по углам: 4 угла, один меняется раз в минуту
-                let base = Int(entry.date.timeIntervalSince1970 / 60)
-                let size = max(10, min(wAvail, hAvail) * 0.085)
-                let margin = size * 1.0
-                let highlight = (base * 7) % 4 // псевдослучайный индекс 0..3
-                let symbols: [String] = (0..<4).map { idx in idx == highlight ? "⊕" : "⊗" }
                 ZStack {
-                    // TL
-                    Text(symbols[0])
-                        .font(.system(size: size, weight: .heavy))
-                        .foregroundColor(isFullColor ? tile : digitCol)
-                        .position(x: margin, y: margin)
-                    // TR
-                    Text(symbols[1])
-                        .font(.system(size: size, weight: .heavy))
-                        .foregroundColor(isFullColor ? tile : digitCol)
-                        .position(x: wAvail - margin, y: margin)
-                    // BL
-                    Text(symbols[2])
-                        .font(.system(size: size, weight: .heavy))
-                        .foregroundColor(isFullColor ? tile : digitCol)
-                        .position(x: margin, y: hAvail - margin)
-                    // BR
-                    Text(symbols[3])
-                        .font(.system(size: size, weight: .heavy))
-                        .foregroundColor(isFullColor ? tile : digitCol)
-                        .position(x: wAvail - margin, y: hAvail - margin)
-                }
+                    // Все элементы в одном HStack для идеальной симметрии
+                    HStack(alignment: .center, spacing: gap) {
+                        // Левая группа (часы)
+                        HStack(alignment: .center, spacing: interTile) {
+                            DigitTile(digit: hDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
+                                .frame(width: tileW, height: hAvail)
+                            DigitTile(digit: hDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
+                                .frame(width: tileW, height: hAvail)
+                        }
 
-                // AM/PM вверху по центру при 12‑часовом формате
-                if entry.use12HourFormat {
-                    let hour24 = Calendar.current.component(.hour, from: entry.date)
-                    let ampm = hour24 >= 12 ? "PM" : "AM"
-                    Text(ampm)
-                        .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
-                        .foregroundColor(isFullColor ? tile : digitCol)
-                        .position(x: wAvail / 2, y: hAvail * 0.06)
+                        // Центр: двоеточие
+                        MinimalColonView(height: hAvail, color: isFullColor ? tile : digitCol)
+                            .frame(width: colonW, height: hAvail)
+
+                        // Правая группа (минуты)
+                        HStack(alignment: .center, spacing: interTile) {
+                            DigitTile(digit: mDigits[0], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
+                                .frame(width: tileW, height: hAvail)
+                            DigitTile(digit: mDigits[1], tileColor: tile, digitColor: digitCol, bgColor: bg, seamColor: seamCol)
+                                .frame(width: tileW, height: hAvail)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    // Фиксированные винты по углам: 4 угла, один меняется раз в минуту
+                    let base = Int(entry.date.timeIntervalSince1970 / 60)
+                    let size = max(10, min(wAvail, hAvail) * 0.085)
+                    let margin = size * 1.0
+                    let highlight = (base * 7) % 4 // псевдослучайный индекс 0..3
+                    let symbols: [String] = (0..<4).map { idx in idx == highlight ? "⊕" : "⊗" }
+                    ZStack {
+                        // TL
+                        Text(symbols[0])
+                            .font(.system(size: size, weight: .heavy))
+                            .foregroundColor(isFullColor ? tile : digitCol)
+                            .position(x: margin, y: margin)
+                        // TR
+                        Text(symbols[1])
+                            .font(.system(size: size, weight: .heavy))
+                            .foregroundColor(isFullColor ? tile : digitCol)
+                            .position(x: wAvail - margin, y: margin)
+                        // BL
+                        Text(symbols[2])
+                            .font(.system(size: size, weight: .heavy))
+                            .foregroundColor(isFullColor ? tile : digitCol)
+                            .position(x: margin, y: hAvail - margin)
+                        // BR
+                        Text(symbols[3])
+                            .font(.system(size: size, weight: .heavy))
+                            .foregroundColor(isFullColor ? tile : digitCol)
+                            .position(x: wAvail - margin, y: hAvail - margin)
+                    }
+
+                    // AM/PM вверху по центру при 12‑часовом формате
+                    if entry.use12HourFormat {
+                        let hour24 = Calendar.current.component(.hour, from: entry.date)
+                        let ampm = hour24 >= 12 ? "PM" : "AM"
+                        Text(ampm)
+                            .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
+                            .foregroundColor(isFullColor ? tile : digitCol)
+                            .position(x: wAvail / 2, y: hAvail * 0.06)
+                    }
                 }
             }
         }

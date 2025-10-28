@@ -99,31 +99,47 @@ private struct FlipDateCard: View {
     let palette: ClockColorPalette
     let size: CGFloat
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private var formattedDay: String {
         String(format: "%02d", day)
     }
 
     var body: some View {
+        let isDark = (colorScheme == .dark)
+
         ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            palette.monthDayBackground.opacity(0.9),
-                            palette.monthDayBackground.opacity(0.78)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
+            if isDark {
+                // В Dark: без заливки (прозрачный «пузырь») — сочетается с остальным светлым контентом
+                Circle()
+                    .fill(Color.clear)
+            } else {
+                // В Light: как было — тёмный пузырь с лёгким градиентом
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                palette.monthDayBackground.opacity(0.9),
+                                palette.monthDayBackground.opacity(0.78)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
+            }
+
             Text(formattedDay)
                 .font(.system(size: size * 0.6, weight: .heavy, design: .rounded))
-                .foregroundStyle(palette.monthDayText)
+                // В Dark — белый (secondaryColor в вашей палитре), в Light — как раньше
+                .foregroundStyle(isDark ? palette.secondaryColor : palette.monthDayText)
         }
         .frame(width: size, height: size)
         .overlay(
             Circle()
-                .stroke(palette.arrow.opacity(0.18), lineWidth: max(size * 0.02, CGFloat(1)))
+                .stroke(
+                    (isDark ? palette.secondaryColor : palette.arrow).opacity(0.18),
+                    lineWidth: max(size * 0.02, CGFloat(1))
+                )
         )
         .shadow(color: .black.opacity(0.12), radius: size * 0.12, y: size * 0.04)
         .accessibilityElement(children: .ignore)
@@ -867,8 +883,8 @@ struct MediumClockFace: View {
                 .translatedBy(x: -center.x, y: -center.y)
         )
 
-        // Заливаем шестерёнку чёрным цветом
-        context.fill(rotatedPath, with: .color(.black))
+        // Заливаем шестерёнку цветом палитры (в Dark он белый, как у внешней)
+        context.fill(rotatedPath, with: .color(palette.secondaryColor))
 
         // Рисуем внутреннее отверстие
         let holePath = Path(ellipseIn: CGRect(
@@ -891,12 +907,9 @@ struct MediumClockFace: View {
             return 0
         }
 
-        let hourToUse = use12HourFormat ? (hour % 12 == 0 ? 12 : hour % 12) : hour
-        let hourValue = use12HourFormat ? Double(hourToUse) + Double(minute) / 60.0 : Double(hour) + Double(minute) / 60.0
-
-        let baseAngle = use12HourFormat ?
-            (hourValue / 12.0) * 2.0 * .pi :
-            ClockConstants.calculateArrowAngle(hour24: hourValue)
+        // Всегда используем 24-часовую логику для вращения
+        let hourValue = Double(hour) + Double(minute) / 60.0
+        let baseAngle = ClockConstants.calculateArrowAngle(hour24: hourValue)
 
         return ClockConstants.normalizeAngle(staticArrowAngle - baseAngle)
     }

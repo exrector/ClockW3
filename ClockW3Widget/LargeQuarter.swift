@@ -82,31 +82,47 @@ struct ClockW3LargeWidgetEntryView: View {
         let palette: ClockColorPalette
         let size: CGFloat
 
+        @Environment(\.colorScheme) private var colorScheme
+
         private var formattedDay: String {
             String(format: "%02d", day)
         }
 
         var body: some View {
+            let isDark = (colorScheme == .dark)
+
             ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                palette.monthDayBackground.opacity(0.9),
-                                palette.monthDayBackground.opacity(0.78)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
+                if isDark {
+                    // В Dark: без заливки (прозрачный «пузырь») — сочетается с остальным светлым контентом
+                    Circle()
+                        .fill(Color.clear)
+                } else {
+                    // В Light: как было — тёмный пузырь с лёгким градиентом
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    palette.monthDayBackground.opacity(0.9),
+                                    palette.monthDayBackground.opacity(0.78)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
-                    )
+                }
+
                 Text(formattedDay)
                     .font(.system(size: size * 0.6, weight: .heavy, design: .rounded))
-                    .foregroundStyle(palette.monthDayText)
+                    // В Dark — белый (secondaryColor в вашей палитре), в Light — как раньше
+                    .foregroundStyle(isDark ? palette.secondaryColor : palette.monthDayText)
             }
             .frame(width: size, height: size)
             .overlay(
                 Circle()
-                    .stroke(palette.arrow.opacity(0.18), lineWidth: max(size * 0.02, CGFloat(1)))
+                    .stroke(
+                        (isDark ? palette.secondaryColor : palette.arrow).opacity(0.18),
+                        lineWidth: max(size * 0.02, CGFloat(1))
+                    )
             )
             .shadow(color: .black.opacity(0.12), radius: size * 0.12, y: size * 0.04)
             .accessibilityElement(children: .ignore)

@@ -167,6 +167,9 @@ struct SmallLeftElectroWidgetEntryView: View {
         let hString = String(format: "%02d", h)
         let hDigits = hString.compactMap { Int(String($0)) }
 
+        // Общая палитра для согласованного фона
+        let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
+
         ZStack {
             GeometryReader { geo in
                 let hAvail = geo.size.height
@@ -174,14 +177,16 @@ struct SmallLeftElectroWidgetEntryView: View {
 
                 #if os(macOS)
                 let isFullColor = widgetRenderingMode == .fullColor
+                // В fullColor используем контрастные плитки и цифры
                 let tile = isFullColor
                     ? ((effectiveColorScheme == .light) ? Color.black : Color.white)
-                    : Color.white.opacity(0.3)  // Неактивный режим: полупрозрачные плитки для vibrant эффекта
+                    : Color.white.opacity(0.28) // В non-fullColor — светлые полупрозрачные плитки на Material
                 let digitCol = isFullColor
                     ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
-                    : Color.black  // Неактивный режим: черные цифры на полупрозрачных плитках
-                let seamCol = isFullColor ? Color.red : Color.black  // Неактивный режим: черный шов
+                    : Color.white // В non-fullColor — белые цифры для лучшей читаемости
+                let seamCol = isFullColor ? Color.red : Color.white.opacity(0.85)
                 #else
+                // На iOS/iPadOS всегда fullColor
                 let isFullColor = true
                 let tile = (effectiveColorScheme == .light) ? Color.black : Color.white
                 let digitCol = (effectiveColorScheme == .light) ? Color.white : Color.black
@@ -200,14 +205,14 @@ struct SmallLeftElectroWidgetEntryView: View {
                 // AM/PM сверху по центру (если 12h)
                 if entry.use12HourFormat {
                     let hour24 = Calendar.current.component(.hour, from: entry.date)
-                    let ampm = hour24 >= 12 ? "PM" : "AM"
+                    let ampm = hour24 >= 12 ? "PM hours" : "AM hours"
                     Text(ampm)
                         .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
                         .foregroundColor(isFullColor ? tile : digitCol)
                         .position(x: wAvail / 2, y: hAvail * 0.06)
                 }
 
-                // Угловые декоративные символы (ч/б по теме)
+                // Угловые декоративные символы (светлые/тёмные в зависимости от режима)
                 let base = Int(entry.date.timeIntervalSince1970 / 60)
                 let rawSize = min(wAvail, hAvail) * 0.085
                 let size = max(10, rawSize)
@@ -222,11 +227,9 @@ struct SmallLeftElectroWidgetEntryView: View {
             }
         }
         #if os(macOS)
-        .widgetBackground(widgetRenderingMode == .fullColor
-            ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
-            : Color.clear)
+        .widgetBackground(widgetRenderingMode == .fullColor ? palette.background : Color.clear)
         #else
-        .widgetBackground((effectiveColorScheme == .light) ? Color.white : Color.black)
+        .widgetBackground(palette.background)
         #endif
     }
 }

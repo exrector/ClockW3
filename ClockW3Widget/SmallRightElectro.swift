@@ -185,35 +185,37 @@ struct SmallRightElectroWidgetEntryView: View {
                 #endif
 
                 let tileW = hAvail * 0.48
-                HStack(alignment: .center, spacing: 3) {
-                    RightDigitTile(digit: mDigits[0], tileColor: tile, digitColor: digitCol, seamColor: seamCol)
-                        .frame(width: tileW)
-                    RightDigitTile(digit: mDigits[1], tileColor: tile, digitColor: digitCol, seamColor: seamCol)
-                        .frame(width: tileW)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-
-                // AM/PM сверху по центру (если 12h)
-                if entry.use12HourFormat {
-                    let hour24 = Calendar.current.component(.hour, from: entry.date)
-                    let ampm = hour24 >= 12 ? "PM" : "AM"
-                    Text(ampm)
-                        .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
-                        .foregroundColor(isFullColor ? tile : digitCol)
-                        .position(x: wAvail / 2, y: hAvail * 0.06)
-                }
-
-                // Угловые декоративные символы (ч/б по теме)
-                let base = Int(entry.date.timeIntervalSince1970 / 60)
-                let rawSize = min(wAvail, hAvail) * 0.085
-                let size = max(10, rawSize)
-                let margin = size * 1.0
                 ZStack {
-                    let highlight = (base * 7) % 4
-                    let symbols: [String] = (0..<4).map { idx in idx == highlight ? "⊕" : "⊗" }
-                    // Right side screws only (top-right and bottom-right)
-                    Text(symbols[1]).font(.system(size: size, weight: .heavy)).foregroundColor(isFullColor ? tile : digitCol).position(x: wAvail - margin, y: margin)
-                    Text(symbols[3]).font(.system(size: size, weight: .heavy)).foregroundColor(isFullColor ? tile : digitCol).position(x: wAvail - margin, y: hAvail - margin)
+                    HStack(alignment: .center, spacing: 3) {
+                        RightDigitTile(digit: mDigits[0], tileColor: tile, digitColor: digitCol, seamColor: seamCol)
+                            .frame(width: tileW)
+                        RightDigitTile(digit: mDigits[1], tileColor: tile, digitColor: digitCol, seamColor: seamCol)
+                            .frame(width: tileW)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+
+                    // AM/PM сверху по центру (если 12h)
+                    if entry.use12HourFormat {
+                        let hour24 = Calendar.current.component(.hour, from: entry.date)
+                        let ampm = hour24 >= 12 ? "PM minutes" : "AM minutes"
+                        Text(ampm)
+                            .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
+                            .foregroundColor(isFullColor ? tile : digitCol)
+                            .position(x: wAvail / 2, y: hAvail * 0.06)
+                    }
+
+                    // Угловые декоративные символы (ч/б по теме)
+                    let base = Int(entry.date.timeIntervalSince1970 / 60)
+                    let rawSize = min(wAvail, hAvail) * 0.085
+                    let size = max(10, rawSize)
+                    let margin = size * 1.0
+                    ZStack {
+                        let highlight = (base * 7) % 4
+                        let symbols: [String] = (0..<4).map { idx in idx == highlight ? "⊕" : "⊗" }
+                        // Right side screws only (top-right and bottom-right)
+                        Text(symbols[1]).font(.system(size: size, weight: .heavy)).foregroundColor(isFullColor ? tile : digitCol).position(x: wAvail - margin, y: margin)
+                        Text(symbols[3]).font(.system(size: size, weight: .heavy)).foregroundColor(isFullColor ? tile : digitCol).position(x: wAvail - margin, y: hAvail - margin)
+                    }
                 }
             }
         }
