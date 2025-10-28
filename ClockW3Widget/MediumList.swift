@@ -105,9 +105,15 @@ struct MediumListWidgetEntryView: View {
         )
         .ignoresSafeArea()
         #if os(macOS)
-        .containerBackground(.ultraThinMaterial, for: .widget)
+        .containerBackground(for: .widget) {
+            if widgetRenderingMode == .fullColor {
+                Color.white
+            } else {
+                Rectangle().fill(.ultraThinMaterial)
+            }
+        }
         #else
-        .widgetBackground(palette.background)
+        .widgetBackground(Color.white)
         #endif
     }
 }

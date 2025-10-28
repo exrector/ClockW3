@@ -806,9 +806,8 @@ struct MediumClockFace: View {
 
         path.closeSubpath()
 
-        // Цвет шестерёнки = цвет фона dark-режима, чтобы визуально слить с фоном
-        let darkBackground = ClockColorPalette.system(colorScheme: .dark).background
-        context.fill(path, with: .color(darkBackground))
+        // Тип окраски как у внешней шестерёнки (palette.secondaryColor) в обычном режиме
+        context.fill(path, with: .color(palette.secondaryColor))
 
         // Рисуем внутреннее отверстие
         let holePath = Path(ellipseIn: CGRect(

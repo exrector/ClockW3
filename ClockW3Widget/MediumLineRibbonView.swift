@@ -135,8 +135,9 @@ private struct CityTimelineRow: View {
             // Desktop widgets: material underlay — day adds subtle light overlay; night = clear to match widget background
             return row.symbol == "sun.max.fill" ? Color.white.opacity(0.18) : Color.clear
         } else {
-            // Full color: day = white, night = dark widget background (not pure black)
-            return row.symbol == "sun.max.fill" ? .white : darkWidgetBackground
+            // Full color (обычный режим): одинаково в light/dark —
+            // день = белая строка, ночь = чисто чёрная строка
+            return row.symbol == "sun.max.fill" ? .white : .black
         }
     }
 
