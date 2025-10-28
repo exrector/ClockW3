@@ -502,8 +502,11 @@ struct MediumClockFace: View {
             let angularWidth = totalWidth / Double(orbitRadius)
             let padding = (Double(fontSize) * 0.8) / Double(baseRadius) * 0.7
 
-            let occupiedStart = staticArrowAngle - angularWidth / 2 - padding
-            let occupiedEnd = staticArrowAngle + angularWidth / 2 + padding
+            // Правильный расчёт занятого диапазона: от начала текста до конца с учетом паддинга
+            let textStartAngle = staticArrowAngle - totalWidth / (2 * Double(orbitRadius))
+            let textEndAngle = textStartAngle + angularWidth
+            let occupiedStart = textStartAngle - padding
+            let occupiedEnd = textEndAngle + padding
             let freeRanges = calculateFreeRanges(occupiedRanges: [(start: occupiedStart, end: occupiedEnd)])
 
             // Рисуем зубцы на свободных сегментах
@@ -519,7 +522,6 @@ struct MediumClockFace: View {
             }
 
             // Теперь рисуем буквы поверх зубцов
-            let textStartAngle = staticArrowAngle - totalWidth / (2 * Double(orbitRadius))
             for (index, character) in characters.enumerated() {
                 let letterAngle = textStartAngle + Double(index) * letterSpacing / Double(orbitRadius)
                 let position = AngleCalculations.pointOnCircle(
@@ -560,78 +562,105 @@ struct MediumClockFace: View {
         let middleRadius = orbitRadius  // Средняя линия (где обычно дуга)
         let outerRadius = orbitRadius + segmentWidth / 2.2  // Зубцы выступают ещё больше наружу (увеличено)
 
-        // Количество зубцов на данной дуге
+        // Количество зубцов и период
         let arcLength = endAngle - startAngle
-        let toothAngularWidth = 0.15  // Угловая ширина одного зубца (в радианах)
-        let toothCount = Int(arcLength / toothAngularWidth)
+        let toothAngularWidth = 0.15  // Угловая ширина «ячейки» зубца (период)
+        guard arcLength > 0, toothAngularWidth > 0 else { return }
 
-        guard toothCount > 0 else { return }
-
-        let actualToothWidth = arcLength / Double(toothCount)
         let gapRatio: CGFloat = 0.5  // 50% зубец, 50% промежуток
+        let actualToothWidth = toothAngularWidth
 
-        // Поворот так, чтобы центр (пик) зубца был на 270° (staticArrowAngle)
-        let rotation = staticArrowAngle - (actualToothWidth * Double(gapRatio)) / 2
+        // Выровнять пик зубца (toothMidAngle) по 270°
+        // toothMidAngle = toothStartAngle + actualToothWidth * gapRatio / 2
+        // хотим toothMidAngle ≡ staticArrowAngle (mod actualToothWidth)
+        // => toothStartAngle ≡ staticArrowAngle - actualToothWidth * gapRatio / 2
+        let desiredStartPhase = staticArrowAngle - actualToothWidth * Double(gapRatio) / 2
+
+        // Смещение первой «ячейки» относительно начала сегмента
+        func positiveModulo(_ x: Double, _ m: Double) -> Double {
+            let r = x.truncatingRemainder(dividingBy: m)
+            return r < 0 ? r + m : r
+        }
+        let f = positiveModulo(desiredStartPhase - startAngle, actualToothWidth)
+        let firstToothStart = startAngle + f
+
+        // Сколько зубцов помещается в [firstToothStart, endAngle]
+        let available = endAngle - firstToothStart
+        let toothCount = Int(floor(available / actualToothWidth)) + (available >= 0 ? 1 : 0)
+        guard toothCount > 0 else { return }
 
         var path = Path()
 
-        // Начинаем с внутреннего радиуса
-        let firstPoint = CGPoint(
+        // 1) Старт из внутренней дуги в начале сегмента
+        let innerStart = CGPoint(
             x: center.x + innerRadius * CGFloat(cos(startAngle)),
             y: center.y + innerRadius * CGFloat(sin(startAngle))
         )
-        path.move(to: firstPoint)
+        path.move(to: innerStart)
 
-        // Рисуем зубчатую внешнюю линию
+        // Поднимаемся на среднюю линию в начале сегмента
+        let middleAtStart = CGPoint(
+            x: center.x + middleRadius * CGFloat(cos(startAngle)),
+            y: center.y + middleRadius * CGFloat(sin(startAngle))
+        )
+        path.addLine(to: middleAtStart)
+
+        // Если между началом сегмента и первым зубцом есть промежуток — проходим дугой по средней линии
+        if firstToothStart > startAngle {
+            path.addArc(
+                center: center,
+                radius: middleRadius,
+                startAngle: Angle(radians: startAngle),
+                endAngle: Angle(radians: firstToothStart),
+                clockwise: false
+            )
+        }
+
+        // 2) Рисуем зубцы, выровненные по фазе
         for i in 0..<toothCount {
-            let toothStartAngle = startAngle + Double(i) * actualToothWidth
-            let toothMidAngle = toothStartAngle + actualToothWidth * Double(gapRatio) / 2
-            let toothEndAngle = toothStartAngle + actualToothWidth * Double(gapRatio)
-            let gapEndAngle = toothStartAngle + actualToothWidth
+            let toothStart = firstToothStart + Double(i) * actualToothWidth
+            let toothMid = toothStart + actualToothWidth * Double(gapRatio) / 2
+            let toothEnd = min(toothStart + actualToothWidth * Double(gapRatio), endAngle)
 
-            // Поднимаемся на среднюю линию
+            // На всякий случай, если вышли за границу
+            if toothStart >= endAngle { break }
+
+            // Поднимаемся/находимся на средней линии в начале зубца
             let middleStart = CGPoint(
-                x: center.x + middleRadius * CGFloat(cos(toothStartAngle)),
-                y: center.y + middleRadius * CGFloat(sin(toothStartAngle))
+                x: center.x + middleRadius * CGFloat(cos(toothStart)),
+                y: center.y + middleRadius * CGFloat(sin(toothStart))
             )
             path.addLine(to: middleStart)
 
-            // Зубец выступает наружу
+            // Пик зубца наружу
             let outerMid = CGPoint(
-                x: center.x + outerRadius * CGFloat(cos(toothMidAngle)),
-                y: center.y + outerRadius * CGFloat(sin(toothMidAngle))
+                x: center.x + outerRadius * CGFloat(cos(toothMid)),
+                y: center.y + outerRadius * CGFloat(sin(toothMid))
             )
             path.addLine(to: outerMid)
 
-            // Возвращаемся на среднюю линию
+            // Возвращаемся на среднюю линию в конце зубца
             let middleEnd = CGPoint(
-                x: center.x + middleRadius * CGFloat(cos(toothEndAngle)),
-                y: center.y + middleRadius * CGFloat(sin(toothEndAngle))
+                x: center.x + middleRadius * CGFloat(cos(toothEnd)),
+                y: center.y + middleRadius * CGFloat(sin(toothEnd))
             )
             path.addLine(to: middleEnd)
 
-            // Дуга по средней линии до следующего зубца (промежуток)
-            if i < toothCount - 1 {
+            // Дуга до начала следующего зубца или до конца сегмента
+            let nextStart = toothStart + actualToothWidth
+            let arcEnd = min(nextStart, endAngle)
+            if arcEnd > toothEnd {
                 path.addArc(
                     center: center,
                     radius: middleRadius,
-                    startAngle: Angle(radians: toothEndAngle),
-                    endAngle: Angle(radians: gapEndAngle),
-                    clockwise: false
-                )
-            } else {
-                // Последний зубец - дуга до конца
-                path.addArc(
-                    center: center,
-                    radius: middleRadius,
-                    startAngle: Angle(radians: toothEndAngle),
-                    endAngle: Angle(radians: endAngle),
+                    startAngle: Angle(radians: toothEnd),
+                    endAngle: Angle(radians: arcEnd),
                     clockwise: false
                 )
             }
         }
 
-        // Возвращаемся по внутренней дуге
+        // 3) Возвращаемся по внутренней дуге к началу сегмента
         path.addArc(
             center: center,
             radius: innerRadius,
@@ -642,14 +671,8 @@ struct MediumClockFace: View {
 
         path.closeSubpath()
 
-        // Применяем поворот к path через transform
-        let rotatedPath = path.applying(
-            CGAffineTransform(translationX: center.x, y: center.y)
-                .rotated(by: rotation)
-                .translatedBy(x: -center.x, y: -center.y)
-        )
-
-        context.fill(rotatedPath, with: .color(palette.secondaryColor))
+        // Без дополнительных поворотов — геометрия строго в свободных диапазонах и с нужной фазой
+        context.fill(path, with: .color(palette.secondaryColor))
     }
 
     private func calculateFreeRanges(

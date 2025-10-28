@@ -178,6 +178,7 @@ struct SmallRightElectroWidgetEntryView: View {
                     : Color.black  // Неактивный режим: черные цифры на полупрозрачных плитках
                 let seamCol = isFullColor ? Color.red : Color.black  // Неактивный режим: черный шов
                 #else
+                let isFullColor = true
                 let tile = (effectiveColorScheme == .light) ? Color.black : Color.white
                 let digitCol = (effectiveColorScheme == .light) ? Color.white : Color.black
                 let seamCol = Color.red
@@ -239,10 +240,7 @@ struct SmallRightElectroWidget: Widget {
         .description("Minutes only flip tiles")
         .supportedFamilies([.systemSmall])
 
-        if #available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *) {
-            return configuration.contentMarginsDisabled()
-        } else {
-            return configuration
-        }
+        // The enclosing type already requires these OS versions, so we can unconditionally apply the modifier.
+        return configuration.contentMarginsDisabled()
     }
 }
