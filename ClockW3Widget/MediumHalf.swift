@@ -153,6 +153,9 @@ private struct FlipDateCard: View {
 struct ClockW3MediumWidgetEntryView: View {
     var entry: MediumWidgetProvider.Entry
     @Environment(\.colorScheme) private var systemColorScheme
+    #if os(macOS)
+    @Environment(\.widgetRenderingMode) var widgetRenderingMode
+    #endif
 
     private var effectiveColorScheme: ColorScheme {
         switch entry.colorSchemePreference {
@@ -165,13 +168,24 @@ struct ClockW3MediumWidgetEntryView: View {
         }
     }
 
+    private var palette: ClockColorPalette {
+        #if os(macOS)
+        if widgetRenderingMode == .fullColor {
+            return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+        } else {
+            return ClockColorPalette.forMacWidget(colorScheme: effectiveColorScheme)
+        }
+        #else
+        return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+        #endif
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let widgetSize = geometry.size
             let widgetHeight = widgetSize.height
             let scale: CGFloat = 1.1  // Увеличиваем масштаб на 10%
             let fullClockSize = widgetHeight * 2 * scale  // Полный циферблат = двойная высота виджета * масштаб
-            let palette = ClockColorPalette.system(colorScheme: effectiveColorScheme)
 
             ZStack {
                 palette.background
@@ -192,7 +206,7 @@ struct ClockW3MediumWidgetEntryView: View {
             .clipped()
             .environment(\.colorScheme, effectiveColorScheme)
         }
-        .widgetBackground(ClockColorPalette.system(colorScheme: effectiveColorScheme).background)
+        .widgetBackground(palette.background)
         // Важно: заставляем ассеты и весь UI следовать выбранной схеме, а не системной
         .environment(\.colorScheme, effectiveColorScheme)
     }
@@ -233,7 +247,7 @@ struct MediumClockFace: View {
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             let rotationAngle = rotationOffset(for: currentTime)
 
-            drawBackground(context: context, center: center, baseRadius: baseRadius)
+            // Фон уже отрисован в ZStack, не нужно рисовать в Canvas
 
             // Используем календарь с часовым поясом выбранного города
             var calendar = Calendar.current

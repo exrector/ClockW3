@@ -1790,7 +1790,7 @@ private struct EditReminderView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(.ultraThinMaterial)
+            .background(Color("ClockBackground"))
 #endif
 
             // Preview
@@ -1812,7 +1812,7 @@ private struct EditReminderView: View {
 #if os(iOS)
             .background(Color.clear)
 #else
-            .background(.ultraThinMaterial)
+            .background(Color("ClockBackground"))
 #endif
 
             Divider()
@@ -1847,7 +1847,7 @@ private struct EditReminderView: View {
 #if os(iOS)
             .background(Color.clear)
 #else
-            .background(.ultraThinMaterial)
+            .background(Color("ClockBackground"))
 #endif
             .contentShape(Rectangle())
 #if os(iOS)
@@ -1871,7 +1871,7 @@ private struct EditReminderView: View {
         // Let the system sheet card (with rounded corners) show through
         .background(Color.clear)
 #else
-        .background(.ultraThinMaterial)
+        .background(Color("ClockBackground"))
 #endif
 #if os(macOS)
         .frame(width: 400, height: 300)

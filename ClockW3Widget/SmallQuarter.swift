@@ -186,10 +186,8 @@ struct ClockW3SmallWidgetEntryView: View {
             let day = Calendar.current.component(.day, from: entry.date)
 
             ZStack {
-#if !os(macOS)
                 palette.background
                     .ignoresSafeArea()
-#endif
                 SimplifiedClockFace(
                     currentTime: entry.date,
                     palette: palette,
@@ -213,11 +211,7 @@ struct ClockW3SmallWidgetEntryView: View {
             }
             .environment(\.colorScheme, effectiveColorScheme)
         }
-        #if os(macOS)
-        .containerBackground(.ultraThinMaterial, for: .widget)
-        #else
         .widgetBackground(palette.background)
-        #endif
         // Важно: заставляем ассеты и весь UI следовать выбранной схеме, а не системной
         .environment(\.colorScheme, effectiveColorScheme)
     }
@@ -251,7 +245,7 @@ struct SimplifiedClockFace: View {
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             let rotationAngle = rotationOffset(for: currentTime)
 
-            drawBackground(context: context, center: center, baseRadius: baseRadius)
+            // Фон уже отрисован в ZStack, не нужно рисовать в Canvas
             drawTicks(context: context, center: center, baseRadius: baseRadius, rotationAngle: rotationAngle)
             drawNumbers(context: context, center: center, baseRadius: baseRadius, rotationAngle: rotationAngle)
 

@@ -44,6 +44,7 @@ struct MediumLineRibbonView: View {
                                 isDark: index.isMultiple(of: 2),
                                 use12HourFormat: use12HourFormat,
                                 isMacInactiveMode: isMacInactiveMode,
+                                colorScheme: colorScheme,
                                 darkWidgetBackground: darkWidgetBackground
                             )
                             .frame(height: rowHeight)
@@ -115,14 +116,16 @@ private struct CityTimelineRow: View {
     let isDark: Bool
     let use12HourFormat: Bool
     let isMacInactiveMode: Bool
+    let colorScheme: ColorScheme
     let darkWidgetBackground: Color
 
-    init(row: RowData, rowHeight: CGFloat, isDark: Bool, use12HourFormat: Bool, isMacInactiveMode: Bool = false, darkWidgetBackground: Color) {
+    init(row: RowData, rowHeight: CGFloat, isDark: Bool, use12HourFormat: Bool, isMacInactiveMode: Bool = false, colorScheme: ColorScheme, darkWidgetBackground: Color) {
         self.row = row
         self.rowHeight = rowHeight
         self.isDark = isDark
         self.use12HourFormat = use12HourFormat
         self.isMacInactiveMode = isMacInactiveMode
+        self.colorScheme = colorScheme
         self.darkWidgetBackground = darkWidgetBackground
     }
 
@@ -131,20 +134,21 @@ private struct CityTimelineRow: View {
     }
 
     private var backgroundColor: Color {
+        let isDay = row.symbol == "sun.max.fill"
+        
         if isMacInactiveMode {
-            // Desktop widgets: material underlay — day adds subtle light overlay; night = clear to match widget background
-            return row.symbol == "sun.max.fill" ? Color.white.opacity(0.18) : Color.clear
+            // Desktop widgets: material underlay — day adds subtle light overlay; night = clear
+            return isDay ? Color.white.opacity(0.35) : Color.clear
         } else {
-            // Full color (обычный режим): одинаково в light/dark —
-            // день = белая строка, ночь = чисто чёрная строка
-            return row.symbol == "sun.max.fill" ? .white : .black
+            // Full color: день = белый, ночь = чёрный (одинаково для light/dark)
+            return isDay ? .white : .black
         }
     }
 
     private var primaryColor: Color {
         if isLocalCity { return .red }
         if isMacInactiveMode { return .primary }
-        // Full color: ensure contrast over darkWidgetBackground for night
+        // Full color: контрастный цвет в зависимости от фона
         let isNight = row.symbol != "sun.max.fill"
         return isNight ? .white : .black
     }

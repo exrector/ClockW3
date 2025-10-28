@@ -194,40 +194,42 @@ struct SmallLeftElectroWidgetEntryView: View {
                 #endif
 
                 let tileW = hAvail * 0.48
-                HStack(alignment: .center, spacing: 3) {
-                    LeftDigitTile(digit: hDigits[0], tileColor: tile, digitColor: digitCol, seamColor: seamCol)
-                        .frame(width: tileW)
-                    LeftDigitTile(digit: hDigits[1], tileColor: tile, digitColor: digitCol, seamColor: seamCol)
-                        .frame(width: tileW)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-
-                // AM/PM сверху по центру (если 12h)
-                if entry.use12HourFormat {
-                    let hour24 = Calendar.current.component(.hour, from: entry.date)
-                    let ampm = hour24 >= 12 ? "PM hours" : "AM hours"
-                    Text(ampm)
-                        .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
-                        .foregroundColor(isFullColor ? tile : digitCol)
-                        .position(x: wAvail / 2, y: hAvail * 0.06)
-                }
-
-                // Угловые декоративные символы (светлые/тёмные в зависимости от режима)
-                let base = Int(entry.date.timeIntervalSince1970 / 60)
-                let rawSize = min(wAvail, hAvail) * 0.085
-                let size = max(10, rawSize)
-                let margin = size * 1.0
                 ZStack {
-                    let highlight = (base * 7) % 4
-                    let symbols: [String] = (0..<4).map { idx in idx == highlight ? "⊕" : "⊗" }
-                    // Left side screws only (top-left and bottom-left)
-                    Text(symbols[0]).font(.system(size: size, weight: .heavy)).foregroundColor(isFullColor ? tile : digitCol).position(x: margin, y: margin)
-                    Text(symbols[2]).font(.system(size: size, weight: .heavy)).foregroundColor(isFullColor ? tile : digitCol).position(x: margin, y: hAvail - margin)
+                    HStack(alignment: .center, spacing: 3) {
+                        LeftDigitTile(digit: hDigits[0], tileColor: tile, digitColor: digitCol, seamColor: seamCol)
+                            .frame(width: tileW)
+                        LeftDigitTile(digit: hDigits[1], tileColor: tile, digitColor: digitCol, seamColor: seamCol)
+                            .frame(width: tileW)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+
+                    // AM/PM сверху по центру (если 12h)
+                    if entry.use12HourFormat {
+                        let hour24 = Calendar.current.component(.hour, from: entry.date)
+                        let ampm = hour24 >= 12 ? "PM hours" : "AM hours"
+                        Text(ampm)
+                            .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
+                            .foregroundColor(isFullColor ? tile : digitCol)
+                            .position(x: wAvail / 2, y: hAvail * 0.06)
+                    }
+
+                    // Угловые декоративные символы (светлые/тёмные в зависимости от режима)
+                    let base = Int(entry.date.timeIntervalSince1970 / 60)
+                    let rawSize = min(wAvail, hAvail) * 0.085
+                    let size = max(10, rawSize)
+                    let margin = size * 1.0
+                    ZStack {
+                        let highlight = (base * 7) % 4
+                        let symbols: [String] = (0..<4).map { idx in idx == highlight ? "⊕" : "⊗" }
+                        // Left side screws only (top-left and bottom-left)
+                        Text(symbols[0]).font(.system(size: size, weight: .heavy)).foregroundColor(isFullColor ? tile : digitCol).position(x: margin, y: margin)
+                        Text(symbols[2]).font(.system(size: size, weight: .heavy)).foregroundColor(isFullColor ? tile : digitCol).position(x: margin, y: hAvail - margin)
+                    }
                 }
             }
         }
         #if os(macOS)
-        .widgetBackground(widgetRenderingMode == .fullColor ? palette.background : Color.clear)
+        .widgetBackground(widgetRenderingMode == .fullColor ? palette.background : palette.background)
         #else
         .widgetBackground(palette.background)
         #endif

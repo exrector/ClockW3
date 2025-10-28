@@ -97,10 +97,8 @@ struct ClockW3ClassicSmallWidgetEntryView: View {
             let frameSize = min(geometry.size.width, geometry.size.height)
 
             ZStack {
-#if !os(macOS)
                 palette.background
                     .ignoresSafeArea()
-#endif
                 WidgetClockFaceView(
                     date: entry.date,
                     colorScheme: effectiveColorScheme,
@@ -114,11 +112,7 @@ struct ClockW3ClassicSmallWidgetEntryView: View {
             .clipped()
         }
         .ignoresSafeArea()
-        #if os(macOS)
-        .containerBackground(.ultraThinMaterial, for: .widget)
-        #else
         .widgetBackground(palette.background)
-        #endif
     }
 }
 

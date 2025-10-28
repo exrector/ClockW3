@@ -98,10 +98,8 @@ struct LargeFullFaceWidgetEntryView: View {
             let frameSize = geometry.size
 
             ZStack {
-#if !os(macOS)
                 palette.background
                     .ignoresSafeArea()
-#endif
                 WidgetClockFaceView(
                     date: entry.date,
                     colorScheme: effectiveColorScheme,
@@ -116,11 +114,7 @@ struct LargeFullFaceWidgetEntryView: View {
             .clipped()
         }
         .ignoresSafeArea()
-        #if os(macOS)
-        .containerBackground(.ultraThinMaterial, for: .widget)
-        #else
         .widgetBackground(palette.background)
-        #endif
     }
 }
 

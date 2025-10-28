@@ -378,7 +378,7 @@ struct MediumElectroWidgetEntryView: View {
         #if os(macOS)
         .widgetBackground(widgetRenderingMode == .fullColor
             ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
-            : Color.clear)
+            : ((effectiveColorScheme == .light) ? Color.white : Color.black))
         #else
         .widgetBackground((effectiveColorScheme == .light) ? Color.white : Color.black)
         #endif

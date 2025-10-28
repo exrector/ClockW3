@@ -23,12 +23,8 @@ struct ClockColorPalette {
     static func system(colorScheme: ColorScheme) -> ClockColorPalette {
         let fallback = fallbackPalette(for: colorScheme)
 
-        #if os(macOS)
-        // На macOS используем прозрачный фон для циферблата, чтобы показывался Material фон виджета
-        let clockBackground: Color = .clear
-        #else
+        // Используем ClockBackground asset для фона
         let clockBackground = colorOrFallback("ClockBackground", fallback: fallback.background)
-        #endif
 
         return ClockColorPalette(
             background: clockBackground,
@@ -51,7 +47,7 @@ struct ClockColorPalette {
     /// - Transparent widget background (container provides Material)
     /// - White content for maximum visibility on gray Material background
     static func forMacWidget(colorScheme: ColorScheme) -> ClockColorPalette {
-        // Используем явно белый цвет для элементов на сером Material-фоне
+        // Используем белый для элементов, прозрачный фон для vibrant эффекта
         let primary: Color = .white
         let secondary: Color = .white.opacity(0.6)
         return ClockColorPalette(
@@ -101,7 +97,7 @@ struct ClockColorPalette {
             )
         default:
             return FallbackPalette(
-                background: Color(white: 0.15),  // Темно-серый вместо черного
+                background: .black,  // Чистый чёрный
                 primary: .white,
                 secondary: .white,
                 monthDayText: .black,

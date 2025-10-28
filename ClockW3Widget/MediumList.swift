@@ -88,7 +88,15 @@ struct MediumListWidgetEntryView: View {
     }
 
     private var palette: ClockColorPalette {
+        #if os(macOS)
+        if widgetRenderingMode == .fullColor {
+            return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+        } else {
+            return ClockColorPalette.forMacWidget(colorScheme: effectiveColorScheme)
+        }
+        #else
         return ClockColorPalette.system(colorScheme: effectiveColorScheme)
+        #endif
     }
 
     var body: some View {
@@ -104,17 +112,7 @@ struct MediumListWidgetEntryView: View {
             isMacInactiveMode: isMacInactive
         )
         .ignoresSafeArea()
-        #if os(macOS)
-        .containerBackground(for: .widget) {
-            if widgetRenderingMode == .fullColor {
-                Color.white
-            } else {
-                Rectangle().fill(.ultraThinMaterial)
-            }
-        }
-        #else
-        .widgetBackground(Color.white)
-        #endif
+        .widgetBackground(palette.background)
     }
 }
 

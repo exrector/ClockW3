@@ -41,10 +41,8 @@ struct ClockW3LargeWidgetEntryView: View {
             let day = Calendar.current.component(.day, from: entry.date)
 
             ZStack {
-#if !os(macOS)
                 palette.background
                     .ignoresSafeArea()
-#endif
                 SimplifiedClockFace(
                     currentTime: entry.date,
                     palette: palette,
@@ -67,11 +65,7 @@ struct ClockW3LargeWidgetEntryView: View {
                 .allowsHitTesting(false)
             }
         }
-        #if os(macOS)
-        .containerBackground(.ultraThinMaterial, for: .widget)
-        #else
         .widgetBackground(palette.background)
-        #endif
         // Важно: заставляем ассеты и весь UI следовать выбранной схеме, а не системной
         .environment(\.colorScheme, effectiveColorScheme)
     }
