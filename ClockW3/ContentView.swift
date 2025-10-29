@@ -32,6 +32,8 @@ struct ContentView: View {
     @State private var hostingWindow: NSWindow?
 #endif
 
+    @StateObject private var viewModel = SimpleClockViewModel()
+
     private var preferredColorScheme: ColorScheme? {
         switch colorSchemePreference {
         case "light": return .light
@@ -96,7 +98,10 @@ struct ContentView: View {
                 if isLandscape {
                     HStack(spacing: 0) {
                         if viewMode == "alternative" {
-                            AlternativeClockView()
+                            AlternativeClockView(
+                                overrideTime: viewModel.currentTime,
+                                overrideCityName: viewModel.cities.first?.name
+                            )
                                 .frame(width: targetSize.height, height: targetSize.height)
                                 .frame(maxHeight: .infinity)
                         } else {
@@ -119,7 +124,10 @@ struct ContentView: View {
                 } else {
                     VStack(spacing: 0) {
                         if viewMode == "alternative" {
-                            AlternativeClockView()
+                            AlternativeClockView(
+                                overrideTime: viewModel.currentTime,
+                                overrideCityName: viewModel.cities.first?.name
+                            )
                                 .frame(maxWidth: .infinity)
                                 .frame(maxHeight: portraitClockMaxHeight)
                         } else {
@@ -161,7 +169,10 @@ struct ContentView: View {
                     if isLandscape {
                         HStack(spacing: 0) {
                             if viewMode == "alternative" {
-                                AlternativeClockView()
+                                AlternativeClockView(
+                                    overrideTime: viewModel.currentTime,
+                                    overrideCityName: viewModel.cities.first?.name
+                                )
                                     .frame(width: height, height: height)
                                     .frame(maxHeight: .infinity)
                             } else {
@@ -184,7 +195,10 @@ struct ContentView: View {
                     } else {
                         VStack(spacing: 0) {
                             if viewMode == "alternative" {
-                                AlternativeClockView()
+                                AlternativeClockView(
+                                    overrideTime: viewModel.currentTime,
+                                    overrideCityName: viewModel.cities.first?.name
+                                )
                                     .frame(maxWidth: .infinity, maxHeight: height * 0.6)
                             } else {
                                 ClockFaceView()

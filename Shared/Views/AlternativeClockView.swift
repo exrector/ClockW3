@@ -82,6 +82,8 @@ struct AlternativeClockView: View {
     @State private var dragStartOffset: CGFloat = 0
     
     var overrideColorScheme: ColorScheme? = nil
+    var overrideTime: Date? = nil
+    var overrideCityName: String? = nil
     
     private var colorScheme: ColorScheme {
         overrideColorScheme ?? environmentColorScheme
@@ -209,7 +211,23 @@ struct AlternativeClockView: View {
         let itemHeight = totalHeight / 5.0 // Показываем ~5 элементов одновременно
         
         return ZStack {
-            // Генерируем достаточно меток для бесконечной прокрутки
+            // Минутные насечки каждые 10 минут с подписями
+            ForEach(-50...50, id: \.self) { index in
+                let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
+                let stepHeight = itemHeight / 6.0
+                let basePosition = (CGFloat(index) + normalizedOffset * 24.0) * itemHeight
+                
+                ForEach(1..<6, id: \.self) { m in
+                    let minute = m * 10
+                    let mPosition = basePosition + CGFloat(m) * stepHeight
+                    if abs(mPosition) < totalHeight {
+                        minuteMark(minute: minute)
+                            .position(x: geometry.size.width / 2.0, y: centerY + mPosition)
+                    }
+                }
+            }
+            
+            // Генерируем достаточно меток для бесконечной прокрутки (часы)
             ForEach(-50...50, id: \.self) { index in
                 let hour = ((index % 24) + 24) % 24
                 let displayHour = hour == 0 ? 24 : hour
@@ -269,13 +287,46 @@ struct AlternativeClockView: View {
     }
     #endif
     
-    // Минутная метка (короткая)
-    private func minuteMark() -> some View {
-        HStack {
+    // Минутная метка с подписями 10/20/30/40/50
+    private func minuteMark(minute: Int) -> some View {
+        let centralWidth: CGFloat = 36
+        let strokeColor = (colorScheme == .dark ? Color.white : Color.black).opacity(0.4)
+        let textColor = (colorScheme == .dark ? Color.white : Color.black).opacity(0.6)
+        let font = Font.system(size: 10, weight: .regular, design: .rounded)
+        return HStack {
             Spacer()
-            Rectangle()
-                .fill(Color.primary.opacity(0.2))
-                .frame(width: 8, height: 1)
+            ZStack {
+                // Риска (кроме 30, для 30 показываем только цифру)
+                if minute != 30 {
+                    Rectangle()
+                        .fill(strokeColor)
+                        .frame(width: 8, height: 1)
+                }
+                // Подписи
+                switch minute {
+                case 10, 20:
+                    HStack {
+                        Text("\(minute)")
+                            .font(font)
+                            .foregroundStyle(textColor)
+                        Spacer(minLength: 0)
+                    }
+                case 40, 50:
+                    HStack {
+                        Spacer(minLength: 0)
+                        Text("\(minute)")
+                            .font(font)
+                            .foregroundStyle(textColor)
+                    }
+                case 30:
+                    Text("30")
+                        .font(font)
+                        .foregroundStyle(textColor)
+                default:
+                    EmptyView()
+                }
+            }
+            .frame(width: centralWidth, alignment: .center)
             Spacer()
         }
     }
@@ -332,12 +383,12 @@ struct AlternativeClockView: View {
     private var localCityBlock: some View {
         ZStack {
             VStack(spacing: 8) {
-                // Название локального города
-                Text(TimeZone.current.localizedName(for: .standard, locale: .current) ?? "Local")
+                // Название локального города (неизменяемое, из главного вью)
+                Text(overrideCityName ?? viewModel.cities.first?.name ?? "Local")
                     .font(.headline)
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                 
-                // Часы (отображаем время из барабана)
+                // Часы (связаны с барабаном)
                 Text(displayTime, style: .time)
                     .font(.system(size: 36, weight: .light, design: .rounded))
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
@@ -376,34 +427,34 @@ struct AlternativeClockView: View {
         )
     }
     
-    // Винты в углах блока
+    // Винты в углах блока (Unicode, жирнее)
     private var cornerScrews: some View {
         GeometryReader { geometry in
-            let screwSize: CGFloat = 12
-            let inset: CGFloat = 16 // Увеличил отступ
+            let screwSize: CGFloat = 14
+            let inset: CGFloat = 16
             
             ZStack {
                 // Верхний левый
                 Text("⊗")
-                    .font(.system(size: screwSize))
+                    .font(.system(size: screwSize, weight: .heavy))
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     .position(x: inset, y: inset)
                 
                 // Верхний правый
                 Text("⊕")
-                    .font(.system(size: screwSize))
+                    .font(.system(size: screwSize, weight: .heavy))
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     .position(x: geometry.size.width - inset, y: inset)
                 
                 // Нижний левый
                 Text("⊕")
-                    .font(.system(size: screwSize))
+                    .font(.system(size: screwSize, weight: .heavy))
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     .position(x: inset, y: geometry.size.height - inset)
                 
                 // Нижний правый
                 Text("⊗")
-                    .font(.system(size: screwSize))
+                    .font(.system(size: screwSize, weight: .heavy))
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     .position(x: geometry.size.width - inset, y: geometry.size.height - inset)
             }
