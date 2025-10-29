@@ -45,11 +45,11 @@ struct ClockColorPalette {
     #if os(macOS)
     /// Monochrome style tuned for macOS Desktop widgets:
     /// - Transparent widget background (container provides Material)
-    /// - White content for maximum visibility on gray Material background
+    /// - Color adapts to colorScheme for visibility
     static func forMacWidget(colorScheme: ColorScheme) -> ClockColorPalette {
-        // Используем белый для элементов, прозрачный фон для vibrant эффекта
-        let primary: Color = .white
-        let secondary: Color = .white.opacity(0.6)
+        // В light mode используем черный, в dark mode - белый для максимальной видимости
+        let primary: Color = (colorScheme == .light) ? .black : .white
+        let secondary: Color = (colorScheme == .light) ? .black.opacity(0.6) : .white.opacity(0.6)
         return ClockColorPalette(
             background: .clear,
             numbers: primary,

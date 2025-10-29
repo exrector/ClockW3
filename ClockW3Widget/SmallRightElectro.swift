@@ -177,11 +177,15 @@ struct SmallRightElectroWidgetEntryView: View {
                     ? ((effectiveColorScheme == .light) ? Color.white : Color.black)
                     : Color.black  // Неактивный режим: черные цифры на полупрозрачных плитках
                 let seamCol = isFullColor ? Color.red : Color.black  // Неактивный режим: черный шов
+                // AM/PM цвет: белый в dark, черный в light
+                let ampmCol = (effectiveColorScheme == .light) ? Color.black : Color.white
                 #else
                 let isFullColor = true
                 let tile = (effectiveColorScheme == .light) ? Color.black : Color.white
                 let digitCol = (effectiveColorScheme == .light) ? Color.white : Color.black
                 let seamCol = Color.red
+                // AM/PM цвет: инвертируем для контраста с фоном - черный на светлом фоне, белый на темном фоне
+                let ampmCol = (effectiveColorScheme == .light) ? Color.black : Color.white
                 #endif
 
                 let tileW = hAvail * 0.48
@@ -193,15 +197,16 @@ struct SmallRightElectroWidgetEntryView: View {
                             .frame(width: tileW)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-
-                    // AM/PM сверху по центру (если 12h)
-                    if entry.use12HourFormat {
-                        let hour24 = Calendar.current.component(.hour, from: entry.date)
-                        let ampm = hour24 >= 12 ? "PM minutes" : "AM minutes"
-                        Text(ampm)
-                            .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
-                            .foregroundColor(isFullColor ? tile : digitCol)
-                            .position(x: wAvail / 2, y: hAvail * 0.06)
+                    .overlay(alignment: .top) {
+                        // AM/PM сверху по центру (если 12h)
+                        if entry.use12HourFormat {
+                            let hour24 = Calendar.current.component(.hour, from: entry.date)
+                            let ampm = hour24 >= 12 ? "PM minutes" : "AM minutes"
+                            Text(ampm)
+                                .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
+                                .foregroundColor(ampmCol)
+                                .padding(.top, hAvail * 0.02)
+                        }
                     }
 
                     // Угловые декоративные символы (ч/б по теме)
@@ -246,3 +251,4 @@ struct SmallRightElectroWidget: Widget {
         return configuration.contentMarginsDisabled()
     }
 }
+

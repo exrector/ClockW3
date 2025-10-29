@@ -226,7 +226,6 @@ struct SimplifiedClockFace: View {
     private let staticArrowAngle: Double = -Double.pi / 4  // 315°
     private let tickDotRadiusRatio: CGFloat = 0.86
     private let numberRingRadiusRatio: CGFloat = 0.72
-    private let hourAngleStep: Double = ClockConstants.hourTickStepRadians  // 15°
     private let minuteBubbleRadiusRatio: CGFloat = 0.075
     private let minuteBubbleGapRatio: CGFloat = 0.03
     private let totalHourMarks: Int
@@ -284,91 +283,106 @@ struct SimplifiedClockFace: View {
     }
 
     private func drawTicks(
-        context: GraphicsContext,
-        center: CGPoint,
-        baseRadius: CGFloat,
-        rotationAngle: Double
-    ) {
-        let minutesPerTick: Double = 10
-        let ticksPerHour = Int(60 / minutesPerTick)  // 6
-        let totalTicks = ticksPerHour * totalHourMarks
-        let sizeScale: CGFloat = 1.3 * 1.15         // +30% и дополнительно +15%
-        // Для 12-часового формата угловой шаг должен быть больше, так как 12 часов вместо 24
-        let currentHourAngleStep = use12HourFormat ? hourAngleStep * 2 : hourAngleStep
-
-        for index in 0..<totalTicks {
-            let isHourTick = index % ticksPerHour == 0
-            let isHalfHourTick = (index % (ticksPerHour / 2) == 0) && !isHourTick  // каждые 30 минут
-
-            let dotDiameter: CGFloat
-            let color: Color
-
-            if isHourTick {
-                dotDiameter = baseRadius * ClockConstants.hourTickThickness * 3.0 * sizeScale
-                color = palette.hourTicks
-            } else if isHalfHourTick {
-                dotDiameter = baseRadius * ClockConstants.halfHourTickThickness * 2.5 * sizeScale
-                color = palette.minorTicks
-            } else {
-                dotDiameter = baseRadius * ClockConstants.quarterTickThickness * 2.0 * sizeScale
-                color = palette.minorTicks.opacity(0.85)
-            }
-
-            let minutesFromBase = Double(index) * minutesPerTick
-            let angle = minutesFromBase / 60.0 * currentHourAngleStep + rotationAngle
-
+    context: GraphicsContext,
+    center: CGPoint,
+    baseRadius: CGFloat,
+    rotationAngle: Double
+) {
+    let hourCount = 24
+    let hourStep = (2 * .pi) / Double(hourCount)            // 15° — часовые
+    let halfHourStep = hourStep / 2                         // 7.5° — получасовые
+    let quarterStep = hourStep / 4                          // 3.75° — четвертные
+    
+    // Часовые точки
+    for i in 0..<hourCount {
+        let angle = Double(i) * hourStep + rotationAngle
+        let dotCenter = AngleCalculations.pointOnCircle(
+            center: center,
+            radius: baseRadius * tickDotRadiusRatio,
+            angle: angle
+        )
+        let dotDiameter = baseRadius * ClockConstants.hourTickThickness * 3.0 * 1.3 * 1.15
+        let rect = CGRect(
+            x: dotCenter.x - dotDiameter / 2,
+            y: dotCenter.y - dotDiameter / 2,
+            width: dotDiameter,
+            height: dotDiameter
+        )
+        context.fill(Path(ellipseIn: rect), with: .color(palette.hourTicks))
+    }
+    
+    // Получасовые точки
+    for i in 0..<hourCount {
+        let angle = Double(i) * hourStep + halfHourStep + rotationAngle
+        let dotCenter = AngleCalculations.pointOnCircle(
+            center: center,
+            radius: baseRadius * tickDotRadiusRatio,
+            angle: angle
+        )
+        let dotDiameter = baseRadius * ClockConstants.halfHourTickThickness * 2.5 * 1.3 * 1.15
+        let rect = CGRect(
+            x: dotCenter.x - dotDiameter / 2,
+            y: dotCenter.y - dotDiameter / 2,
+            width: dotDiameter,
+            height: dotDiameter
+        )
+        context.fill(Path(ellipseIn: rect), with: .color(palette.minorTicks))
+    }
+    
+    // Четвертные (15-минутные) точки
+    for i in 0..<hourCount {
+        for q in [1, 3] { // только четверти между часом и получасом (на 15 и 45 минутах)
+            let angle = Double(i) * hourStep + quarterStep * Double(q) + rotationAngle
             let dotCenter = AngleCalculations.pointOnCircle(
                 center: center,
                 radius: baseRadius * tickDotRadiusRatio,
                 angle: angle
             )
-
+            let dotDiameter = baseRadius * ClockConstants.quarterTickThickness * 2.0 * 1.3 * 1.15
             let rect = CGRect(
                 x: dotCenter.x - dotDiameter / 2,
                 y: dotCenter.y - dotDiameter / 2,
                 width: dotDiameter,
                 height: dotDiameter
             )
-
-            context.fill(Path(ellipseIn: rect), with: .color(color))
+            context.fill(Path(ellipseIn: rect), with: .color(palette.minorTicks.opacity(0.85)))
         }
     }
+}
 
     private func drawNumbers(
-        context: GraphicsContext,
-        center: CGPoint,
-        baseRadius: CGFloat,
-        rotationAngle: Double
-    ) {
-        let fontSize = baseRadius * 2 * ClockConstants.numberFontSizeRatio
-        let baseHour = 18  // Всегда начинаем с 18
-        let currentHourAngleStep = hourAngleStep  // Всегда 15° (24-часовая логика)
-        
-        for index in 0..<totalHourMarks {
-            let rawHour = (baseHour + index) % 24  // Всегда считаем в 24-часовом
-            // Для отображения в 12-часовом: 13->1, 14->2, ..., 0->12
-            let displayHour: Int
-            if use12HourFormat {
-                let hour12 = rawHour % 12
-                displayHour = hour12 == 0 ? 12 : hour12
-            } else {
-                displayHour = rawHour == 0 ? 24 : rawHour
-            }
-            
-            let angle = Double(index) * currentHourAngleStep + rotationAngle
-            let position = AngleCalculations.pointOnCircle(
-                center: center,
-                radius: baseRadius * numberRingRadiusRatio,
-                angle: angle
-            )
-
-            let text = Text(String(format: use12HourFormat ? "%d" : "%02d", displayHour))
-                .font(.system(size: fontSize, design: .monospaced))
-                .foregroundColor(palette.numbers)
-
-            context.draw(text, at: position, anchor: .center)
+    context: GraphicsContext,
+    center: CGPoint,
+    baseRadius: CGFloat,
+    rotationAngle: Double
+) {
+    let fontSize = baseRadius * 2 * ClockConstants.numberFontSizeRatio
+    let baseHour = 18
+    let count = 24
+    let currentHourAngleStep = (2 * .pi) / Double(count)
+    
+    for index in 0..<count {
+        let numberIndex = (baseHour + index) % count
+        let hourValue: Int
+        if use12HourFormat {
+            hourValue = (numberIndex % 12 == 0) ? 12 : (numberIndex % 12)
+        } else {
+            hourValue = (numberIndex == 0) ? 24 : numberIndex
         }
+        let angle = Double(index) * currentHourAngleStep + rotationAngle
+        let position = AngleCalculations.pointOnCircle(
+            center: center,
+            radius: baseRadius * numberRingRadiusRatio,
+            angle: angle
+        )
+
+        let text = Text(String(format: use12HourFormat ? "%d" : "%02d", hourValue))
+            .font(.system(size: fontSize, design: .monospaced))
+            .foregroundStyle(palette.numbers)
+
+        context.draw(text, at: position, anchor: .center)
     }
+}
 
     private func drawLocalCityOrbit(
         context: GraphicsContext,
@@ -711,3 +725,4 @@ struct ClockW3SmallWidget_Previews: PreviewProvider {
     }
 }
 #endif
+

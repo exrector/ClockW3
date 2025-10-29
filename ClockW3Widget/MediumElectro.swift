@@ -295,12 +295,16 @@ struct MediumElectroWidgetEntryView: View {
                 let seamCol = isFullColor
                     ? Color.red
                     : Color.black  // Неактивный режим: черный шов
+                // AM/PM цвет: черный в light, белый в dark
+                let ampmCol = (effectiveColorScheme == .light) ? Color.black : Color.white
                 #else
                 let isFullColor = true
                 let bg = (effectiveColorScheme == .light) ? Color.white : Color.black
                 let tile = (effectiveColorScheme == .light) ? Color.black : Color.white
                 let digitCol = (effectiveColorScheme == .light) ? Color.white : Color.black
                 let seamCol = Color.red
+                // AM/PM цвет: черный на светлом фоне, белый на темном фоне
+                let ampmCol = (effectiveColorScheme == .light) ? Color.black : Color.white
                 #endif
 
                 let wAvail = geo.size.width
@@ -333,6 +337,17 @@ struct MediumElectroWidgetEntryView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay(alignment: .top) {
+                        // AM/PM вверху по центру при 12‑часовом формате
+                        if entry.use12HourFormat {
+                            let hour24 = Calendar.current.component(.hour, from: entry.date)
+                            let ampm = hour24 >= 12 ? "PM" : "AM"
+                            Text(ampm)
+                                .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
+                                .foregroundColor(ampmCol)
+                                .padding(.top, hAvail * 0.02)
+                        }
+                    }
 
                     // Фиксированные винты по углам: 4 угла, один меняется раз в минуту
                     let base = Int(entry.date.timeIntervalSince1970 / 60)
@@ -361,16 +376,6 @@ struct MediumElectroWidgetEntryView: View {
                             .font(.system(size: size, weight: .heavy))
                             .foregroundColor(isFullColor ? tile : digitCol)
                             .position(x: wAvail - margin, y: hAvail - margin)
-                    }
-
-                    // AM/PM вверху по центру при 12‑часовом формате
-                    if entry.use12HourFormat {
-                        let hour24 = Calendar.current.component(.hour, from: entry.date)
-                        let ampm = hour24 >= 12 ? "PM" : "AM"
-                        Text(ampm)
-                            .font(.system(size: hAvail * 0.096, weight: .heavy, design: .monospaced))
-                            .foregroundColor(isFullColor ? tile : digitCol)
-                            .position(x: wAvail / 2, y: hAvail * 0.06)
                     }
                 }
             }
@@ -427,3 +432,4 @@ struct MediumElectroWidget: Widget {
 } timeline: {
     MediumElectroEntry(date: .now, colorSchemePreference: "system", use12HourFormat: false)
 }
+

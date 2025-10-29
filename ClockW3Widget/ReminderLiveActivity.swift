@@ -19,11 +19,11 @@ struct ReminderLiveActivity: Widget {
             } compactLeading: {
                 EmptyView()
             } compactTrailing: {
-                // Убираем иконку колокольчика — компактный трейлинг пустой
-                EmptyView()
+                Image(systemName: "bell.fill")
+                    .foregroundStyle(.red)
             } minimal: {
-                // Убираем иконку колокольчика — минимальный вид пустой
-                EmptyView()
+                Image(systemName: "bell.fill")
+                    .foregroundStyle(.red)
             }
         }
     }
