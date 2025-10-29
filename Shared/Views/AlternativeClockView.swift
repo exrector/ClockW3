@@ -205,6 +205,7 @@ struct AlternativeClockView: View {
     // Барабан с прокруткой
     private func timeDrum(in geometry: GeometryProxy) -> some View {
         let totalHeight = geometry.size.height
+        let centerY = totalHeight / 2.0  // Центр области барабана
         let itemHeight = totalHeight / 5.0 // Показываем ~5 элементов одновременно
         
         return ZStack {
@@ -223,7 +224,7 @@ struct AlternativeClockView: View {
                     let isCenter = distanceFromCenter < itemHeight * 0.3
                     
                     hourMark(hour: displayHour, isCenter: isCenter)
-                        .offset(y: position)
+                        .position(x: geometry.size.width / 2.0, y: centerY + position)
                 }
             }
         }
@@ -304,28 +305,26 @@ struct AlternativeClockView: View {
         }
     }
     
-    // Центральная риска (фиксированная)
+    // Центральная риска (фиксированная, центрирована по барабану)
     private var centerIndicator: some View {
-        HStack(spacing: 4) {
-            Spacer()
-            
-            // Длинная риска слева
+        HStack(spacing: 0) {
+            // Левая линия
             Rectangle()
                 .fill(Color.red)
                 .frame(width: 24, height: 3)
+                .padding(.trailing, 4)
             
-            // Пространство для цифр
+            // Пространство для цифр (совпадает с шириной текста часа в барабане)
             Color.clear
                 .frame(width: 36)
             
-            // Длинная риска справа
+            // Правая линия
             Rectangle()
                 .fill(Color.red)
                 .frame(width: 24, height: 3)
-            
-            Spacer()
+                .padding(.leading, 4)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
     
     // MARK: - Блоки левой стороны
