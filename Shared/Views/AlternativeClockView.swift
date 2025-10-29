@@ -125,7 +125,7 @@ struct AlternativeClockView: View {
                 rightSide
                     .frame(width: geometry.size.width * 0.34)
             }
-            .background(Color("ClockBackground"))
+            .background(colorScheme == .dark ? Color.black : Color.white)
         }
         .onAppear {
             syncWithCurrentTime()
@@ -173,25 +173,30 @@ struct AlternativeClockView: View {
     // MARK: - Правая часть с барабаном
     private var rightSide: some View {
         VStack(spacing: 0) {
-            GeometryReader { geometry in
-                ZStack {
-                    // Барабан с часами
-                    timeDrum(in: geometry)
-                    
-                    // Центральная риска (фиксированная)
-                    centerIndicator
+            ZStack {
+                GeometryReader { geometry in
+                    ZStack {
+                        // Барабан с часами
+                        timeDrum(in: geometry)
+                        
+                        // Центральная риска (фиксированная)
+                        centerIndicator
+                    }
+                    .frame(maxWidth: .infinity)
+                    .clipped()
                 }
-                .frame(maxWidth: .infinity)
-                .clipped()
+                .padding(12)
+                
+                // Винты в углах барабана
+                cornerScrews
             }
-            .padding(12)
         }
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.primary.opacity(0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.primary.opacity(0.03))
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
         .padding(12)
@@ -281,18 +286,18 @@ struct AlternativeClockView: View {
             
             // Короткая метка слева
             Rectangle()
-                .fill(Color.primary.opacity(isCenter ? 0.8 : 0.4))
+                .fill((colorScheme == .dark ? Color.white : Color.black).opacity(isCenter ? 1.0 : 0.4))
                 .frame(width: 12, height: 2)
             
             // Текст часа
             Text(String(format: "%02d", hour))
                 .font(.system(size: isCenter ? 18 : 14, weight: isCenter ? .bold : .medium, design: .monospaced))
-                .foregroundStyle(Color.primary.opacity(isCenter ? 1.0 : 0.6))
+                .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(isCenter ? 1.0 : 0.6))
                 .frame(width: 36, alignment: .center)
             
             // Короткая метка справа
             Rectangle()
-                .fill(Color.primary.opacity(isCenter ? 0.8 : 0.4))
+                .fill((colorScheme == .dark ? Color.white : Color.black).opacity(isCenter ? 1.0 : 0.4))
                 .frame(width: 12, height: 2)
             
             Spacer()
@@ -306,7 +311,7 @@ struct AlternativeClockView: View {
             
             // Длинная риска слева
             Rectangle()
-                .fill(Color.red.opacity(0.8))
+                .fill(Color.red)
                 .frame(width: 24, height: 3)
             
             // Пространство для цифр
@@ -315,7 +320,7 @@ struct AlternativeClockView: View {
             
             // Длинная риска справа
             Rectangle()
-                .fill(Color.red.opacity(0.8))
+                .fill(Color.red)
                 .frame(width: 24, height: 3)
             
             Spacer()
@@ -326,40 +331,84 @@ struct AlternativeClockView: View {
     // MARK: - Блоки левой стороны
     
     private var localCityBlock: some View {
-        VStack(spacing: 8) {
-            // Название локального города
-            Text(TimeZone.current.localizedName(for: .standard, locale: .current) ?? "Local")
-                .font(.headline)
-                .foregroundStyle(.primary)
+        ZStack {
+            VStack(spacing: 8) {
+                // Название локального города
+                Text(TimeZone.current.localizedName(for: .standard, locale: .current) ?? "Local")
+                    .font(.headline)
+                    .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                
+                // Часы (отображаем время из барабана)
+                Text(displayTime, style: .time)
+                    .font(.system(size: 36, weight: .light, design: .rounded))
+                    .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+            }
             
-            // Часы (отображаем время из барабана)
-            Text(displayTime, style: .time)
-                .font(.system(size: 36, weight: .light, design: .rounded))
-                .foregroundStyle(.primary)
+            // Винты в углах
+            cornerScrews
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.primary.opacity(0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.primary.opacity(0.03))
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
     }
     
     private var emptyBlock: some View {
-        Rectangle()
-            .fill(Color.clear)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color.primary.opacity(0.3), lineWidth: 1)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.primary.opacity(0.03))
-                    )
-            )
+        ZStack {
+            Rectangle()
+                .fill(Color.clear)
+            
+            // Винты в углах
+            cornerScrews
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(colorScheme == .dark ? Color.black : Color.white)
+                )
+        )
+    }
+    
+    // Винты в углах блока
+    private var cornerScrews: some View {
+        GeometryReader { geometry in
+            let screwSize: CGFloat = 12
+            let inset: CGFloat = 16 // Увеличил отступ
+            
+            ZStack {
+                // Верхний левый
+                Text("⊗")
+                    .font(.system(size: screwSize))
+                    .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                    .position(x: inset, y: inset)
+                
+                // Верхний правый
+                Text("⊕")
+                    .font(.system(size: screwSize))
+                    .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                    .position(x: geometry.size.width - inset, y: inset)
+                
+                // Нижний левый
+                Text("⊕")
+                    .font(.system(size: screwSize))
+                    .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                    .position(x: inset, y: geometry.size.height - inset)
+                
+                // Нижний правый
+                Text("⊗")
+                    .font(.system(size: screwSize))
+                    .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                    .position(x: geometry.size.width - inset, y: geometry.size.height - inset)
+            }
+        }
     }
     
     // MARK: - Обновление барабана из драга
