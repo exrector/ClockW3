@@ -38,6 +38,7 @@ enum SharedUserDefaults {
     static let premiumPurchaseKey = "premiumPurchaseUnlocked"
     static let use12HourFormatKey = "use12HourFormat" // true = 12-hour AM/PM, false = 24-hour
     static let mechanismDebugKey = "debugMechanismEnabled"
+    static let viewModeKey = "viewMode" // "clock" или "alternative"
 
     // DEPRECATED: Custom trial removed in favor of App Store subscriptions
     static let premiumTrialEndKey = "premiumTrialEnd"

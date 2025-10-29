@@ -244,6 +244,12 @@ struct SettingsView: View {
         store: SharedUserDefaults.shared
     ) private var use12HourFormat: Bool = false
 
+    // Режим вида
+    @AppStorage(
+        SharedUserDefaults.viewModeKey,
+        store: SharedUserDefaults.shared
+    ) private var viewMode: String = "clock"
+
 #if os(macOS)
     // Ориентация окна для macOS
     @AppStorage(
@@ -695,6 +701,17 @@ extension SettingsView {
                 action: {
                     use12HourFormat.toggle()
                     reloadWidgets()
+                }
+            )
+
+            ColorSchemeButton(
+                title: viewMode == "clock" ? "Clock" : "Alt",
+                systemImage: viewMode == "clock" ? "clock.fill" : "square.grid.2x2",
+                isSelected: false,
+                colorScheme: colorScheme,
+                accessibilityLabel: "Switch view mode",
+                action: {
+                    viewMode = viewMode == "clock" ? "alternative" : "clock"
                 }
             )
 

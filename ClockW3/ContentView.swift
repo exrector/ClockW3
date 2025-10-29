@@ -22,6 +22,11 @@ struct ContentView: View {
         store: SharedUserDefaults.shared
     ) private var windowOrientationPreference: String = "landscape"
 #endif
+    @AppStorage(
+        SharedUserDefaults.viewModeKey,
+        store: SharedUserDefaults.shared
+    ) private var viewMode: String = "clock"
+    
     @State private var showSettings = false
 #if os(macOS)
     @State private var hostingWindow: NSWindow?
@@ -90,9 +95,15 @@ struct ContentView: View {
             Group {
                 if isLandscape {
                     HStack(spacing: 0) {
-                        ClockFaceView()
-                            .frame(width: targetSize.height, height: targetSize.height)
-                            .frame(maxHeight: .infinity)
+                        if viewMode == "alternative" {
+                            AlternativeClockView()
+                                .frame(width: targetSize.height, height: targetSize.height)
+                                .frame(maxHeight: .infinity)
+                        } else {
+                            ClockFaceView()
+                                .frame(width: targetSize.height, height: targetSize.height)
+                                .frame(maxHeight: .infinity)
+                        }
 
                         VStack(spacing: 0) {
                             if showSettings {
@@ -107,9 +118,15 @@ struct ContentView: View {
                     }
                 } else {
                     VStack(spacing: 0) {
-                        ClockFaceView()
-                            .frame(maxWidth: .infinity)
-                            .frame(maxHeight: portraitClockMaxHeight)
+                        if viewMode == "alternative" {
+                            AlternativeClockView()
+                                .frame(maxWidth: .infinity)
+                                .frame(maxHeight: portraitClockMaxHeight)
+                        } else {
+                            ClockFaceView()
+                                .frame(maxWidth: .infinity)
+                                .frame(maxHeight: portraitClockMaxHeight)
+                        }
 
                         if showSettings {
                             SettingsView()
@@ -143,9 +160,15 @@ struct ContentView: View {
                 Group {
                     if isLandscape {
                         HStack(spacing: 0) {
-                            ClockFaceView()
-                                .frame(width: height, height: height)
-                                .frame(maxHeight: .infinity)
+                            if viewMode == "alternative" {
+                                AlternativeClockView()
+                                    .frame(width: height, height: height)
+                                    .frame(maxHeight: .infinity)
+                            } else {
+                                ClockFaceView()
+                                    .frame(width: height, height: height)
+                                    .frame(maxHeight: .infinity)
+                            }
 
                             VStack(spacing: 0) {
                                 if showSettings {
@@ -160,8 +183,13 @@ struct ContentView: View {
                         }
                     } else {
                         VStack(spacing: 0) {
-                            ClockFaceView()
-                                .frame(maxWidth: .infinity, maxHeight: height * 0.6)
+                            if viewMode == "alternative" {
+                                AlternativeClockView()
+                                    .frame(maxWidth: .infinity, maxHeight: height * 0.6)
+                            } else {
+                                ClockFaceView()
+                                    .frame(maxWidth: .infinity, maxHeight: height * 0.6)
+                            }
 
                             if showSettings {
                                 SettingsView()
