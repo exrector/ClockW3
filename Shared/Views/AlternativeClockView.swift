@@ -310,6 +310,9 @@ struct AlternativeClockView: View {
                 )
         )
         .padding(12)
+        .onLongPressGesture {
+            activateReminderForCity(hour: centerHour, minute: centerMinute)
+        }
     }
     
     // Барабан с прокруткой
@@ -565,20 +568,9 @@ struct AlternativeClockView: View {
                         .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.7)
-                .onEnded { _ in
-                    let localHour = Calendar.current.component(.hour, from: localDisplayTime)
-                    let localMinute = Calendar.current.component(.minute, from: localDisplayTime)
-                    activateReminderForCity(hour: localHour, minute: localMinute)
-                }
-        )
-        .simultaneousGesture(
-            TapGesture()
-                .onEnded { _ in
-                    resetDrumToLocalTime()
-                }
-        )
+        .onTapGesture {
+            resetDrumToLocalTime()
+        }
     }
     
     // Блок города с временем
