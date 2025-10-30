@@ -526,20 +526,16 @@ struct AlternativeClockView: View {
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
 
                 // Часы (всегда локальное время, не зависит от барабана)
-                HStack(spacing: 8) {
+                HStack(spacing: 4) {
                     Text(formattedDisplayTime(localDisplayTime))
                         .monospacedDigit()
                         .font(.system(size: 36, weight: .light, design: .rounded))
                         .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     if use12HourFormat {
                         Text(getAMPM(for: localDisplayTime))
-                            .font(.system(size: 14, weight: .semibold, design: .default))
-                            .foregroundStyle(colorScheme == .light ? Color.black : Color.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule().fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
-                            )
+                            .monospacedDigit()
+                            .font(.system(size: 36, weight: .light, design: .rounded))
+                            .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     }
                 }
                 .padding(.top, 4)
@@ -585,20 +581,16 @@ struct AlternativeClockView: View {
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
 
                 // Время города
-                HStack(spacing: 8) {
+                HStack(spacing: 4) {
                     Text(formattedTime(cityTime))
                         .monospacedDigit()
                         .font(.system(size: 36, weight: .light, design: .rounded))
                         .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     if use12HourFormat {
                         Text(getAMPM(for: cityTime))
-                            .font(.system(size: 14, weight: .semibold, design: .default))
-                            .foregroundStyle(colorScheme == .light ? Color.black : Color.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule().fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
-                            )
+                            .monospacedDigit()
+                            .font(.system(size: 36, weight: .light, design: .rounded))
+                            .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     }
                 }
                 .padding(.top, 4)
