@@ -516,7 +516,9 @@ struct AlternativeClockView: View {
     
     private var localCityBlock: some View {
         ZStack {
-            VStack(spacing: 8) {
+            VStack(spacing: 0) {
+                Spacer()
+
                 // Название локального города (неизменяемое, из главного вью)
                 Text(overrideCityName ?? viewModel.cities.first?.name ?? "Local")
                     .font(.headline)
@@ -539,6 +541,9 @@ struct AlternativeClockView: View {
                             )
                     }
                 }
+                .padding(.top, 4)
+
+                Spacer()
             }
 
             // Винты в углах
@@ -570,7 +575,9 @@ struct AlternativeClockView: View {
         let cityTime = timeInCityTimeZone(displayTime, timezone: city.timeZone)
 
         return ZStack {
-            VStack(spacing: 8) {
+            VStack(spacing: 0) {
+                Spacer()
+
                 // Название города
                 Text(city.name)
                     .font(.headline)
@@ -593,6 +600,9 @@ struct AlternativeClockView: View {
                             )
                     }
                 }
+                .padding(.top, 4)
+
+                Spacer()
             }
 
             // Винты в углах
