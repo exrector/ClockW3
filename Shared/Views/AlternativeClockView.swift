@@ -313,9 +313,6 @@ struct AlternativeClockView: View {
                 )
         )
         .padding(12)
-        .onLongPressGesture {
-            activateReminderForCity(hour: centerHour, minute: centerMinute)
-        }
     }
     
     // Барабан с прокруткой
@@ -526,6 +523,13 @@ struct AlternativeClockView: View {
                 .rotationEffect(.degrees(90))
         }
         .frame(maxWidth: .infinity, alignment: .center)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.7)
+                .onEnded { _ in
+                    activateReminderForCity(hour: centerHour, minute: centerMinute)
+                }
+        )
     }
     
     // MARK: - Блоки левой стороны
