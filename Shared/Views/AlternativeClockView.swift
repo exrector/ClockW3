@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if os(iOS)
+import UIKit
+#endif
+
 #if os(macOS)
 import AppKit
 
@@ -80,6 +84,7 @@ struct AlternativeClockView: View {
     @Environment(\.colorScheme) private var environmentColorScheme
     @State private var drumOffset: CGFloat = 0
     @State private var dragStartOffset: CGFloat = 0
+    @State private var previousDragHeight: CGFloat = 0
 
     // MARK: - Star Trek Quotes
     private let starTrekQuotes = [
@@ -115,7 +120,12 @@ struct AlternativeClockView: View {
     // Reminder preview throttling
     @State private var lastPreviewHour: Int? = nil
     @State private var lastPreviewMinute: Int? = nil
-    
+
+    // Haptic feedback tracking
+    @State private var lastCrossedQuarterIndex: Int? = nil
+    @State private var lastHapticTime: TimeInterval = 0
+    @State private var dragVelocity: CGFloat = 0
+
     var overrideColorScheme: ColorScheme? = nil
     var overrideTime: Date? = nil
     var overrideCityName: String? = nil
@@ -388,10 +398,18 @@ struct AlternativeClockView: View {
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
+                    let dragHeight = value.translation.height
+                    dragVelocity = dragHeight - previousDragHeight
+                    previousDragHeight = dragHeight
                     updateDrum(value, in: geometry)
                 }
                 .onEnded { _ in
                     dragStartOffset = drumOffset
+                    previousDragHeight = 0
+                    // Snap to nearest quarter hour
+                    snapDrumToNearestQuarter(in: geometry)
+                    dragVelocity = 0
+                    lastCrossedQuarterIndex = nil  // Reset on drag end
                 }
         )
 
@@ -709,17 +727,67 @@ struct AlternativeClockView: View {
     }
     
     // MARK: - Обновление барабана из драга
-    
+
     private func updateDrum(_ drag: DragGesture.Value, in geometry: GeometryProxy) {
         let dragDistance = drag.translation.height
         let totalHeight = geometry.size.height
         let itemHeight = totalHeight / 5.0
-        
+
         // Простое изменение - один час занимает itemHeight пикселей
         let hourChange = dragDistance / itemHeight / 24.0
-        
-        drumOffset = dragStartOffset + hourChange
+
+        let newOffset = dragStartOffset + hourChange
+        drumOffset = newOffset
+
+        // Haptic feedback for quarter-hour crossing
+        playHapticFeedbackIfNeeded(for: newOffset)
+
         sendPreviewIfNeeded()
+    }
+
+    private func playHapticFeedbackIfNeeded(for offset: CGFloat) {
+        #if os(iOS)
+        let now = CACurrentMediaTime()
+        // Minimum time between haptics (40ms)
+        let minInterval: TimeInterval = 0.04
+
+        guard now - lastHapticTime >= minInterval else { return }
+
+        // Calculate quarter-hour index (0-95 for 96 quarter-hours in 24 hours)
+        let normalizedOffset = offset.truncatingRemainder(dividingBy: 1.0)
+        let quarterIndex = Int(round(normalizedOffset * 96.0)) % 96
+
+        // Check if we've crossed a new quarter-hour boundary
+        if let lastIndex = lastCrossedQuarterIndex {
+            if quarterIndex == lastIndex {
+                return  // Same quarter-hour, no haptic
+            }
+        }
+
+        lastCrossedQuarterIndex = quarterIndex
+        lastHapticTime = now
+
+        // Play haptic feedback based on the mark type
+        let tickType = HapticFeedback.tickType(for: quarterIndex)
+        HapticFeedback.shared.playTickCrossing(tickType: tickType, tickIndex: quarterIndex)
+        #endif
+    }
+
+    private func snapDrumToNearestQuarter(in geometry: GeometryProxy) {
+        // Snap to nearest quarter hour (15 minutes)
+        let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
+        let quarterIndex = round(normalizedOffset * 96.0)
+        let snappedOffset = (quarterIndex / 96.0).truncatingRemainder(dividingBy: 1.0)
+
+        // Animate snap
+        withAnimation(.easeOut(duration: 0.2)) {
+            drumOffset = snappedOffset
+        }
+
+        // Play final snap haptic
+        #if os(iOS)
+        HapticFeedback.shared.playImpact(intensity: .light)
+        #endif
     }
 }
 
