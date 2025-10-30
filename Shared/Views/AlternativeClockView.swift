@@ -80,6 +80,7 @@ struct AlternativeClockView: View {
     @Environment(\.colorScheme) private var environmentColorScheme
     @State private var drumOffset: CGFloat = 0
     @State private var dragStartOffset: CGFloat = 0
+    @State private var activeCityId: UUID? = nil
 
     // MARK: - Star Trek Quotes
     private let starTrekQuotes = [
@@ -126,7 +127,17 @@ struct AlternativeClockView: View {
     private var baseTime: Date {
         overrideTime ?? viewModel.currentTime
     }
-    
+
+    // Определяет, какой город активен на основе текущего положения барабана
+    private var activeCityIdentifier: String? {
+        guard let activeCity = viewModel.cities.first(where: { $0.id == activeCityId }) else { return nil }
+        return activeCity.timeZoneIdentifier
+    }
+
+    private var activeCityName: String? {
+        viewModel.cities.first(where: { $0.id == activeCityId })?.name
+    }
+
     // Час и минута, которые показываются В ЦЕНТРЕ барабана (на красной риске)
     private var centerHour: Int {
         let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
@@ -196,6 +207,12 @@ struct AlternativeClockView: View {
         .onChange(of: selectedCityIdentifiers) { _, _ in
             syncCitiesToViewModel()
             generateRandomQuotes()
+        }
+        .onChange(of: centerHour) { _, _ in
+            updateActiveCityAndLiveActivity()
+        }
+        .onChange(of: centerMinute) { _, _ in
+            updateActiveCityAndLiveActivity()
         }
     }
     
@@ -503,7 +520,9 @@ struct AlternativeClockView: View {
     // MARK: - Блоки левой стороны
     
     private var localCityBlock: some View {
-        ZStack {
+        let isActive = activeCityId == nil || activeCityId == viewModel.cities.first?.id
+
+        return ZStack {
             VStack(spacing: 8) {
                 // Название локального города (неизменяемое, из главного вью)
                 Text(overrideCityName ?? viewModel.cities.first?.name ?? "Local")
@@ -535,7 +554,10 @@ struct AlternativeClockView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
+                .strokeBorder(
+                    isActive ? Color.red : (colorScheme == .dark ? Color.white : Color.black),
+                    lineWidth: isActive ? 3 : 2
+                )
                 .background(
                     RoundedRectangle(cornerRadius: 16)
                         .fill(colorScheme == .dark ? Color.black : Color.white)
@@ -544,6 +566,7 @@ struct AlternativeClockView: View {
         // Обычный тап для переключения барабана (вернуть к локальному времени)
         .onTapGesture {
             switchDrumToCity(hour: centerHour, minute: centerMinute)
+            activeCityId = viewModel.cities.first?.id
         }
         // Long press для активации напоминания
         .onLongPressGesture {
@@ -556,6 +579,7 @@ struct AlternativeClockView: View {
         let cityTime = timeInCityTimeZone(displayTime, timezone: city.timeZone)
         let cityHour = Calendar.current.component(.hour, from: cityTime)
         let cityMinute = Calendar.current.component(.minute, from: cityTime)
+        let isActive = activeCityId == city.id
 
         return ZStack {
             VStack(spacing: 8) {
@@ -589,7 +613,10 @@ struct AlternativeClockView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
+                .strokeBorder(
+                    isActive ? Color.red : (colorScheme == .dark ? Color.white : Color.black),
+                    lineWidth: isActive ? 3 : 2
+                )
                 .background(
                     RoundedRectangle(cornerRadius: 16)
                         .fill(colorScheme == .dark ? Color.black : Color.white)
@@ -598,6 +625,7 @@ struct AlternativeClockView: View {
         // Обычный тап для переключения барабана на время города
         .onTapGesture {
             switchDrumToCity(hour: cityHour, minute: cityMinute)
+            activeCityId = city.id
         }
         // Long press для активации напоминания
         .onLongPressGesture {
@@ -815,6 +843,20 @@ extension AlternativeClockView {
         // Перетасовываем цитаты и берём столько, сколько нужно пустых блоков
         var shuffled = starTrekQuotes.shuffled()
         currentQuotes = Array(shuffled.prefix(emptyCount))
+    }
+
+    // Обновляет активный город и передаёт информацию в Live Activity
+    private func updateActiveCityAndLiveActivity() {
+        #if !WIDGET_EXTENSION
+        guard let cityIdentifier = activeCityIdentifier, let cityName = activeCityName else {
+            ReminderManager.shared.selectedCityIdentifier = nil
+            ReminderManager.shared.selectedCityName = nil
+            return
+        }
+
+        ReminderManager.shared.selectedCityIdentifier = cityIdentifier
+        ReminderManager.shared.selectedCityName = cityName
+        #endif
     }
 }
 
