@@ -187,6 +187,7 @@ struct AlternativeClockView: View {
                     HStack(spacing: 0) {
                         leftSide
                             .frame(width: leftW, height: availableSide)
+                            .id(use12HourFormat)
                         rightSide
                             .frame(width: rightW, height: availableSide)
                     }
