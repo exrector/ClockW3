@@ -259,6 +259,7 @@ struct SettingsView: View {
 #endif
     
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     // Напоминание
     @StateObject private var reminderManager = ReminderManager.shared
@@ -305,7 +306,7 @@ struct SettingsView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .frame(maxWidth: 360)
+                    .frame(maxWidth: horizontalSizeClass == .regular ? .infinity : 360)
 #elseif os(macOS)
                     VStack(spacing: 0) {
                         Button {
