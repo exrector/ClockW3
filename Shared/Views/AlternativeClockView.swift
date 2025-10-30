@@ -97,7 +97,8 @@ struct AlternativeClockView: View {
         "Live long and prosper."
     ]
     @State private var currentQuotes: [String] = []
-    
+    @State private var formatRefreshKey: Int = 0
+
     // MARK: - Settings integration
     @AppStorage(
         SharedUserDefaults.use12HourFormatKey,
@@ -187,7 +188,7 @@ struct AlternativeClockView: View {
                     HStack(spacing: 0) {
                         leftSide
                             .frame(width: leftW, height: availableSide)
-                            .id(use12HourFormat)
+                            .id(formatRefreshKey)
                         rightSide
                             .frame(width: rightW, height: availableSide)
                     }
@@ -212,6 +213,7 @@ struct AlternativeClockView: View {
         }
         .onChange(of: use12HourFormat) { _, _ in
             // Пересчитываем блоки при изменении формата времени
+            formatRefreshKey += 1
         }
     }
     
