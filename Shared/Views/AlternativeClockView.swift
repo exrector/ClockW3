@@ -488,7 +488,7 @@ struct AlternativeClockView: View {
                 Text(overrideCityName ?? viewModel.cities.first?.name ?? "Local")
                     .font(.headline)
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
-                
+
                 // Часы (связаны с барабаном)
                 HStack(spacing: 8) {
                     Text(formattedDisplayTime(displayTime))
@@ -507,7 +507,7 @@ struct AlternativeClockView: View {
                     }
                 }
             }
-            
+
             // Винты в углах
             cornerScrews
         }
@@ -520,6 +520,14 @@ struct AlternativeClockView: View {
                         .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
+        // Обычный тап для переключения барабана (вернуть к локальному времени)
+        .onTapGesture {
+            switchDrumToCity(hour: centerHour, minute: centerMinute)
+        }
+        // Long press для активации напоминания
+        .onLongPressGesture {
+            activateReminderForCity(hour: centerHour, minute: centerMinute)
+        }
     }
     
     // Блок города с временем и жестами
