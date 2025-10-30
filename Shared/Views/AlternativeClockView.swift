@@ -252,6 +252,7 @@ struct AlternativeClockView: View {
                     .frame(maxHeight: .infinity)
             }
         }
+        .frame(maxHeight: .infinity)
         .padding(12)
     }
 
