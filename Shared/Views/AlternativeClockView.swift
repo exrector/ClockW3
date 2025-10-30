@@ -80,6 +80,23 @@ struct AlternativeClockView: View {
     @Environment(\.colorScheme) private var environmentColorScheme
     @State private var drumOffset: CGFloat = 0
     @State private var dragStartOffset: CGFloat = 0
+
+    // MARK: - Star Trek Quotes
+    private let starTrekQuotes = [
+        "Engage!",
+        "Make it so.",
+        "Fascinating.",
+        "Shields up!",
+        "Warp speed.",
+        "Tea. Earl Grey. Hot.",
+        "Trust yourself.",
+        "Resistance is futile.",
+        "Highly illogical.",
+        "Seize the time.",
+        "Let's see what's out there.",
+        "Live long and prosper."
+    ]
+    @State private var currentQuotes: [String] = []
     
     // MARK: - Settings integration
     @AppStorage(
@@ -174,9 +191,11 @@ struct AlternativeClockView: View {
             syncWithCurrentTime()
             syncCitiesToViewModel()
             sendPreviewIfNeeded()
+            generateRandomQuotes()
         }
         .onChange(of: selectedCityIdentifiers) { _, _ in
             syncCitiesToViewModel()
+            generateRandomQuotes()
         }
     }
     
@@ -213,9 +232,11 @@ struct AlternativeClockView: View {
                     .frame(maxHeight: .infinity)
             }
 
-            // Заполняем пустыми блоками, если городов меньше 5
-            ForEach(0..<max(0, 4 - otherCities.count), id: \.self) { _ in
-                emptyBlock
+            // Заполняем пустыми блоками с цитатами, если городов меньше 5
+            let emptyCount = max(0, 4 - otherCities.count)
+            ForEach(0..<emptyCount, id: \.self) { index in
+                let quote = index < currentQuotes.count ? currentQuotes[index] : "Engage!"
+                emptyBlockWithQuote(quote)
                     .frame(maxHeight: .infinity)
             }
         }
@@ -602,6 +623,33 @@ struct AlternativeClockView: View {
                 )
         )
     }
+
+    // Пустой блок со Star Trek цитатой
+    private func emptyBlockWithQuote(_ quote: String) -> some View {
+        ZStack {
+            VStack {
+                Spacer()
+                Text(quote)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(0.6))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+                Spacer()
+            }
+
+            // Винты в углах
+            cornerScrews
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(colorScheme == .dark ? Color.black : Color.white)
+                )
+        )
+    }
     
     // Винты в углах блока (Unicode, жирнее)
     private var cornerScrews: some View {
@@ -757,6 +805,16 @@ extension AlternativeClockView {
             await ReminderManager.shared.setReminder(reminder)
         }
         #endif
+    }
+
+    // Генерирует рандомные уникальные цитаты для пустых блоков
+    private func generateRandomQuotes() {
+        let otherCities = Array(viewModel.cities.dropFirst().prefix(4))
+        let emptyCount = max(0, 4 - otherCities.count)
+
+        // Перетасовываем цитаты и берём столько, сколько нужно пустых блоков
+        var shuffled = starTrekQuotes.shuffled()
+        currentQuotes = Array(shuffled.prefix(emptyCount))
     }
 }
 
