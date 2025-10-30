@@ -232,28 +232,34 @@ struct AlternativeClockView: View {
     
     // MARK: - Левая часть с блоками
     private var leftSide: some View {
-        VStack(spacing: 12) {
-            // Блок 1 - Локальный город с часами
-            localCityBlock
-                .frame(maxHeight: .infinity)
+        GeometryReader { geometry in
+            let padding: CGFloat = 12
+            let spacing: CGFloat = 8
+            let totalHeight = geometry.size.height
+            let blockHeight = (totalHeight - padding * 2 - spacing * 4) / 5
 
-            // Блоки 2-5 - Остальные города (максимум 4, чтобы итого было 5)
-            let otherCities = Array(viewModel.cities.dropFirst().prefix(4))
-            ForEach(otherCities, id: \.id) { city in
-                cityBlock(for: city)
-                    .frame(maxHeight: .infinity)
-            }
+            VStack(spacing: spacing) {
+                // Блок 1 - Локальный город с часами
+                localCityBlock(blockHeight: blockHeight)
+                    .frame(height: blockHeight)
 
-            // Заполняем пустыми блоками с цитатами, если городов меньше 5
-            let emptyCount = max(0, 4 - otherCities.count)
-            ForEach(0..<emptyCount, id: \.self) { index in
-                let quote = index < currentQuotes.count ? currentQuotes[index] : "Engage!"
-                emptyBlockWithQuote(quote)
-                    .frame(maxHeight: .infinity)
+                // Блоки 2-5 - Остальные города (максимум 4, чтобы итого было 5)
+                let otherCities = Array(viewModel.cities.dropFirst().prefix(4))
+                ForEach(otherCities, id: \.id) { city in
+                    cityBlock(for: city, blockHeight: blockHeight)
+                        .frame(height: blockHeight)
+                }
+
+                // Заполняем пустыми блоками с цитатами, если городов меньше 5
+                let emptyCount = max(0, 4 - otherCities.count)
+                ForEach(0..<emptyCount, id: \.self) { index in
+                    let quote = index < currentQuotes.count ? currentQuotes[index] : "Engage!"
+                    emptyBlockWithQuote(quote, blockHeight: blockHeight)
+                        .frame(height: blockHeight)
+                }
             }
+            .padding(padding)
         }
-        .frame(maxHeight: .infinity)
-        .padding(12)
     }
 
     
@@ -514,39 +520,40 @@ struct AlternativeClockView: View {
     }
     
     // MARK: - Блоки левой стороны
-    
-    private var localCityBlock: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                Spacer()
 
+    private func localCityBlock(blockHeight: CGFloat) -> some View {
+        let nameSize = blockHeight * 0.18
+        let timeSize = blockHeight * 0.35
+
+        return ZStack {
+            VStack(spacing: 2) {
                 // Название локального города (неизменяемое, из главного вью)
                 Text(overrideCityName ?? viewModel.cities.first?.name ?? "Local")
-                    .font(.headline)
+                    .font(.system(size: nameSize, weight: .semibold, design: .default))
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 // Часы (всегда локальное время, не зависит от барабана)
-                HStack(spacing: 4) {
+                HStack(spacing: 2) {
                     Text(formattedDisplayTime(localDisplayTime))
                         .monospacedDigit()
-                        .font(.system(size: 36, weight: .light, design: .rounded))
+                        .font(.system(size: timeSize, weight: .light, design: .rounded))
                         .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     if use12HourFormat {
                         Text(getAMPM(for: localDisplayTime))
                             .monospacedDigit()
-                            .font(.system(size: 36, weight: .light, design: .rounded))
+                            .font(.system(size: timeSize, weight: .light, design: .rounded))
                             .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     }
                 }
-                .padding(.top, 4)
-
-                Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .center)
 
             // Винты в углах
             cornerScrews
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(Color.red, lineWidth: 3)
@@ -568,40 +575,40 @@ struct AlternativeClockView: View {
     }
     
     // Блок города с временем
-    private func cityBlock(for city: WorldCity) -> some View {
+    private func cityBlock(for city: WorldCity, blockHeight: CGFloat) -> some View {
         let cityTime = timeInCityTimeZone(displayTime, timezone: city.timeZone)
+        let nameSize = blockHeight * 0.18
+        let timeSize = blockHeight * 0.35
 
         return ZStack {
-            VStack(spacing: 0) {
-                Spacer()
-
+            VStack(spacing: 2) {
                 // Название города
                 Text(city.name)
-                    .font(.headline)
+                    .font(.system(size: nameSize, weight: .semibold, design: .default))
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 // Время города
-                HStack(spacing: 4) {
+                HStack(spacing: 2) {
                     Text(formattedTime(cityTime))
                         .monospacedDigit()
-                        .font(.system(size: 36, weight: .light, design: .rounded))
+                        .font(.system(size: timeSize, weight: .light, design: .rounded))
                         .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     if use12HourFormat {
                         Text(getAMPM(for: cityTime))
                             .monospacedDigit()
-                            .font(.system(size: 36, weight: .light, design: .rounded))
+                            .font(.system(size: timeSize, weight: .light, design: .rounded))
                             .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     }
                 }
-                .padding(.top, 4)
-
-                Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .center)
 
             // Винты в углах
             cornerScrews
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
@@ -632,22 +639,25 @@ struct AlternativeClockView: View {
     }
 
     // Пустой блок со Star Trek цитатой
-    private func emptyBlockWithQuote(_ quote: String) -> some View {
-        ZStack {
+    private func emptyBlockWithQuote(_ quote: String, blockHeight: CGFloat) -> some View {
+        let quoteSize = blockHeight * 0.16
+
+        return ZStack {
             VStack {
-                Spacer()
                 Text(quote)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(.system(size: quoteSize, weight: .medium, design: .rounded))
                     .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(0.6))
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 12)
-                Spacer()
+                    .padding(.horizontal, 8)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.7)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
             // Винты в углах
             cornerScrews
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
