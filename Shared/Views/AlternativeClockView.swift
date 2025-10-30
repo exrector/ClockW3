@@ -831,18 +831,12 @@ extension AlternativeClockView {
         sendPreviewIfNeeded()
     }
 
-    // Активирует напоминание при long press
+    // Активирует напоминание при long press, сохраняя режим повторения пользователя
     private func activateReminderForCity(hour: Int, minute: Int) {
         #if !WIDGET_EXTENSION
-        // Создаём напоминание на основе часа и минуты города
-        let reminder = ClockReminder(
-            hour: hour,
-            minute: minute,
-            date: nil,  // Ежедневное напоминание
-            isEnabled: true
-        )
         Task {
-            await ReminderManager.shared.setReminder(reminder)
+            // Обновляем время существующего напоминания (сохраняет режим one time/every day)
+            await ReminderManager.shared.updateReminderTime(hour: hour, minute: minute)
         }
         #endif
     }
