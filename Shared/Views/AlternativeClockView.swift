@@ -164,6 +164,18 @@ struct AlternativeClockView: View {
         components.second = 0
         return calendar.date(from: components) ?? baseTime
     }
+
+    // Локальное время (всегда текущее, не зависит от барабана)
+    private var localDisplayTime: Date {
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: baseTime)
+        let minute = calendar.component(.minute, from: baseTime)
+        var components = calendar.dateComponents([.year, .month, .day], from: baseTime)
+        components.hour = hour
+        components.minute = minute
+        components.second = 0
+        return calendar.date(from: components) ?? baseTime
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -529,14 +541,14 @@ struct AlternativeClockView: View {
                     .font(.headline)
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
 
-                // Часы (связаны с барабаном)
+                // Часы (всегда локальное время, не зависит от барабана)
                 HStack(spacing: 8) {
-                    Text(formattedDisplayTime(displayTime))
+                    Text(formattedDisplayTime(localDisplayTime))
                         .monospacedDigit()
                         .font(.system(size: 36, weight: .light, design: .rounded))
                         .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                     if use12HourFormat {
-                        Text(getAMPM(for: displayTime))
+                        Text(getAMPM(for: localDisplayTime))
                             .font(.system(size: 14, weight: .semibold, design: .default))
                             .foregroundStyle(colorScheme == .light ? Color.black : Color.white)
                             .padding(.horizontal, 8)
