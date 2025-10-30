@@ -553,6 +553,10 @@ struct AlternativeClockView: View {
                         .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
+        // Одиночный тап для сброса барабана на текущее локальное время
+        .onTapGesture {
+            resetDrumToLocalTime()
+        }
         // Long press для активации напоминания на локальное время
         .onLongPressGesture {
             let localHour = Calendar.current.component(.hour, from: localDisplayTime)
@@ -775,6 +779,22 @@ extension AlternativeClockView {
         formatter.timeZone = .current
         formatter.dateFormat = use12HourFormat ? "h:mm" : "HH:mm"
         return formatter.string(from: date)
+    }
+
+    // Сбрасывает барабан на текущее локальное время
+    private func resetDrumToLocalTime() {
+        let localHour = Calendar.current.component(.hour, from: localDisplayTime)
+        let localMinute = Calendar.current.component(.minute, from: localDisplayTime)
+        let totalMinutes = localHour * 60 + localMinute
+        let targetOffset = -CGFloat(totalMinutes) / (24.0 * 60.0)
+
+        // Анимация с пружинящим эффектом
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+            drumOffset = targetOffset
+            dragStartOffset = targetOffset
+        }
+
+        sendPreviewIfNeeded()
     }
 
     // Переключает барабан на время города при тапе с анимацией
