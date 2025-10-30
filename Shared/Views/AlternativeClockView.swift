@@ -721,11 +721,17 @@ extension AlternativeClockView {
         return formatter.string(from: date)
     }
 
-    // Переключает барабан на время города при тапе
+    // Переключает барабан на время города при тапе с анимацией
     private func switchDrumToCity(hour: Int, minute: Int) {
         let totalMinutes = hour * 60 + minute
-        drumOffset = -CGFloat(totalMinutes) / (24.0 * 60.0)
-        dragStartOffset = drumOffset
+        let targetOffset = -CGFloat(totalMinutes) / (24.0 * 60.0)
+
+        // Анимация с пружинящим эффектом (более натурально)
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+            drumOffset = targetOffset
+            dragStartOffset = targetOffset
+        }
+
         sendPreviewIfNeeded()
     }
 
