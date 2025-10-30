@@ -827,52 +827,17 @@ extension AlternativeClockView {
         sendPreviewIfNeeded()
     }
 
-    // Переключает напоминание включено/отключено при long press
+    // Активирует напоминание при long press используя тот же алгоритм как в главном циферблате
     private func activateReminderForCity(hour: Int, minute: Int) {
         #if !WIDGET_EXTENSION
         Task {
             let manager = ReminderManager.shared
 
-            // Если напоминание уже существует и включено - отключаем его
-            if let reminder = manager.currentReminder, reminder.isEnabled {
-                let updated = ClockReminder(
-                    id: reminder.id,
-                    hour: reminder.hour,
-                    minute: reminder.minute,
-                    date: reminder.date,
-                    isEnabled: false,
-                    liveActivityEnabled: reminder.liveActivityEnabled,
-                    alwaysLiveActivity: reminder.alwaysLiveActivity,
-                    isTimeSensitive: reminder.isTimeSensitive,
-                    preserveExactMinute: true
-                )
-                await manager.setReminder(updated)
-            } else {
-                // Иначе создаём/обновляем и включаем напоминание с новым временем
-                if let reminder = manager.currentReminder {
-                    let updated = ClockReminder(
-                        id: reminder.id,
-                        hour: hour,
-                        minute: minute,
-                        date: reminder.date,
-                        isEnabled: true,
-                        liveActivityEnabled: reminder.liveActivityEnabled,
-                        alwaysLiveActivity: reminder.alwaysLiveActivity,
-                        isTimeSensitive: reminder.isTimeSensitive,
-                        preserveExactMinute: true
-                    )
-                    await manager.setReminder(updated)
-                } else {
-                    // Если напоминания нет - создаём новое
-                    let newReminder = ClockReminder(
-                        hour: hour,
-                        minute: minute,
-                        date: nil,
-                        isEnabled: true
-                    )
-                    await manager.setReminder(newReminder)
-                }
-            }
+            // Обновляем временное время
+            manager.updateTemporaryTime(hour: hour, minute: minute)
+
+            // Используем тот же алгоритм что и в главном приложении
+            await viewModel.confirmPreviewReminder()
         }
         #endif
     }
