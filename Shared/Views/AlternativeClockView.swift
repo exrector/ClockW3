@@ -575,11 +575,8 @@ struct AlternativeClockView: View {
                         .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
-        // Обычный тап для переключения барабана (вернуть к локальному времени)
+        // Обычный тап для выбора локального города
         .onTapGesture {
-            let localHour = Calendar.current.component(.hour, from: localDisplayTime)
-            let localMinute = Calendar.current.component(.minute, from: localDisplayTime)
-            switchDrumToCity(hour: localHour, minute: localMinute)
             activeCityId = viewModel.cities.first?.id
         }
         // Long press для активации напоминания на локальное время
@@ -638,25 +635,13 @@ struct AlternativeClockView: View {
                         .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
-        // Обычный тап для переключения барабана на время города
+        // Обычный тап для выбора города (просто устанавливаем активный город)
         .onTapGesture {
-            // Конвертируем время города в локальное для правильного положения барабана
-            let localHourAndMinute = convertCityTimeToLocal(
-                cityHour: cityHour,
-                cityMinute: cityMinute,
-                cityTimeZone: city.timeZone
-            )
-            switchDrumToCity(hour: localHourAndMinute.hour, minute: localHourAndMinute.minute)
             activeCityId = city.id
         }
-        // Long press для активации напоминания
+        // Long press для активации напоминания на время в часовом поясе города
         .onLongPressGesture {
-            let localHourAndMinute = convertCityTimeToLocal(
-                cityHour: cityHour,
-                cityMinute: cityMinute,
-                cityTimeZone: city.timeZone
-            )
-            activateReminderForCity(hour: localHourAndMinute.hour, minute: localHourAndMinute.minute)
+            activateReminderForCity(hour: cityHour, minute: cityMinute)
         }
     }
 
@@ -886,35 +871,6 @@ extension AlternativeClockView {
         #endif
     }
 
-    // Конвертирует время города в локальное время для правильного положения барабана
-    private func convertCityTimeToLocal(cityHour: Int, cityMinute: Int, cityTimeZone: TimeZone?) -> (hour: Int, minute: Int) {
-        guard let cityTZ = cityTimeZone else {
-            return (hour: cityHour, minute: cityMinute)
-        }
-
-        let now = Date()
-        let cityOffset = cityTZ.secondsFromGMT(for: now)
-        let localOffset = TimeZone.current.secondsFromGMT(for: now)
-        let diffSeconds = cityOffset - localOffset
-        let diffMinutes = diffSeconds / 60
-
-        var localMinute = cityMinute - (diffMinutes % 60)
-        var localHour = cityHour - (diffMinutes / 60)
-
-        // Нормализуем минуты
-        if localMinute < 0 {
-            localMinute += 60
-            localHour -= 1
-        } else if localMinute >= 60 {
-            localMinute -= 60
-            localHour += 1
-        }
-
-        // Нормализуем часы
-        localHour = ((localHour % 24) + 24) % 24
-
-        return (hour: localHour, minute: localMinute)
-    }
 }
 
 #if DEBUG
