@@ -565,16 +565,20 @@ struct AlternativeClockView: View {
                         .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
-        // Одиночный тап для сброса барабана на текущее локальное время
-        .onTapGesture {
-            resetDrumToLocalTime()
-        }
-        // Long press для активации напоминания на локальное время
-        .onLongPressGesture {
-            let localHour = Calendar.current.component(.hour, from: localDisplayTime)
-            let localMinute = Calendar.current.component(.minute, from: localDisplayTime)
-            activateReminderForCity(hour: localHour, minute: localMinute)
-        }
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.7)
+                .onEnded { _ in
+                    let localHour = Calendar.current.component(.hour, from: localDisplayTime)
+                    let localMinute = Calendar.current.component(.minute, from: localDisplayTime)
+                    activateReminderForCity(hour: localHour, minute: localMinute)
+                }
+        )
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded { _ in
+                    resetDrumToLocalTime()
+                }
+        )
     }
     
     // Блок города с временем
