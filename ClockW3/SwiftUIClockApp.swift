@@ -1029,7 +1029,6 @@ private struct ReminderRow: View {
                         .font(.headline)
                         .foregroundColor(isPreview ? Color.primary : Color.red)
                     if use12HourFormat {
-                        let displayHour = reminder.hour % 12 == 0 ? 12 : reminder.hour % 12
                         let ampm = reminder.hour < 12 ? "AM" : "PM"
                         Text(ampm)
                             .monospacedDigit()

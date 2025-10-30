@@ -242,7 +242,7 @@ struct AlternativeClockView: View {
             let padding: CGFloat = 12
             let spacing: CGFloat = 8
             let totalHeight = geometry.size.height
-            let blockHeight = (totalHeight - padding * 2 - spacing * 4) / 5
+            let blockHeight = max(0, (totalHeight - padding * 2 - spacing * 4) / 5)
 
             VStack(spacing: spacing) {
                 // Блок 1 - Локальный город с часами
@@ -851,7 +851,7 @@ extension AlternativeClockView {
         let emptyCount = max(0, 4 - otherCities.count)
 
         // Перетасовываем цитаты и берём столько, сколько нужно пустых блоков
-        var shuffled = starTrekQuotes.shuffled()
+        let shuffled = starTrekQuotes.shuffled()
         currentQuotes = Array(shuffled.prefix(emptyCount))
     }
 }
