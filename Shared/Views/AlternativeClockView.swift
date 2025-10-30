@@ -81,12 +81,33 @@ struct AlternativeClockView: View {
     @State private var drumOffset: CGFloat = 0
     @State private var dragStartOffset: CGFloat = 0
     
+    // MARK: - Settings integration
+    @AppStorage(
+        SharedUserDefaults.use12HourFormatKey,
+        store: SharedUserDefaults.shared
+    ) private var use12HourFormat: Bool = false
+    @AppStorage(
+        SharedUserDefaults.selectedCitiesKey,
+        store: SharedUserDefaults.shared
+    ) private var selectedCityIdentifiers: String = ""
+    @AppStorage(
+        SharedUserDefaults.seededDefaultsKey,
+        store: SharedUserDefaults.shared
+    ) private var hasSeededDefaults: Bool = false
+    // Reminder preview throttling
+    @State private var lastPreviewHour: Int? = nil
+    @State private var lastPreviewMinute: Int? = nil
+    
     var overrideColorScheme: ColorScheme? = nil
     var overrideTime: Date? = nil
     var overrideCityName: String? = nil
     
     private var colorScheme: ColorScheme {
         overrideColorScheme ?? environmentColorScheme
+    }
+    
+    private var baseTime: Date {
+        overrideTime ?? viewModel.currentTime
     }
     
     // Час и минута, которые показываются В ЦЕНТРЕ барабана (на красной риске)
@@ -109,38 +130,70 @@ struct AlternativeClockView: View {
     // Вычисляемое время на основе центрального часа барабана
     private var displayTime: Date {
         let calendar = Calendar.current
-        var components = calendar.dateComponents([.year, .month, .day], from: viewModel.currentTime)
+        var components = calendar.dateComponents([.year, .month, .day], from: baseTime)
         components.hour = centerHour
         components.minute = centerMinute
         components.second = 0
-        return calendar.date(from: components) ?? viewModel.currentTime
+        return calendar.date(from: components) ?? baseTime
     }
     
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // Левая часть - 66%
-                leftSide
-                    .frame(width: geometry.size.width * 0.66)
+            ZStack {
+                // Внешняя квадратная окантовка
+                RoundedRectangle(cornerRadius: 24)
+                    .strokeBorder(Color.clear, lineWidth: 0)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24)
+                            .fill(colorScheme == .dark ? Color.black : Color.white)
+                    )
+                    .aspectRatio(1, contentMode: .fit)
                 
-                // Правая часть - 33%
-                rightSide
-                    .frame(width: geometry.size.width * 0.34)
+                let inset: CGFloat = 4.0
+                Group {
+                    let squareSide = max(1, min(geometry.size.width, geometry.size.height))
+                    let availableSide = max(1, squareSide - inset * 2)
+                    let leftW = availableSide * 0.66
+                    let rightW = availableSide * 0.34
+                    HStack(spacing: 0) {
+                        leftSide
+                            .frame(width: leftW, height: availableSide)
+                        rightSide
+                            .frame(width: rightW, height: availableSide)
+                    }
+                    .frame(width: availableSide, height: availableSide)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                }
+                .padding(EdgeInsets(top: inset, leading: inset, bottom: inset, trailing: inset))
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .background(colorScheme == .dark ? Color.black : Color.white)
         }
         .onAppear {
             syncWithCurrentTime()
+            syncCitiesToViewModel()
+            sendPreviewIfNeeded()
+        }
+        .onChange(of: selectedCityIdentifiers) { _, _ in
+            syncCitiesToViewModel()
         }
     }
     
     // Синхронизация с текущим временем при появлении
     private func syncWithCurrentTime() {
         let calendar = Calendar.current
-        let currentHour = calendar.component(.hour, from: viewModel.currentTime)
-        let currentMinute = calendar.component(.minute, from: viewModel.currentTime)
-        
-        // Устанавливаем начальное положение барабана с учетом минут
+        #if !WIDGET_EXTENSION
+        if let th = ReminderManager.shared.temporaryHour,
+           let tm = ReminderManager.shared.temporaryMinute {
+            let total = th * 60 + tm
+            drumOffset = -CGFloat(total) / (24.0 * 60.0)
+            dragStartOffset = drumOffset
+            return
+        }
+        #endif
+        let currentHour = calendar.component(.hour, from: baseTime)
+        let currentMinute = calendar.component(.minute, from: baseTime)
         let totalMinutes = currentHour * 60 + currentMinute
         drumOffset = -CGFloat(totalMinutes) / (24.0 * 60.0)
         dragStartOffset = drumOffset
@@ -152,25 +205,23 @@ struct AlternativeClockView: View {
             // Блок 1 - Локальный город с часами
             localCityBlock
                 .frame(maxHeight: .infinity)
-            
-            // Блок 2 - Пустой
-            emptyBlock
-                .frame(maxHeight: .infinity)
-            
-            // Блок 3 - Пустой
-            emptyBlock
-                .frame(maxHeight: .infinity)
-            
-            // Блок 4 - Пустой
-            emptyBlock
-                .frame(maxHeight: .infinity)
-            
-            // Блок 5 - Пустой
-            emptyBlock
-                .frame(maxHeight: .infinity)
+
+            // Блоки 2-5 - Остальные города (максимум 4, чтобы итого было 5)
+            let otherCities = Array(viewModel.cities.dropFirst().prefix(4))
+            ForEach(otherCities, id: \.id) { city in
+                cityBlock(for: city)
+                    .frame(maxHeight: .infinity)
+            }
+
+            // Заполняем пустыми блоками, если городов меньше 5
+            ForEach(0..<max(0, 4 - otherCities.count), id: \.self) { _ in
+                emptyBlock
+                    .frame(maxHeight: .infinity)
+            }
         }
         .padding(12)
     }
+
     
     // MARK: - Правая часть с барабаном
     private var rightSide: some View {
@@ -183,9 +234,23 @@ struct AlternativeClockView: View {
                         
                         // Центральная риска (фиксированная)
                         centerIndicator
+                        // Стрелки сверху/снизу (одинаковые размеры)
+                        VStack {
+                            Image(systemName: "chevron.up")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color.red)
+                                .frame(width: 20, height: 20)
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color.red)
+                                .frame(width: 20, height: 20)
+                        }
+
                     }
                     .frame(maxWidth: .infinity)
                     .clipped()
+
                 }
                 .padding(12)
                 
@@ -227,10 +292,36 @@ struct AlternativeClockView: View {
                 }
             }
             
+            // Дополнительные мелкие насечки (каждые 5 минут без цифр)
+            ForEach(-50...50, id: \.self) { index in
+                let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
+                let stepHeight = itemHeight / 12.0  // 12 шагов по 5 минут
+                let basePosition = (CGFloat(index) + normalizedOffset * 24.0) * itemHeight
+                
+                ForEach(1..<12, id: \.self) { m in
+                    let minute = m * 5
+                    // Пропускаем кратные 10 (они уже есть)
+                    if minute % 10 != 0 {
+                        let mPosition = basePosition + CGFloat(m) * stepHeight
+                        if abs(mPosition) < totalHeight {
+                            smallMinuteMark()
+                                .position(x: geometry.size.width / 2.0, y: centerY + mPosition)
+                        }
+                    }
+                }
+            }
+            
             // Генерируем достаточно меток для бесконечной прокрутки (часы)
             ForEach(-50...50, id: \.self) { index in
                 let hour = ((index % 24) + 24) % 24
-                let displayHour = hour == 0 ? 24 : hour
+                let displayHour = {
+                    if use12HourFormat {
+                        let h = hour % 12
+                        return h == 0 ? 12 : h
+                    } else {
+                        return hour == 0 ? 24 : hour
+                    }
+                }()
                 
                 // Вычисляем позицию этой метки
                 let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
@@ -257,6 +348,7 @@ struct AlternativeClockView: View {
                     dragStartOffset = drumOffset
                 }
         )
+
         #if os(macOS)
         .onScrollWheel { event in
             handleScrollWheel(event, in: geometry)
@@ -272,20 +364,19 @@ struct AlternativeClockView: View {
         #endif
     }
     
+    
     #if os(macOS)
-    // Обработка скролла трекпада/мыши
     private func handleScrollWheel(_ event: ScrollEvent, in geometry: GeometryProxy) {
         let totalHeight = geometry.size.height
         let itemHeight = totalHeight / 5.0
-        
-        // Используем deltaY для вертикального скролла
         let scrollDelta = event.scrollingDeltaY
         let hourChange = scrollDelta / itemHeight / 24.0
-        
         drumOffset += hourChange
         dragStartOffset = drumOffset
+        sendPreviewIfNeeded()
     }
     #endif
+
     
     // Минутная метка с подписями 10/20/30/40/50
     private func minuteMark(minute: Int) -> some View {
@@ -331,6 +422,18 @@ struct AlternativeClockView: View {
         }
     }
     
+    // Мелкая минутная метка без цифр (каждые 5 минут)
+    private func smallMinuteMark() -> some View {
+        let strokeColor = (colorScheme == .dark ? Color.white : Color.black).opacity(0.25)
+        return HStack {
+            Spacer()
+            Rectangle()
+                .fill(strokeColor)
+                .frame(width: 4, height: 1)
+            Spacer()
+        }
+    }
+    
     // Метка часа на барабане
     private func hourMark(hour: Int, isCenter: Bool) -> some View {
         HStack(spacing: 8) {
@@ -356,24 +459,22 @@ struct AlternativeClockView: View {
         }
     }
     
-    // Центральная риска (фиксированная, центрирована по барабану)
+    // Центральная «цель»: L · L
     private var centerIndicator: some View {
-        HStack(spacing: 0) {
-            // Левая линия
-            Rectangle()
-                .fill(Color.red)
-                .frame(width: 24, height: 3)
-                .padding(.trailing, 4)
-            
-            // Пространство для цифр (совпадает с шириной текста часа в барабане)
-            Color.clear
-                .frame(width: 36)
-            
-            // Правая линия
-            Rectangle()
-                .fill(Color.red)
-                .frame(width: 24, height: 3)
-                .padding(.leading, 4)
+        let color = Color.red
+        return HStack(spacing: 14) {
+            Text("L")
+                .font(.system(size: 24, weight: .regular, design: .monospaced))
+                .foregroundStyle(color)
+                .rotationEffect(.degrees(-90))
+                .scaleEffect(x: 1, y: -1, anchor: .center)
+            Text("·")
+                .font(.system(size: 20, weight: .regular, design: .monospaced))
+                .foregroundStyle(color)
+            Text("L")
+                .font(.system(size: 24, weight: .regular, design: .monospaced))
+                .foregroundStyle(color)
+                .rotationEffect(.degrees(90))
         }
         .frame(maxWidth: .infinity, alignment: .center)
     }
@@ -389,9 +490,22 @@ struct AlternativeClockView: View {
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                 
                 // Часы (связаны с барабаном)
-                Text(displayTime, style: .time)
-                    .font(.system(size: 36, weight: .light, design: .rounded))
-                    .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                HStack(spacing: 8) {
+                    Text(formattedDisplayTime(displayTime))
+                        .monospacedDigit()
+                        .font(.system(size: 36, weight: .light, design: .rounded))
+                        .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                    if use12HourFormat {
+                        Text(getAMPM(for: displayTime))
+                            .font(.system(size: 14, weight: .semibold, design: .default))
+                            .foregroundStyle(colorScheme == .light ? Color.black : Color.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule().fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                            )
+                    }
+                }
             }
             
             // Винты в углах
@@ -408,11 +522,65 @@ struct AlternativeClockView: View {
         )
     }
     
+    // Блок города с временем и жестами
+    private func cityBlock(for city: WorldCity) -> some View {
+        let cityTime = timeInCityTimeZone(displayTime, timezone: city.timeZone)
+        let cityHour = Calendar.current.component(.hour, from: cityTime)
+        let cityMinute = Calendar.current.component(.minute, from: cityTime)
+
+        return ZStack {
+            VStack(spacing: 8) {
+                // Название города
+                Text(city.name)
+                    .font(.headline)
+                    .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+
+                // Время города
+                HStack(spacing: 8) {
+                    Text(formattedTime(cityTime))
+                        .monospacedDigit()
+                        .font(.system(size: 36, weight: .light, design: .rounded))
+                        .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                    if use12HourFormat {
+                        Text(getAMPM(for: cityTime))
+                            .font(.system(size: 14, weight: .semibold, design: .default))
+                            .foregroundStyle(colorScheme == .light ? Color.black : Color.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule().fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                            )
+                    }
+                }
+            }
+
+            // Винты в углах
+            cornerScrews
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(colorScheme == .dark ? Color.black : Color.white)
+                )
+        )
+        // Обычный тап для переключения барабана на время города
+        .onTapGesture {
+            switchDrumToCity(hour: cityHour, minute: cityMinute)
+        }
+        // Long press для активации напоминания
+        .onLongPressGesture {
+            activateReminderForCity(hour: cityHour, minute: cityMinute)
+        }
+    }
+
     private var emptyBlock: some View {
         ZStack {
             Rectangle()
                 .fill(Color.clear)
-            
+
             // Винты в углах
             cornerScrews
         }
@@ -472,6 +640,109 @@ struct AlternativeClockView: View {
         let hourChange = dragDistance / itemHeight / 24.0
         
         drumOffset = dragStartOffset + hourChange
+        sendPreviewIfNeeded()
+    }
+}
+
+// MARK: - Settings + Reminder integration helpers
+extension AlternativeClockView {
+    private func syncCitiesToViewModel() {
+        var identifiers = selectedCityIdentifiers
+            .split(separator: ",")
+            .map { String($0) }
+
+        if identifiers.isEmpty {
+            let seeded = WorldCity.initialSelectionIdentifiers()
+            identifiers = seeded
+            selectedCityIdentifiers = seeded.joined(separator: ",")
+            hasSeededDefaults = true
+        } else {
+            let ensured = WorldCity.ensureLocalIdentifier(in: identifiers)
+            if ensured != identifiers {
+                identifiers = ensured
+                selectedCityIdentifiers = ensured.joined(separator: ",")
+            }
+            if !identifiers.isEmpty {
+                hasSeededDefaults = true
+            }
+        }
+
+        let cities = WorldCity.cities(from: identifiers)
+        viewModel.cities = cities
+    }
+
+    private func formattedDisplayTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.calendar = Calendar.current
+        formatter.timeZone = .current
+        formatter.dateFormat = use12HourFormat ? "h:mm" : "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func getAMPM(for date: Date) -> String {
+        let hour = Calendar.current.component(.hour, from: date)
+        return hour < 12 ? "AM" : "PM"
+    }
+
+    private func sendPreviewIfNeeded() {
+        let h = centerHour
+        let m = centerMinute
+        guard lastPreviewHour != h || lastPreviewMinute != m else { return }
+        lastPreviewHour = h
+        lastPreviewMinute = m
+        #if !WIDGET_EXTENSION
+        ReminderManager.shared.updateTemporaryTime(hour: h, minute: m)
+        #endif
+    }
+
+    // Вычисляет время в часовом поясе города
+    private func timeInCityTimeZone(_ date: Date, timezone: TimeZone?) -> Date {
+        guard let timezone = timezone else { return date }
+
+        var calendar = Calendar.current
+        calendar.timeZone = timezone
+
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+
+        var resultCalendar = Calendar.current
+        resultCalendar.timeZone = TimeZone.current
+
+        return resultCalendar.date(from: components) ?? date
+    }
+
+    // Форматирует время для отображения
+    private func formattedTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.calendar = Calendar.current
+        formatter.timeZone = .current
+        formatter.dateFormat = use12HourFormat ? "h:mm" : "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    // Переключает барабан на время города при тапе
+    private func switchDrumToCity(hour: Int, minute: Int) {
+        let totalMinutes = hour * 60 + minute
+        drumOffset = -CGFloat(totalMinutes) / (24.0 * 60.0)
+        dragStartOffset = drumOffset
+        sendPreviewIfNeeded()
+    }
+
+    // Активирует напоминание при long press
+    private func activateReminderForCity(hour: Int, minute: Int) {
+        #if !WIDGET_EXTENSION
+        // Создаём напоминание на основе часа и минуты города
+        let reminder = ClockReminder(
+            hour: hour,
+            minute: minute,
+            date: nil,  // Ежедневное напоминание
+            isEnabled: true
+        )
+        Task {
+            await ReminderManager.shared.setReminder(reminder)
+        }
+        #endif
     }
 }
 

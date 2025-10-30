@@ -83,13 +83,14 @@ struct LargeAlterWidgetView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            AlternativeClockWidgetContent(
-                currentTime: entry.date,
-                overrideColorScheme: overrideColorScheme
+            AlternativeClockView(
+                overrideColorScheme: overrideColorScheme,
+                overrideTime: entry.date,
+                overrideCityName: nil
             )
             .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipped()
         }
-        .ignoresSafeArea()
         .widgetBackground(overrideColorScheme == .dark ? Color.black : Color.white)
     }
 }
@@ -104,6 +105,12 @@ struct AlternativeClockWidgetContent: View {
     private var colorScheme: ColorScheme {
         overrideColorScheme ?? environmentColorScheme
     }
+    #if os(macOS)
+    private let blockCornerRadius: CGFloat = 20
+    #else
+    private let blockCornerRadius: CGFloat = 24
+    #endif
+
     
     private var centerHour: Int {
         let calendar = Calendar.current
@@ -154,6 +161,7 @@ struct AlternativeClockWidgetContent: View {
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                 
                 Text(currentTime, style: .time)
+                    .monospacedDigit()
                     .font(.system(size: 20, weight: .light, design: .rounded))
                     .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
             }
@@ -161,10 +169,10 @@ struct AlternativeClockWidgetContent: View {
             cornerScrews
         }
         .background(
-            RoundedRectangle(cornerRadius: 24)
-                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: blockCornerRadius)
+                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2.0)
                 .background(
-                    RoundedRectangle(cornerRadius: 24)
+                    RoundedRectangle(cornerRadius: blockCornerRadius)
                         .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
@@ -178,10 +186,10 @@ struct AlternativeClockWidgetContent: View {
             cornerScrews
         }
         .background(
-            RoundedRectangle(cornerRadius: 24)
-                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: blockCornerRadius)
+                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2.0)
                 .background(
-                    RoundedRectangle(cornerRadius: 24)
+                    RoundedRectangle(cornerRadius: blockCornerRadius)
                         .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
@@ -204,6 +212,35 @@ struct AlternativeClockWidgetContent: View {
             }
             
             // Центральная риска
+            // Индикатор цели L · L
+            HStack(spacing: 14) {
+                Text("L")
+                    .font(.system(size: 16, weight: .regular, design: .monospaced))
+                    .foregroundStyle(Color.red)
+                    .rotationEffect(.degrees(-90))
+                    .scaleEffect(x: 1, y: -1)
+                Text("·")
+                    .font(.system(size: 14, weight: .regular, design: .monospaced))
+                    .foregroundStyle(Color.red)
+                Text("L")
+            // Стрелки сверху/снизу
+            VStack {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.red)
+                    .frame(width: 18, height: 18)
+                Spacer()
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.red)
+                    .frame(width: 18, height: 18)
+            }
+
+                    .font(.system(size: 16, weight: .regular, design: .monospaced))
+                    .foregroundStyle(Color.red)
+                    .rotationEffect(.degrees(90))
+            }
+
             HStack {
                 Rectangle()
                     .fill(Color.red)
@@ -219,10 +256,11 @@ struct AlternativeClockWidgetContent: View {
         }
         .padding(8)
         .background(
-            RoundedRectangle(cornerRadius: 24)
-                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: blockCornerRadius)
+                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2.0)
+
                 .background(
-                    RoundedRectangle(cornerRadius: 24)
+                    RoundedRectangle(cornerRadius: blockCornerRadius)
                         .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
@@ -233,7 +271,7 @@ struct AlternativeClockWidgetContent: View {
     private var cornerScrews: some View {
         GeometryReader { geometry in
             let screwSize: CGFloat = 8
-            let inset: CGFloat = 10
+            let inset: CGFloat = 14
             
             ZStack {
                 Text("⊗")

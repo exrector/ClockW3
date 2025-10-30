@@ -1016,6 +1016,7 @@ private struct ReminderRow: View {
         } label: {
             VStack(spacing: 2) {
                 Text(reminder.formattedTime)
+                    .monospacedDigit()
                     .font(.headline)
                     .foregroundColor(isPreview ? Color.primary : Color.red)
                 // Всегда показываем строку даты под временем.
@@ -1043,6 +1044,7 @@ private struct ReminderRow: View {
 
     @ViewBuilder
     private func leftControls(borderColor: Color) -> some View {
+
         HStack(spacing: 12) {
             if let onModeChange = onModeChange {
                 repeatModeButton(borderColor: borderColor, onModeChange: onModeChange)

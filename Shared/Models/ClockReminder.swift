@@ -1,4 +1,8 @@
 import Foundation
+#if canImport(SwiftUI)
+import SwiftUI
+#endif
+
 
 // MARK: - Clock Reminder Model
 /// Модель напоминания с привязкой к локальному времени циферблата
@@ -52,6 +56,12 @@ struct ClockReminder: Codable, Identifiable {
     var formattedTime: String {
         String(format: "%02d:%02d", hour, minute)
     }
+    #if canImport(SwiftUI)
+    /// Текст с табличными цифрами для UI
+    var formattedTimeText: some View {
+        Text(formattedTime).monospacedDigit()
+    }
+    #endif
 
     /// Тип напоминания для отображения
     var typeDescription: String {
