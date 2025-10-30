@@ -710,7 +710,7 @@ extension SettingsView {
 
             ColorSchemeButton(
                 title: viewMode == "clock" ? "Clock" : "Alt",
-                systemImage: viewMode == "clock" ? "clock.fill" : "square.grid.2x2",
+                systemImage: viewMode == "clock" ? "⊛" : "⩩",
                 isSelected: false,
                 colorScheme: colorScheme,
                 accessibilityLabel: "Switch view mode",
@@ -2117,9 +2117,17 @@ private struct ColorSchemeButton: View {
                         )
                         .shadow(color: isSelected ? (colorScheme == .light ? Color.black.opacity(0.25) : Color.white.opacity(0.25)) : .clear, radius: 4)
                     
-                    Image(systemName: systemImage)
-                        .font(.title2)
-                        .foregroundColor(isSelected ? (colorScheme == .light ? .white : .black) : (colorScheme == .light ? .black : .white))
+                    if systemImage.count == 1 || systemImage.contains("•") || systemImage.contains("⊛") || systemImage.contains("⩩") {
+                        // Unicode символ
+                        Text(systemImage)
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundColor(isSelected ? (colorScheme == .light ? .white : .black) : (colorScheme == .light ? .black : .white))
+                    } else {
+                        // SF Symbol
+                        Image(systemName: systemImage)
+                            .font(.title2)
+                            .foregroundColor(isSelected ? (colorScheme == .light ? .white : .black) : (colorScheme == .light ? .black : .white))
+                    }
                 }
                 
                 Text(title)
