@@ -52,14 +52,30 @@ struct ClockReminder: Codable, Identifiable {
         return (minute / 15) * 15
     }
 
-    /// Форматированное время для отображения
+    /// Форматированное время для отображения (24-hour формат по умолчанию)
     var formattedTime: String {
         String(format: "%02d:%02d", hour, minute)
     }
+
+    /// Форматированное время с учетом 12/24-hour формата
+    func formattedTime(use12Hour: Bool) -> String {
+        if use12Hour {
+            let displayHour = hour % 12 == 0 ? 12 : hour % 12
+            return String(format: "%d:%02d", displayHour, minute)
+        } else {
+            return String(format: "%02d:%02d", hour, minute)
+        }
+    }
+
     #if canImport(SwiftUI)
     /// Текст с табличными цифрами для UI
     var formattedTimeText: some View {
         Text(formattedTime).monospacedDigit()
+    }
+
+    /// Текст с табличными цифрами для UI с учетом формата
+    func formattedTimeText(use12Hour: Bool) -> some View {
+        Text(formattedTime(use12Hour: use12Hour)).monospacedDigit()
     }
     #endif
 

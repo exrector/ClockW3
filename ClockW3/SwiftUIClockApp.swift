@@ -469,9 +469,10 @@ struct SettingsView: View {
         ReminderRow(
             reminder: temporaryReminder,
             isPreview: true,
+            use12HourFormat: use12HourFormat,
             onModeChange: modeChangeHandler,
             onLiveActivityToggle: liveActivityHandler,
-            
+
             onTimeSensitiveToggle: timeSensitiveHandler,
             onEdit: {
                 editContext = ReminderEditContext(reminder: temporaryReminder)
@@ -492,6 +493,7 @@ struct SettingsView: View {
         ReminderRow(
             reminder: temporaryReminder,
             isPreview: true,
+            use12HourFormat: use12HourFormat,
             onModeChange: modeChangeHandler,
             onEdit: {
                 editContext = ReminderEditContext(reminder: temporaryReminder)
@@ -531,6 +533,7 @@ struct SettingsView: View {
         ReminderRow(
             reminder: reminder,
             isPreview: false,
+            use12HourFormat: use12HourFormat,
             onModeChange: modeChangeHandler,
             onLiveActivityToggle: liveActivityHandler,
             onTimeSensitiveToggle: timeSensitiveHandler,
@@ -553,6 +556,7 @@ struct SettingsView: View {
         ReminderRow(
             reminder: reminder,
             isPreview: false,
+            use12HourFormat: use12HourFormat,
             onModeChange: modeChangeHandler,
             onEdit: {
                 editContext = ReminderEditContext(reminder: reminder)
@@ -898,6 +902,7 @@ extension SettingsView {
 private struct ReminderRow: View {
     let reminder: ClockReminder
     let isPreview: Bool
+    let use12HourFormat: Bool
     let onModeChange: ((Bool) -> Void)?
     let onLiveActivityToggle: ((Bool) -> Void)?
     let onTimeSensitiveToggle: ((Bool) -> Void)?
@@ -916,6 +921,7 @@ private struct ReminderRow: View {
     init(
         reminder: ClockReminder,
         isPreview: Bool,
+        use12HourFormat: Bool,
         onModeChange: ((Bool) -> Void)?,
         onLiveActivityToggle: ((Bool) -> Void)? = nil,
         onTimeSensitiveToggle: ((Bool) -> Void)? = nil,
@@ -925,6 +931,7 @@ private struct ReminderRow: View {
     ) {
         self.reminder = reminder
         self.isPreview = isPreview
+        self.use12HourFormat = use12HourFormat
         self.onModeChange = onModeChange
         self.onLiveActivityToggle = onLiveActivityToggle
         self.onTimeSensitiveToggle = onTimeSensitiveToggle
@@ -1015,10 +1022,21 @@ private struct ReminderRow: View {
             }
         } label: {
             VStack(spacing: 2) {
-                Text(reminder.formattedTime)
-                    .monospacedDigit()
-                    .font(.headline)
-                    .foregroundColor(isPreview ? Color.primary : Color.red)
+                HStack(spacing: 2) {
+                    Text(reminder.formattedTime(use12Hour: use12HourFormat))
+                        .monospacedDigit()
+                        .font(.headline)
+                        .foregroundColor(isPreview ? Color.primary : Color.red)
+                    if use12HourFormat {
+                        let displayHour = reminder.hour % 12 == 0 ? 12 : reminder.hour % 12
+                        let ampm = reminder.hour < 12 ? "AM" : "PM"
+                        Text(ampm)
+                            .monospacedDigit()
+                            .font(.headline)
+                            .foregroundColor(isPreview ? Color.primary : Color.red)
+                    }
+                }
+                .lineLimit(1)
                 // Всегда показываем строку даты под временем.
                 // Для one-time используем дату напоминания.
                 // Для daily вычисляем ближайшую дату срабатывания по времени.

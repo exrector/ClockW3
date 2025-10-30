@@ -209,6 +209,9 @@ struct AlternativeClockView: View {
             syncCitiesToViewModel()
             generateRandomQuotes()
         }
+        .onChange(of: use12HourFormat) { _, _ in
+            // Пересчитываем блоки при изменении формата времени
+        }
     }
     
     // Синхронизация с текущим временем при появлении
