@@ -73,13 +73,26 @@ struct LargeAlterWidgetView: View {
     var entry: LargeAlterProvider.Entry
     @Environment(\.widgetFamily) var family
     @Environment(\.colorScheme) var systemColorScheme
+    #if os(macOS)
+    @Environment(\.widgetRenderingMode) var widgetRenderingMode
+    #endif
 
-    private var overrideColorScheme: ColorScheme? {
+    private var effectiveColorScheme: ColorScheme {
         switch entry.colorSchemePreference {
         case "light": return .light
         case "dark": return .dark
         default: return systemColorScheme
         }
+    }
+
+    private var overrideColorScheme: ColorScheme? {
+        #if os(macOS)
+        // На macOS в неактивном режиме (акцентные цвета) игнорируем настройки пользователя
+        if widgetRenderingMode == .accented || widgetRenderingMode == .vibrant {
+            return systemColorScheme
+        }
+        #endif
+        return effectiveColorScheme
     }
 
     var body: some View {
@@ -92,6 +105,9 @@ struct LargeAlterWidgetView: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
             .clipped()
             .allowsHitTesting(false)
+            #if os(macOS)
+            .environment(\.widgetRenderingMode, widgetRenderingMode)
+            #endif
         }
         .widgetBackground((overrideColorScheme ?? systemColorScheme) == .dark ? Color.black : Color.white)
     }

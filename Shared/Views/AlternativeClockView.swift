@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if WIDGET_EXTENSION
+import WidgetKit
+#endif
+
 #if os(iOS)
 import UIKit
 #endif
@@ -82,6 +86,9 @@ extension View {
 struct AlternativeClockView: View {
     @StateObject private var viewModel = SimpleClockViewModel()
     @Environment(\.colorScheme) private var environmentColorScheme
+    #if os(macOS)
+    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
+    #endif
     @State private var drumOffset: CGFloat = 0
     @State private var dragStartOffset: CGFloat = 0
     @State private var previousDragHeight: CGFloat = 0
@@ -134,9 +141,32 @@ struct AlternativeClockView: View {
     var overrideColorScheme: ColorScheme? = nil
     var overrideTime: Date? = nil
     var overrideCityName: String? = nil
-    
+
     private var colorScheme: ColorScheme {
         overrideColorScheme ?? environmentColorScheme
+    }
+
+    private var isInactiveMode: Bool {
+        #if os(macOS) && WIDGET_EXTENSION
+        return widgetRenderingMode == .accented || widgetRenderingMode == .vibrant
+        #else
+        return false
+        #endif
+    }
+
+    private var backgroundColor: Color {
+        if isInactiveMode {
+            return Color.clear
+        }
+        return colorScheme == .dark ? Color.black : Color.white
+    }
+
+    private var foregroundColor: Color {
+        if isInactiveMode {
+            // В неактивном режиме используем системные цвета виджета
+            return colorScheme == .dark ? Color.white : Color.black
+        }
+        return colorScheme == .dark ? Color.white : Color.black
     }
     
     private var baseTime: Date {
@@ -204,7 +234,7 @@ struct AlternativeClockView: View {
                     .strokeBorder(Color.clear, lineWidth: 0)
                     .background(
                         RoundedRectangle(cornerRadius: 24)
-                            .fill(colorScheme == .dark ? Color.black : Color.white)
+                            .fill(backgroundColor)
                     )
                     .aspectRatio(1, contentMode: .fit)
                 
@@ -228,7 +258,7 @@ struct AlternativeClockView: View {
                 .padding(EdgeInsets(top: inset, leading: inset, bottom: inset, trailing: inset))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .background(colorScheme == .dark ? Color.black : Color.white)
+            .background(backgroundColor)
         }
         .onAppear {
             isLiveMode = true
@@ -337,10 +367,10 @@ struct AlternativeClockView: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
+                .strokeBorder(foregroundColor, lineWidth: 2)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(colorScheme == .dark ? Color.black : Color.white)
+                        .fill(backgroundColor)
                 )
         )
         .padding(12)
@@ -570,7 +600,7 @@ struct AlternativeClockView: View {
             
             // Короткая метка слева
             Rectangle()
-                .fill((colorScheme == .dark ? Color.white : Color.black).opacity(isCenter ? 1.0 : 0.4))
+                .fill(foregroundColor.opacity(isCenter ? 1.0 : 0.4))
                 .frame(width: 12, height: 2)
             
             // Текст часа
@@ -581,7 +611,7 @@ struct AlternativeClockView: View {
             
             // Короткая метка справа
             Rectangle()
-                .fill((colorScheme == .dark ? Color.white : Color.black).opacity(isCenter ? 1.0 : 0.4))
+                .fill(foregroundColor.opacity(isCenter ? 1.0 : 0.4))
                 .frame(width: 12, height: 2)
             
             Spacer()
@@ -630,7 +660,7 @@ struct AlternativeClockView: View {
                 // Название локального города (неизменяемое, из главного вью)
                 Text(overrideCityName ?? viewModel.cities.first?.name ?? "Local")
                     .font(.system(size: nameSize, weight: .semibold, design: .default))
-                    .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                    .foregroundStyle(foregroundColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
@@ -639,12 +669,12 @@ struct AlternativeClockView: View {
                     Text(formattedDisplayTime(localDisplayTime))
                         .monospacedDigit()
                         .font(.system(size: timeSize, weight: .light, design: .rounded))
-                        .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                        .foregroundStyle(foregroundColor)
                     if use12HourFormat {
                         Text(getAMPM(for: localDisplayTime))
                             .monospacedDigit()
                             .font(.system(size: timeSize, weight: .light, design: .rounded))
-                            .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                            .foregroundStyle(foregroundColor)
                     }
                 }
             }
@@ -659,7 +689,7 @@ struct AlternativeClockView: View {
                 .strokeBorder(Color.red, lineWidth: 3)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(colorScheme == .dark ? Color.black : Color.white)
+                        .fill(backgroundColor)
                 )
         )
         #if !WIDGET_EXTENSION
@@ -706,10 +736,10 @@ struct AlternativeClockView: View {
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
+                .strokeBorder(foregroundColor, lineWidth: 2)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(colorScheme == .dark ? Color.black : Color.white)
+                        .fill(backgroundColor)
                 )
         )
     }
@@ -725,10 +755,10 @@ struct AlternativeClockView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
+                .strokeBorder(foregroundColor, lineWidth: 2)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(colorScheme == .dark ? Color.black : Color.white)
+                        .fill(backgroundColor)
                 )
         )
     }
@@ -755,10 +785,10 @@ struct AlternativeClockView: View {
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(colorScheme == .dark ? Color.white : Color.black, lineWidth: 2)
+                .strokeBorder(foregroundColor, lineWidth: 2)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(colorScheme == .dark ? Color.black : Color.white)
+                        .fill(backgroundColor)
                 )
         )
     }
