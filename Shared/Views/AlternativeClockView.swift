@@ -710,7 +710,7 @@ struct AlternativeClockView: View {
                 // Название города
                 Text(city.name)
                     .font(.system(size: nameSize, weight: .semibold, design: .default))
-                    .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                    .foregroundStyle(foregroundColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
@@ -719,12 +719,12 @@ struct AlternativeClockView: View {
                     Text(formattedTime(cityTime))
                         .monospacedDigit()
                         .font(.system(size: timeSize, weight: .light, design: .rounded))
-                        .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                        .foregroundStyle(foregroundColor)
                     if use12HourFormat {
                         Text(getAMPM(for: cityTime))
                             .monospacedDigit()
                             .font(.system(size: timeSize, weight: .light, design: .rounded))
-                            .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                            .foregroundStyle(foregroundColor)
                     }
                 }
             }
@@ -980,11 +980,11 @@ extension AlternativeClockView {
     }
 
     // Форматирует время для отображения
-    private func formattedTime(_ date: Date) -> String {
+    private func formattedTime(_ date: Date, timezone: TimeZone? = nil) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         formatter.calendar = Calendar.current
-        formatter.timeZone = .current
+        formatter.timeZone = timezone ?? .current
         formatter.dateFormat = use12HourFormat ? "h:mm" : "HH:mm"
         return formatter.string(from: date)
     }
