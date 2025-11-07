@@ -379,12 +379,14 @@ struct SimplifiedClockFace: View {
         if use12HourFormat {
             let amPmSuffix = numberIndex < 12 ? "AM" : "PM"
 
+            let spacerText = Text(" ")
+                .font(.system(size: fontSize * 0.35, design: .monospaced))
             let numberText = Text(String(format: "%d", hourValue))
                 .font(.system(size: fontSize, design: .monospaced))
             let ampmText = Text(amPmSuffix)
-                .font(.system(size: fontSize * 0.35, design: .rounded))
+                .font(.system(size: fontSize * 0.35, design: .monospaced))
 
-            let combinedText = numberText + ampmText
+            let combinedText = spacerText + numberText + ampmText
 
             context.draw(combinedText.foregroundStyle(palette.numbers), at: position, anchor: .center)
         } else {

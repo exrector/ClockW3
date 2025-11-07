@@ -203,17 +203,6 @@ struct ClockW3MediumWidgetEntryView: View {
                     .frame(width: fullClockSize, height: fullClockSize)
                     .position(x: widgetSize.width / 2, y: fullClockSize / 2)  // Центр циферблата, верхний край у верха виджета
                 }
-
-                // AM/PM индикатор внизу виджета - поверх всего
-                if entry.use12HourFormat {
-                    VStack {
-                        Spacer()
-                        Text(amPmText(for: entry.date, timeZone: cityTimeZone))
-                            .font(.system(size: widgetHeight * 0.0375, weight: .semibold, design: .rounded))
-                            .foregroundColor(effectiveColorScheme == .dark ? .white : .black)
-                            .padding(.bottom, widgetHeight * 0.03)
-                    }
-                }
             }
             .frame(width: widgetSize.width, height: widgetHeight)
             .clipped()
@@ -222,21 +211,6 @@ struct ClockW3MediumWidgetEntryView: View {
         .widgetBackground(palette.background)
         // Важно: заставляем ассеты и весь UI следовать выбранной схеме, а не системной
         .environment(\.colorScheme, effectiveColorScheme)
-    }
-
-    private var cityTimeZone: TimeZone {
-        if let identifier = entry.cityTimeZoneIdentifier,
-           let timeZone = TimeZone(identifier: identifier) {
-            return timeZone
-        }
-        return TimeZone.current
-    }
-
-    private func amPmText(for date: Date, timeZone: TimeZone) -> String {
-        var calendar = Calendar.current
-        calendar.timeZone = timeZone
-        let hour = calendar.component(.hour, from: date)
-        return hour < 12 ? "AM" : "PM"
     }
 }
 
@@ -446,10 +420,29 @@ struct MediumClockFace: View {
 
             // Отображаемая цифра
             let displayHour = use12HourFormat ? (hour == 0 ? 12 : hour) : hour
-            let text = Text(String(format: "%02d", displayHour))
-                .font(.system(size: fontSize, weight: .semibold, design: .monospaced).width(.condensed))
 
-            textContext.draw(text, at: .zero, anchor: .center)
+            if use12HourFormat {
+                // Определяем AM/PM на основе реального часа (0-23)
+                let realHour = currentHour % 24
+                let baseHourOffset = (realHour < 12) ? 0 : 12
+                let amPmSuffix = (hour + baseHourOffset) < 12 ? "AM" : "PM"
+
+                let spacerText = Text("  ")
+                    .font(.system(size: fontSize * 0.35, design: .monospaced))
+                let numberText = Text(String(format: "%02d", displayHour))
+                    .font(.system(size: fontSize, weight: .semibold, design: .monospaced).width(.condensed))
+                let ampmText = Text(amPmSuffix)
+                    .font(.system(size: fontSize * 0.35, design: .monospaced))
+
+                let combinedText = spacerText + numberText + ampmText
+
+                textContext.draw(combinedText, at: .zero, anchor: .center)
+            } else {
+                let text = Text(String(format: "%02d", displayHour))
+                    .font(.system(size: fontSize, weight: .semibold, design: .monospaced).width(.condensed))
+
+                textContext.draw(text, at: .zero, anchor: .center)
+            }
         }
     }
 
