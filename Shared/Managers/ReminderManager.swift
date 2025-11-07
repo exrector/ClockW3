@@ -667,7 +667,8 @@ class ReminderManager: ObservableObject {
         if let existing = Activity<ReminderLiveActivityAttributes>.activities.first(where: { $0.attributes.reminderID == reminder.id }) {
             print("📝 Updating existing Live Activity with hasTriggered=\(hasTriggered)")
             if #available(iOS 16.2, *) {
-                let content = ActivityContent(state: contentState, staleDate: nil)
+                // Устанавливаем staleDate = scheduledDate, чтобы система прекратила обновления после истечения
+                let content = ActivityContent(state: contentState, staleDate: scheduledDate)
                 await existing.update(content)
                 print("✅ Live Activity updated successfully")
             } else {
@@ -699,7 +700,8 @@ class ReminderManager: ObservableObject {
             print("🆕 Creating NEW Live Activity for reminder (one-time)")
             let attributes = ReminderLiveActivityAttributes(reminderID: reminder.id, title: "⊕ THE M.O.W TIME ⊗")
             if #available(iOS 16.2, *) {
-                let content = ActivityContent(state: contentState, staleDate: nil)
+                // Устанавливаем staleDate = scheduledDate, чтобы система прекратила обновления после истечения
+                let content = ActivityContent(state: contentState, staleDate: scheduledDate)
                 let result = try? Activity<ReminderLiveActivityAttributes>.request(
                     attributes: attributes,
                     content: content,

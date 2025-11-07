@@ -64,11 +64,19 @@ private struct ReminderLiveActivityContentView: View {
 
                 // Right side: large countdown timer only (00:00 after end)
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(timerInterval: Date.now...context.state.endDate, countsDown: true)
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.trailing)
+                    if context.state.endDate > Date.now {
+                        Text(timerInterval: Date.now...context.state.endDate, countsDown: true)
+                            .font(.system(size: 40, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.trailing)
+                    } else {
+                        Text("00:00")
+                            .font(.system(size: 40, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
             }
             .padding(16)
