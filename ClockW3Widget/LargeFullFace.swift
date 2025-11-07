@@ -96,6 +96,7 @@ struct LargeFullFaceWidgetEntryView: View {
     var body: some View {
         GeometryReader { geometry in
             let frameSize = geometry.size
+            let clockSide = min(frameSize.width, frameSize.height)
 
             ZStack {
                 palette.background
@@ -105,13 +106,11 @@ struct LargeFullFaceWidgetEntryView: View {
                     colorScheme: effectiveColorScheme,
                     palette: palette
                 )
-                .frame(width: frameSize.width, height: frameSize.height)
+                .frame(width: clockSide, height: clockSide)
                 .scaleEffect(0.98)
                 .allowsHitTesting(false)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .aspectRatio(contentMode: .fill)
-            .clipped()
+            .frame(width: frameSize.width, height: frameSize.height, alignment: .center)
         }
         .ignoresSafeArea()
         .widgetBackground(palette.background)
