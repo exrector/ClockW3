@@ -5,64 +5,73 @@ import SwiftUI
 struct LargeAlterEntry: TimelineEntry {
     let date: Date
     let colorSchemePreference: String
+    let use12HourFormat: Bool
 }
 
 // MARK: - Timeline Provider
 struct LargeAlterProvider: TimelineProvider {
     func placeholder(in context: Context) -> LargeAlterEntry {
+        let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
         return LargeAlterEntry(
             date: Date(),
-            colorSchemePreference: "system"
+            colorSchemePreference: "system",
+            use12HourFormat: use12Hour
         )
     }
-    
+
     func getSnapshot(in context: Context, completion: @escaping (LargeAlterEntry) -> Void) {
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
+        let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
         let entry = LargeAlterEntry(
             date: Date(),
-            colorSchemePreference: colorPref
+            colorSchemePreference: colorPref,
+            use12HourFormat: use12Hour
         )
         completion(entry)
     }
-    
+
     func getTimeline(in context: Context, completion: @escaping (Timeline<LargeAlterEntry>) -> Void) {
         let colorPref = SharedUserDefaults.shared.string(forKey: SharedUserDefaults.colorSchemeKey) ?? "system"
-        
+        let use12Hour = SharedUserDefaults.shared.bool(forKey: SharedUserDefaults.use12HourFormatKey)
+
         var entries: [LargeAlterEntry] = []
         let now = Date()
-        
+
         let calendar = Calendar.current
         let currentSecond = calendar.component(.second, from: now)
         let secondsToNextMinute = 60 - currentSecond
-        
+
         guard let nextMinuteStart = calendar.date(bySetting: .second, value: 0, of: now.addingTimeInterval(Double(secondsToNextMinute))) else {
             let entry = LargeAlterEntry(
                 date: now,
-                colorSchemePreference: colorPref
+                colorSchemePreference: colorPref,
+                use12HourFormat: use12Hour
             )
             let timeline = Timeline(entries: [entry], policy: .after(now.addingTimeInterval(60)))
             completion(timeline)
             return
         }
-        
+
         // Немедленный entry
         entries.append(
             LargeAlterEntry(
                 date: now,
-                colorSchemePreference: colorPref
+                colorSchemePreference: colorPref,
+                use12HourFormat: use12Hour
             )
         )
-        
+
         // Timeline на 60 минут
         for minuteOffset in 0..<60 {
             let entryDate = calendar.date(byAdding: .minute, value: minuteOffset, to: nextMinuteStart)!
             let entry = LargeAlterEntry(
                 date: entryDate,
-                colorSchemePreference: colorPref
+                colorSchemePreference: colorPref,
+                use12HourFormat: use12Hour
             )
             entries.append(entry)
         }
-        
+
         let timeline = Timeline(entries: entries, policy: .atEnd)
         completion(timeline)
     }
@@ -100,7 +109,8 @@ struct LargeAlterWidgetView: View {
             AlternativeClockView(
                 overrideColorScheme: overrideColorScheme,
                 overrideTime: entry.date,
-                overrideCityName: nil
+                overrideCityName: nil,
+                override12HourFormat: entry.use12HourFormat
             )
             .frame(width: geometry.size.width, height: geometry.size.height)
             .clipped()

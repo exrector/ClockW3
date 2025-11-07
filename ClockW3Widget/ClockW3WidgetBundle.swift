@@ -17,12 +17,12 @@ import SwiftUI
 struct ClockW3WidgetBundle: WidgetBundle {
     @WidgetBundleBuilder
     var body: some Widget {
-        // MediumHalf
-        MediumHalfWidget()          // Половина циферблата (Medium)
-        
+               
         // Альтернативный вид — первым для удобства в симуляторе
         LargeAlterWidget()          // Альтернативный вид с барабаном (Large)
         
+        // MediumHalf
+        MediumHalfWidget()          // Половина циферблата (Medium)
         
         // Флип‑виджет (Medium)
         MediumElectroWidget()

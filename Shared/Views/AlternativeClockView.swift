@@ -141,9 +141,14 @@ struct AlternativeClockView: View {
     var overrideColorScheme: ColorScheme? = nil
     var overrideTime: Date? = nil
     var overrideCityName: String? = nil
+    var override12HourFormat: Bool? = nil
 
     private var colorScheme: ColorScheme {
         overrideColorScheme ?? environmentColorScheme
+    }
+
+    private var effectiveUse12HourFormat: Bool {
+        override12HourFormat ?? use12HourFormat
     }
 
     private var isInactiveMode: Bool {
@@ -446,7 +451,7 @@ struct AlternativeClockView: View {
             }(), id: \.self) { index in
                 let hour = ((index % 24) + 24) % 24
                 let displayHour = {
-                    if use12HourFormat {
+                    if effectiveUse12HourFormat {
                         let h = hour % 12
                         return h == 0 ? 12 : h
                     } else {
@@ -670,7 +675,7 @@ struct AlternativeClockView: View {
                         .monospacedDigit()
                         .font(.system(size: timeSize, weight: .light, design: .rounded))
                         .foregroundStyle(foregroundColor)
-                    if use12HourFormat {
+                    if effectiveUse12HourFormat {
                         Text(getAMPM(for: localDisplayTime))
                             .monospacedDigit()
                             .font(.system(size: timeSize, weight: .light, design: .rounded))
@@ -716,11 +721,11 @@ struct AlternativeClockView: View {
 
                 // Время города
                 HStack(spacing: 2) {
-                    Text(formattedTime(cityTime))
+                    Text(formattedDisplayTime(cityTime))
                         .monospacedDigit()
                         .font(.system(size: timeSize, weight: .light, design: .rounded))
                         .foregroundStyle(foregroundColor)
-                    if use12HourFormat {
+                    if effectiveUse12HourFormat {
                         Text(getAMPM(for: cityTime))
                             .monospacedDigit()
                             .font(.system(size: timeSize, weight: .light, design: .rounded))
@@ -941,15 +946,17 @@ extension AlternativeClockView {
 
     private func formattedDisplayTime(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale.current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar.current
         formatter.timeZone = .current
-        formatter.dateFormat = use12HourFormat ? "h:mm" : "HH:mm"
+        formatter.dateFormat = effectiveUse12HourFormat ? "h:mm" : "HH:mm"
         return formatter.string(from: date)
     }
 
-    private func getAMPM(for date: Date) -> String {
-        let hour = Calendar.current.component(.hour, from: date)
+    private func getAMPM(for date: Date, timezone: TimeZone? = nil) -> String {
+        var calendar = Calendar.current
+        calendar.timeZone = timezone ?? .current
+        let hour = calendar.component(.hour, from: date)
         return hour < 12 ? "AM" : "PM"
     }
 
@@ -982,10 +989,10 @@ extension AlternativeClockView {
     // Форматирует время для отображения
     private func formattedTime(_ date: Date, timezone: TimeZone? = nil) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale.current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar.current
         formatter.timeZone = timezone ?? .current
-        formatter.dateFormat = use12HourFormat ? "h:mm" : "HH:mm"
+        formatter.dateFormat = effectiveUse12HourFormat ? "h:mm" : "HH:mm"
         return formatter.string(from: date)
     }
 
