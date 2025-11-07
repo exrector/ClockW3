@@ -11,7 +11,7 @@ import UIKit
 class HapticFeedback {
     static let shared = HapticFeedback()
 
-    #if os(iOS)
+    #if os(iOS) && !WIDGET_EXTENSION
     // Генераторы для разных типов тактильного отклика
     private let lightGenerator = UIImpactFeedbackGenerator(style: .light)
     private let mediumGenerator = UIImpactFeedbackGenerator(style: .medium)
@@ -38,12 +38,14 @@ class HapticFeedback {
         case hour       // Часовая риска (каждые 60 минут) - самая сильная
         case halfHour   // Получасовая риска (каждые 30 минут) - средняя
         case quarter    // Четвертьчасовая риска (каждые 15 минут) - лёгкая
+        case minute     // Минутная риска (10, 20, 30, 40, 50) - очень лёгкая
 
         var impactStyle: UIImpactFeedbackGenerator.FeedbackStyle {
             switch self {
             case .hour:     return .heavy
             case .halfHour: return .medium
             case .quarter:  return .light
+            case .minute:   return .light
             }
         }
     }
@@ -73,7 +75,7 @@ class HapticFeedback {
             generator = heavyGenerator
         case .halfHour:
             generator = mediumGenerator
-        case .quarter:
+        case .quarter, .minute:
             generator = lightGenerator
         }
 
@@ -122,17 +124,21 @@ class HapticFeedback {
     }
 
     #else
-    // MARK: - macOS/watchOS Stub Implementation
+    // MARK: - Stub Implementation for widget/macOS/watchOS
 
     private init() {}
 
     enum TickType {
-        case hour, halfHour, quarter
+        case hour, halfHour, quarter, minute
     }
 
     func playTickCrossing(tickType: TickType, tickIndex: Int) {}
     func reset() {}
+    #if os(iOS)
+    func playImpact(intensity: UIImpactFeedbackGenerator.FeedbackStyle = .light) {}
+    #else
     func playImpact(intensity: Int = 0) {}
+    #endif
     func prepare() {}
 
     #endif

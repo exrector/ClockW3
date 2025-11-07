@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 #endif
 
-#if os(macOS)
+#if os(macOS) && !WIDGET_EXTENSION
 import AppKit
 
 // Структура для передачи данных скролла
@@ -15,7 +15,7 @@ struct ScrollEvent {
 // View modifier для обработки скролла на macOS
 struct ScrollWheelModifier: ViewModifier {
     let action: (ScrollEvent) -> Void
-    
+
     func body(content: Content) -> some View {
         content.overlay(
             ScrollWheelView(action: action)
@@ -26,14 +26,14 @@ struct ScrollWheelModifier: ViewModifier {
 
 struct ScrollWheelView: NSViewRepresentable {
     let action: (ScrollEvent) -> Void
-    
+
     func makeNSView(context: Context) -> NSView {
         let view = ScrollableNSView()
         view.scrollAction = action
         view.wantsLayer = true
         return view
     }
-    
+
     func updateNSView(_ nsView: NSView, context: Context) {
         if let scrollView = nsView as? ScrollableNSView {
             scrollView.scrollAction = action
@@ -43,28 +43,28 @@ struct ScrollWheelView: NSViewRepresentable {
 
 class ScrollableNSView: NSView {
     var scrollAction: ((ScrollEvent) -> Void)?
-    
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         // Включаем отслеживание событий скролла
         self.wantsLayer = true
     }
-    
+
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         self.wantsLayer = true
     }
-    
+
     override var acceptsFirstResponder: Bool {
         return true
     }
-    
+
     override func scrollWheel(with event: NSEvent) {
         // Передаём событие скролла
         scrollAction?(ScrollEvent(scrollingDeltaY: event.scrollingDeltaY))
         // Не вызываем super, чтобы не было двойного скролла
     }
-    
+
     // Принимаем весь view для обработки событий
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         return true
@@ -85,6 +85,10 @@ struct AlternativeClockView: View {
     @State private var drumOffset: CGFloat = 0
     @State private var dragStartOffset: CGFloat = 0
     @State private var previousDragHeight: CGFloat = 0
+    @State private var isDragging: Bool = false
+    @State private var scrollResetTimer: Timer?
+    // Режим отображения: true — живое локальное время; false — зафиксированное выбранное время
+    @State private var isLiveMode: Bool = true
 
     // MARK: - Star Trek Quotes
     private let starTrekQuotes = [
@@ -123,6 +127,7 @@ struct AlternativeClockView: View {
 
     // Haptic feedback tracking
     @State private var lastCrossedQuarterIndex: Int? = nil
+    @State private var lastCrossedMinute: Int? = nil
     @State private var lastHapticTime: TimeInterval = 0
     @State private var dragVelocity: CGFloat = 0
 
@@ -140,7 +145,7 @@ struct AlternativeClockView: View {
 
     // Час и минута, которые показываются В ЦЕНТРЕ барабана (на красной риске)
     private var centerHour: Int {
-        let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
+        let normalizedOffset = normalizedDrumOffset
         let totalMinutes = -normalizedOffset * 24.0 * 60.0
         let minutes = Int(totalMinutes.rounded())
         let wrapped = ((minutes % (24 * 60)) + (24 * 60)) % (24 * 60)
@@ -148,11 +153,25 @@ struct AlternativeClockView: View {
     }
     
     private var centerMinute: Int {
-        let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
+        let normalizedOffset = normalizedDrumOffset
         let totalMinutes = -normalizedOffset * 24.0 * 60.0
         let minutes = Int(totalMinutes.rounded())
         let wrapped = ((minutes % (24 * 60)) + (24 * 60)) % (24 * 60)
         return wrapped % 60
+    }
+
+    // В виджете нет интерактивного драга, поэтому используем текущее время из baseTime
+    // вместо состояния барабана. В основном приложении — обычный drumOffset.
+    private var normalizedDrumOffset: CGFloat {
+        #if WIDGET_EXTENSION
+        let cal = Calendar.current
+        let hour = cal.component(.hour, from: baseTime)
+        let minute = cal.component(.minute, from: baseTime)
+        let total = hour * 60 + minute
+        return (-CGFloat(total) / (24.0 * 60.0)).truncatingRemainder(dividingBy: 1.0)
+        #else
+        return drumOffset.truncatingRemainder(dividingBy: 1.0)
+        #endif
     }
     
     // Вычисляемое время на основе центрального часа барабана
@@ -212,10 +231,15 @@ struct AlternativeClockView: View {
             .background(colorScheme == .dark ? Color.black : Color.white)
         }
         .onAppear {
+            isLiveMode = true
             syncWithCurrentTime()
             syncCitiesToViewModel()
             sendPreviewIfNeeded()
             generateRandomQuotes()
+        }
+        .onDisappear {
+            scrollResetTimer?.invalidate()
+            scrollResetTimer = nil
         }
         .onChange(of: selectedCityIdentifiers) { _, _ in
             syncCitiesToViewModel()
@@ -225,20 +249,17 @@ struct AlternativeClockView: View {
             // Пересчитываем блоки при изменении формата времени
             formatRefreshKey += 1
         }
+        .onChange(of: baseTime) { _, _ in
+            // Синхронизируемся с живым временем только если включён live‑режим и нет драга
+            if isLiveMode && !isDragging {
+                syncWithCurrentTime()
+            }
+        }
     }
     
     // Синхронизация с текущим временем при появлении
     private func syncWithCurrentTime() {
         let calendar = Calendar.current
-        #if !WIDGET_EXTENSION
-        if let th = ReminderManager.shared.temporaryHour,
-           let tm = ReminderManager.shared.temporaryMinute {
-            let total = th * 60 + tm
-            drumOffset = -CGFloat(total) / (24.0 * 60.0)
-            dragStartOffset = drumOffset
-            return
-        }
-        #endif
         let currentHour = calendar.component(.hour, from: baseTime)
         let currentMinute = calendar.component(.minute, from: baseTime)
         let totalMinutes = currentHour * 60 + currentMinute
@@ -333,8 +354,16 @@ struct AlternativeClockView: View {
         
         return ZStack {
             // Минутные насечки каждые 10 минут с подписями
-            ForEach(-50...50, id: \.self) { index in
-                let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
+            ForEach({ () -> [Int] in
+                #if WIDGET_EXTENSION
+                let normalizedOffset = normalizedDrumOffset
+                let base = Int(floor(-normalizedOffset * 24.0))
+                return Array((base-2)...(base+2))
+                #else
+                return Array((-50)...50)
+                #endif
+            }(), id: \.self) { index in
+                let normalizedOffset = normalizedDrumOffset
                 let stepHeight = itemHeight / 6.0
                 let basePosition = (CGFloat(index) + normalizedOffset * 24.0) * itemHeight
                 
@@ -349,8 +378,16 @@ struct AlternativeClockView: View {
             }
             
             // Дополнительные мелкие насечки (каждые 5 минут без цифр)
-            ForEach(-50...50, id: \.self) { index in
-                let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
+            ForEach({ () -> [Int] in
+                #if WIDGET_EXTENSION
+                let normalizedOffset = normalizedDrumOffset
+                let base = Int(floor(-normalizedOffset * 24.0))
+                return Array((base-2)...(base+2))
+                #else
+                return Array((-50)...50)
+                #endif
+            }(), id: \.self) { index in
+                let normalizedOffset = normalizedDrumOffset
                 let stepHeight = itemHeight / 12.0  // 12 шагов по 5 минут
                 let basePosition = (CGFloat(index) + normalizedOffset * 24.0) * itemHeight
                 
@@ -368,7 +405,15 @@ struct AlternativeClockView: View {
             }
             
             // Генерируем достаточно меток для бесконечной прокрутки (часы)
-            ForEach(-50...50, id: \.self) { index in
+            ForEach({ () -> [Int] in
+                #if WIDGET_EXTENSION
+                let normalizedOffset = normalizedDrumOffset
+                let base = Int(floor(-normalizedOffset * 24.0))
+                return Array((base-3)...(base+3))
+                #else
+                return Array((-50)...50)
+                #endif
+            }(), id: \.self) { index in
                 let hour = ((index % 24) + 24) % 24
                 let displayHour = {
                     if use12HourFormat {
@@ -380,7 +425,7 @@ struct AlternativeClockView: View {
                 }()
                 
                 // Вычисляем позицию этой метки
-                let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
+                let normalizedOffset = normalizedDrumOffset
                 let position = (CGFloat(index) + normalizedOffset * 24.0) * itemHeight
                 
                 // Показываем только видимые метки
@@ -395,25 +440,32 @@ struct AlternativeClockView: View {
         }
         .frame(maxHeight: .infinity)
         .contentShape(Rectangle())
+        #if !WIDGET_EXTENSION
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
+                    isDragging = true
+                    // Пользователь начал управлять барабаном — выходим из live‑режима
+                    if isLiveMode { isLiveMode = false }
                     let dragHeight = value.translation.height
                     dragVelocity = dragHeight - previousDragHeight
                     previousDragHeight = dragHeight
                     updateDrum(value, in: geometry)
                 }
                 .onEnded { _ in
+                    isDragging = false
                     dragStartOffset = drumOffset
                     previousDragHeight = 0
                     // Snap to nearest quarter hour
                     snapDrumToNearestQuarter(in: geometry)
                     dragVelocity = 0
                     lastCrossedQuarterIndex = nil  // Reset on drag end
+                    lastCrossedMinute = nil  // Reset minute mark tracking
                 }
         )
+        #endif
 
-        #if os(macOS)
+        #if os(macOS) && !WIDGET_EXTENSION
         .onScrollWheel { event in
             handleScrollWheel(event, in: geometry)
         }
@@ -429,15 +481,28 @@ struct AlternativeClockView: View {
     }
     
     
-    #if os(macOS)
+    #if os(macOS) && !WIDGET_EXTENSION
     private func handleScrollWheel(_ event: ScrollEvent, in geometry: GeometryProxy) {
+        isDragging = true
+        if isLiveMode { isLiveMode = false }
+
+        // Сбрасываем существующий таймер
+        scrollResetTimer?.invalidate()
+
         let totalHeight = geometry.size.height
         let itemHeight = totalHeight / 5.0
         let scrollDelta = event.scrollingDeltaY
         let hourChange = scrollDelta / itemHeight / 24.0
         drumOffset += hourChange
         dragStartOffset = drumOffset
+        playHapticFeedbackIfNeeded(for: drumOffset)
         sendPreviewIfNeeded()
+
+        // Сбросим isDragging после 0.5 секунды отсутствия скролла
+        scrollResetTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+            isDragging = false
+            scrollResetTimer = nil
+        }
     }
     #endif
 
@@ -532,6 +597,7 @@ struct AlternativeClockView: View {
                 .foregroundStyle(color)
                 .rotationEffect(.degrees(-90))
                 .scaleEffect(x: 1, y: -1, anchor: .center)
+                .offset(y: 3)
             Text("·")
                 .font(.system(size: 20, weight: .regular, design: .monospaced))
                 .foregroundStyle(color)
@@ -539,15 +605,18 @@ struct AlternativeClockView: View {
                 .font(.system(size: 24, weight: .regular, design: .monospaced))
                 .foregroundStyle(color)
                 .rotationEffect(.degrees(90))
+                .offset(y: 3)
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .contentShape(Rectangle())
+        #if !WIDGET_EXTENSION
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.7)
                 .onEnded { _ in
                     activateReminderForCity(hour: centerHour, minute: centerMinute)
                 }
         )
+        #endif
     }
     
     // MARK: - Блоки левой стороны
@@ -593,9 +662,11 @@ struct AlternativeClockView: View {
                         .fill(colorScheme == .dark ? Color.black : Color.white)
                 )
         )
+        #if !WIDGET_EXTENSION
         .onTapGesture {
             resetDrumToLocalTime()
         }
+        #endif
     }
     
     // Блок города с временем
@@ -753,8 +824,28 @@ struct AlternativeClockView: View {
 
         guard now - lastHapticTime >= minInterval else { return }
 
-        // Calculate quarter-hour index (0-95 for 96 quarter-hours in 24 hours)
         let normalizedOffset = offset.truncatingRemainder(dividingBy: 1.0)
+
+        // Check minute marks (10, 20, 30, 40, 50)
+        let totalMinutes = -normalizedOffset * 24.0 * 60.0
+        let minutes = Int(totalMinutes.rounded())
+        let wrappedMinutes = ((minutes % (24 * 60)) + (24 * 60)) % (24 * 60)
+        let currentMinute = wrappedMinutes % 60
+
+        // Check for minute marks (10, 20, 30, 40, 50)
+        let minuteMarks = [10, 20, 30, 40, 50]
+        if minuteMarks.contains(currentMinute) {
+            if let lastMinute = lastCrossedMinute, lastMinute == currentMinute {
+                // Already played haptic for this minute mark
+            } else {
+                lastCrossedMinute = currentMinute
+                lastHapticTime = now
+                HapticFeedback.shared.playTickCrossing(tickType: .minute, tickIndex: currentMinute)
+                return
+            }
+        }
+
+        // Also handle quarter-hour marks
         let quarterIndex = Int(round(normalizedOffset * 96.0)) % 96
 
         // Check if we've crossed a new quarter-hour boundary
@@ -881,6 +972,8 @@ extension AlternativeClockView {
             dragStartOffset = targetOffset
         }
 
+        // Возвращаемся в live‑режим — барабан снова тикает вместе с плиткой
+        isLiveMode = true
         sendPreviewIfNeeded()
     }
 
@@ -895,6 +988,8 @@ extension AlternativeClockView {
             dragStartOffset = targetOffset
         }
 
+        // Переходим в режим фиксированного выбранного времени
+        if isLiveMode { isLiveMode = false }
         sendPreviewIfNeeded()
     }
 

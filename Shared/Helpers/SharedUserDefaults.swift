@@ -47,8 +47,15 @@ enum SharedUserDefaults {
     private static func logMissingAppGroup() {
         guard !didLogMissingGroup else { return }
         didLogMissingGroup = true
-#if DEBUG
-#endif
+        // In widget extensions, do not assert — fall back gracefully to in-memory defaults
+        #if WIDGET_EXTENSION
+        print("[Widget] Warning: App Group '\(appGroupID)' is not configured. Using in-memory defaults.")
+        #else
+        #if DEBUG
         assertionFailure("App Group '\(appGroupID)' is not configured. Widgets will not sync settings.")
+        #else
+        print("Warning: App Group '\(appGroupID)' is not configured. Widgets will not sync settings.")
+        #endif
+        #endif
     }
 }

@@ -74,7 +74,12 @@ class SimpleClockViewModel: ObservableObject {
     
     // MARK: - Initialization
     init() {
+        #if WIDGET_EXTENSION
+        // In widget extensions, do not start per-second timers; rely on provided entry date
+        currentTime = Date()
+        #else
         startTimeUpdates()
+        #endif
         // Физика запускается по требованию (при взаимодействии)
         hapticFeedback.prepare()
     }

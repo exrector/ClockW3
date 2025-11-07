@@ -72,15 +72,16 @@ struct LargeAlterProvider: TimelineProvider {
 struct LargeAlterWidgetView: View {
     var entry: LargeAlterProvider.Entry
     @Environment(\.widgetFamily) var family
-    
+    @Environment(\.colorScheme) var systemColorScheme
+
     private var overrideColorScheme: ColorScheme? {
         switch entry.colorSchemePreference {
         case "light": return .light
         case "dark": return .dark
-        default: return nil
+        default: return systemColorScheme
         }
     }
-    
+
     var body: some View {
         GeometryReader { geometry in
             AlternativeClockView(
@@ -90,8 +91,9 @@ struct LargeAlterWidgetView: View {
             )
             .frame(width: geometry.size.width, height: geometry.size.height)
             .clipped()
+            .allowsHitTesting(false)
         }
-        .widgetBackground(overrideColorScheme == .dark ? Color.black : Color.white)
+        .widgetBackground((overrideColorScheme ?? systemColorScheme) == .dark ? Color.black : Color.white)
     }
 }
 
