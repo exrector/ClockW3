@@ -360,7 +360,7 @@ struct SimplifiedClockFace: View {
     let baseHour = 18
     let count = 24
     let currentHourAngleStep = (2 * .pi) / Double(count)
-    
+
     for index in 0..<count {
         let numberIndex = (baseHour + index) % count
         let hourValue: Int
@@ -376,11 +376,24 @@ struct SimplifiedClockFace: View {
             angle: angle
         )
 
-        let text = Text(String(format: use12HourFormat ? "%d" : "%02d", hourValue))
-            .font(.system(size: fontSize, design: .monospaced))
-            .foregroundStyle(palette.numbers)
+        if use12HourFormat {
+            let amPmSuffix = numberIndex < 12 ? "AM" : "PM"
 
-        context.draw(text, at: position, anchor: .center)
+            let numberText = Text(String(format: "%d", hourValue))
+                .font(.system(size: fontSize, design: .monospaced))
+            let ampmText = Text(amPmSuffix)
+                .font(.system(size: fontSize * 0.35, design: .rounded))
+
+            let combinedText = numberText + ampmText
+
+            context.draw(combinedText.foregroundStyle(palette.numbers), at: position, anchor: .center)
+        } else {
+            let text = Text(String(format: "%02d", hourValue))
+                .font(.system(size: fontSize, design: .monospaced))
+                .foregroundStyle(palette.numbers)
+
+            context.draw(text, at: position, anchor: .center)
+        }
     }
 }
 

@@ -17,6 +17,7 @@ import SwiftUI
 struct ClockW3WidgetBundle: WidgetBundle {
     @WidgetBundleBuilder
     var body: some Widget {
+        LargeQuarterWidget()        // Четверть циферблата (Large)
                
         // Альтернативный вид — первым для удобства в симуляторе
         LargeAlterWidget()          // Альтернативный вид с барабаном (Large)
@@ -38,7 +39,6 @@ struct ClockW3WidgetBundle: WidgetBundle {
 
         // МОДЕРНИЗИРОВАННЫЕ ВИДЖЕТЫ (своя логика рисования через Canvas):
         SmallQuarterWidget()        // Четверть циферблата (Small)
-        LargeQuarterWidget()        // Четверть циферблата (Large)
 #if canImport(ActivityKit) && !os(macOS)
         if #available(iOSApplicationExtension 16.1, *) {
             ReminderLiveActivity()  // Live Activity для напоминаний
