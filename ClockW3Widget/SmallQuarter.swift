@@ -385,6 +385,7 @@ struct SimplifiedClockFace: View {
                 .font(.system(size: fontSize, design: .monospaced))
             let ampmText = Text(amPmSuffix)
                 .font(.system(size: fontSize * 0.35, design: .monospaced))
+                .baselineOffset(fontSize * 0.5)
 
             let combinedText = spacerText + numberText + ampmText
 
