@@ -531,12 +531,13 @@ struct AlternativeClockView: View {
         drumOffset += hourChange
         dragStartOffset = drumOffset
         playHapticFeedbackIfNeeded(for: drumOffset)
-        sendPreviewIfNeeded()
 
-        // Сбросим isDragging после 0.5 секунды отсутствия скролла
-        scrollResetTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+        // Сбросим isDragging после 0.5 секунды отсутствия скролла и выполним snap
+        scrollResetTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [self] _ in
             isDragging = false
             scrollResetTimer = nil
+            // Выполняем snap к 10-минутной метке после окончания скролла
+            snapDrumToNearestQuarter(in: geometry)
         }
     }
     #endif
@@ -848,7 +849,7 @@ struct AlternativeClockView: View {
         // Haptic feedback for quarter-hour crossing
         playHapticFeedbackIfNeeded(for: newOffset)
 
-        sendPreviewIfNeeded()
+        // Не отправляем preview во время драга - отправим после снапа
     }
 
     private func playHapticFeedbackIfNeeded(for offset: CGFloat) {
@@ -900,15 +901,23 @@ struct AlternativeClockView: View {
     }
 
     private func snapDrumToNearestQuarter(in geometry: GeometryProxy) {
-        // Snap to nearest quarter hour (15 minutes)
+        // Snap to nearest 10-minute mark
         let normalizedOffset = drumOffset.truncatingRemainder(dividingBy: 1.0)
-        let quarterIndex = round(normalizedOffset * 96.0)
-        let snappedOffset = (quarterIndex / 96.0).truncatingRemainder(dividingBy: 1.0)
+        let totalMinutes = -normalizedOffset * 24.0 * 60.0
+
+        // Round to nearest 10 minutes
+        let roundedMinutes = round(totalMinutes / 10.0) * 10.0
+        let snappedOffset = (-roundedMinutes / (24.0 * 60.0)).truncatingRemainder(dividingBy: 1.0)
 
         // Animate snap
         withAnimation(.easeOut(duration: 0.2)) {
             drumOffset = snappedOffset
         }
+
+        dragStartOffset = drumOffset
+
+        // Отправляем preview ПОСЛЕ снапа, чтобы время было кратно 10 минутам
+        sendPreviewIfNeeded()
 
         // Play final snap haptic
         #if os(iOS)
