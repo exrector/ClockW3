@@ -174,11 +174,9 @@ struct ContentView: View {
                                     overrideCityName: viewModel.cities.first?.name
                                 )
                                     .frame(width: height, height: height)
-                                    .frame(maxHeight: .infinity)
                             } else {
                                 ClockFaceView()
                                     .frame(width: height, height: height)
-                                    .frame(maxHeight: .infinity)
                             }
 
                             VStack(spacing: 0) {
@@ -192,6 +190,7 @@ struct ContentView: View {
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     } else {
                         VStack(spacing: 0) {
                             if viewMode == "alternative" {
@@ -216,14 +215,27 @@ struct ContentView: View {
                         }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .modifier(ConditionalSafeAreaModifier(isLandscape: isLandscape))
         .background(Color("ClockBackground"))
         .preferredColorScheme(preferredColorScheme)
     }
     }
 #endif
+
+// Условный модификатор для safe area
+private struct ConditionalSafeAreaModifier: ViewModifier {
+    let isLandscape: Bool
+
+    func body(content: Content) -> some View {
+        if isLandscape {
+            content.ignoresSafeArea(.container, edges: [.top, .bottom])
+        } else {
+            content
+        }
+    }
+}
 }
 
 #if DEBUG
