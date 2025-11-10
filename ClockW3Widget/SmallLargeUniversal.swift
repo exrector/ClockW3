@@ -5,6 +5,7 @@ import WidgetKit
 struct SmallLargeUniversalEntryView: View {
     var entry: SmallWidgetProvider.Entry
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.widgetFamily) private var widgetFamily
     #if os(macOS)
     @Environment(\.widgetRenderingMode) private var widgetRenderingMode
     #endif
@@ -36,120 +37,159 @@ struct SmallLargeUniversalEntryView: View {
         let context = timeContext(for: entry.date)
 
         GeometryReader { geometry in
+            let isWideFamily = widgetFamily == .systemLarge
             let size = geometry.size
-            let dividerWidth = max(2, size.width * 0.025)
-            let leftWidth = size.width * 0.56
-            let rightWidth = size.width - leftWidth - dividerWidth
-            let highlightBackground = palette.numbers.opacity(effectiveColorScheme == .light ? 0.12 : 0.35)
+            let dividerWidth = max(2, size.width * 0.02)
+            let contentWidth = max(0, size.width - dividerWidth)
+            let leftWidth = contentWidth / 2
+            let rightWidth = leftWidth
+            let minuteOffsets = [-1, 0, 1]
+            let baseDimension = min(leftWidth, size.height)
+
+            let leftLayout = LeftColumnLayout(
+                cityFontSize: baseDimension * (isWideFamily ? 0.18 : 0.21),
+                hourFontSize: baseDimension * (isWideFamily ? 0.58 : 0.54),
+                ampmFontSize: baseDimension * (isWideFamily ? 0.18 : 0.2),
+                topPadding: size.height * 0.045,
+                bottomPadding: size.height * 0.05,
+                horizontalPadding: max(leftWidth * 0.06, 4),
+                ampmLineHeight: baseDimension * 0.28
+            )
+
+            let minuteLayout = MinuteColumnLayout(
+                offsets: minuteOffsets,
+                fontSize: baseDimension * 0.2,
+                horizontalPadding: max(rightWidth * 0.08, 4)
+            )
 
             ZStack {
                 palette.background
                     .ignoresSafeArea()
 
                 HStack(spacing: 0) {
-                    leftHourColumn(width: leftWidth, height: size.height, context: context)
+                    leftHourColumn(width: leftWidth, height: size.height, context: context, layout: leftLayout)
                         .frame(width: leftWidth, height: size.height)
 
                     Rectangle()
-                        .fill(palette.arrow)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    palette.arrow.opacity(0.0),
+                                    palette.arrow,
+                                    palette.arrow.opacity(0.0)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
                         .frame(width: dividerWidth)
+                        .padding(.vertical, size.height * 0.19)
                         .accessibilityHidden(true)
 
-                    minuteColumn(width: rightWidth, height: size.height, context: context, highlightBackground: highlightBackground)
+                    minuteColumn(
+                        width: rightWidth,
+                        height: size.height,
+                        context: context,
+                        layout: minuteLayout
+                    )
                         .frame(width: rightWidth, height: size.height)
                 }
             }
             .frame(width: size.width, height: size.height)
             .clipped()
+            .overlay(alignment: .top) {
+                Text(context.cityName)
+                    .font(.system(size: leftLayout.cityFontSize, weight: .semibold, design: .rounded))
+                    .foregroundStyle(palette.secondaryColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, leftLayout.topPadding)
+                    .padding(.horizontal, leftLayout.horizontalPadding)
+                    .allowsHitTesting(false)
+            }
+            .overlay(alignment: .bottom) {
+                amPmLabelView(
+                    text: context.amPmLabel ?? "AM",
+                    visible: context.amPmLabel != nil,
+                    fontSize: leftLayout.ampmFontSize,
+                    isLightBackground: effectiveColorScheme == .light
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: leftLayout.ampmLineHeight, alignment: .center)
+                .padding(.horizontal, leftLayout.horizontalPadding)
+                .padding(.bottom, leftLayout.bottomPadding)
+                .allowsHitTesting(false)
+            }
         }
         .widgetBackground(palette.background)
         .environment(\.colorScheme, effectiveColorScheme)
     }
 
-    private func leftHourColumn(width: CGFloat, height: CGFloat, context: TimeContext) -> some View {
-        let labelSize = min(width, height)
-        let cityFontSize = labelSize * 0.18
-        let offsetFontSize = labelSize * 0.12
-        let hourFontSize = height * 0.55
-        let ampmFontSize = height * 0.18
-
-        return VStack(alignment: .leading, spacing: height * 0.045) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(context.cityName)
-                    .font(.system(size: cityFontSize, weight: .semibold, design: .rounded))
-                    .foregroundStyle(palette.secondaryColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                Text(context.offsetString)
-                    .font(.system(size: offsetFontSize, weight: .medium, design: .monospaced))
-                    .foregroundStyle(palette.secondaryColor.opacity(0.75))
-            }
-            .padding(.top, height * 0.08)
-
-            Spacer(minLength: 0)
-
-            HStack(alignment: .lastTextBaseline, spacing: width * 0.04) {
-                Text(context.hourString)
-                    .font(.system(size: hourFontSize, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(palette.numbers)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .monospacedDigit()
-
-                if let ampm = context.amPmLabel {
-                    Text(ampm)
-                        .font(.system(size: ampmFontSize, weight: .bold, design: .rounded))
-                        .foregroundStyle(palette.arrow)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(palette.arrow.opacity(0.14))
-                        )
-                        .accessibilityLabel("Period")
-                        .accessibilityValue(ampm)
-                }
-            }
-            .padding(.bottom, height * 0.08)
-        }
-        .padding(.horizontal, width * 0.08)
+    private func leftHourColumn(width: CGFloat, height: CGFloat, context: TimeContext, layout: LeftColumnLayout) -> some View {
+        Text(context.hourString)
+            .font(.system(size: layout.hourFontSize, weight: .heavy, design: .monospaced))
+            .foregroundStyle(palette.numbers)
+            .lineLimit(1)
+            .minimumScaleFactor(0.4)
+            .allowsTightening(true)
+            .monospacedDigit()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .padding(.horizontal, layout.horizontalPadding)
     }
 
-    private func minuteColumn(width: CGFloat, height: CGFloat, context: TimeContext, highlightBackground: Color) -> some View {
-        let secondarySize = height * 0.18
-        let primarySize = height * 0.34
+    @ViewBuilder
+    private func amPmLabelView(
+        text: String,
+        visible: Bool,
+        fontSize: CGFloat,
+        isLightBackground: Bool
+    ) -> some View {
+        Text(text)
+            .font(.system(size: fontSize, weight: .semibold, design: .monospaced))
+            .foregroundStyle(isLightBackground ? Color.black : Color.white)
+            .opacity(visible ? 1 : 0)
+            .accessibilityHidden(!visible)
+            .accessibilityLabel(visible ? "Period" : "")
+            .accessibilityValue(visible ? text : "")
+    }
 
-        return VStack(spacing: height * 0.08) {
-            Text(context.previousMinuteString)
-                .font(.system(size: secondarySize, weight: .medium, design: .monospaced))
-                .foregroundStyle(palette.secondaryColor.opacity(0.5))
-                .monospacedDigit()
-                .accessibilityLabel("Previous minute")
-                .accessibilityValue(context.previousMinuteString)
+    private func minuteColumn(
+        width: CGFloat,
+        height: CGFloat,
+        context: TimeContext,
+        layout: MinuteColumnLayout
+    ) -> some View {
+        let items = minuteItems(baseMinute: context.minute, offsets: layout.offsets)
 
-            Text(context.currentMinuteString)
-                .font(.system(size: primarySize, weight: .heavy, design: .monospaced))
+        return VStack {
+            Spacer()
+            Text(items.first?.text ?? "")
+                .font(.system(size: layout.fontSize, weight: .medium, design: .monospaced))
                 .foregroundStyle(palette.numbers)
-                .padding(.horizontal, width * 0.1)
-                .padding(.vertical, height * 0.045)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(highlightBackground)
-                )
+                .monospacedDigit()
+                .offset(y: height * -0.08)
+                .accessibilityLabel("Previous minute")
+                .accessibilityValue(items.first?.text ?? "")
+
+            Text(items[1].text)
+                .font(.system(size: layout.fontSize, weight: .heavy, design: .monospaced))
+                .foregroundStyle(palette.arrow)
                 .monospacedDigit()
                 .accessibilityLabel("Current minute")
-                .accessibilityValue(context.currentMinuteString)
+                .accessibilityValue(items[1].text)
 
-            Text(context.nextMinuteString)
-                .font(.system(size: secondarySize, weight: .medium, design: .monospaced))
-                .foregroundStyle(palette.secondaryColor.opacity(0.5))
+            Text(items.last?.text ?? "")
+                .font(.system(size: layout.fontSize, weight: .medium, design: .monospaced))
+                .foregroundStyle(palette.numbers)
                 .monospacedDigit()
+                .offset(y: height * 0.08)
                 .accessibilityLabel("Next minute")
-                .accessibilityValue(context.nextMinuteString)
+                .accessibilityValue(items.last?.text ?? "")
+            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, width * 0.08)
-        .padding(.vertical, height * 0.12)
+        .padding(.horizontal, layout.horizontalPadding)
     }
 
     private func resolvedTimeZone() -> TimeZone {
@@ -167,8 +207,6 @@ struct SmallLargeUniversalEntryView: View {
         let components = calendar.dateComponents([.hour, .minute], from: date)
         let hour24 = components.hour ?? 0
         let minute = components.minute ?? 0
-        let prevMinute = (minute + 59) % 60
-        let nextMinute = (minute + 1) % 60
 
         let displayHour: Int
         let ampmLabel: String?
@@ -183,16 +221,11 @@ struct SmallLargeUniversalEntryView: View {
 
         let hourString = String(format: "%02d", displayHour)
         let cityName = TimeZoneDirectory.cityName(forIdentifier: timeZone.identifier)
-        let offsetString = TimeZoneDirectory.gmtOffsetString(for: timeZone.identifier, at: date)
-
         return TimeContext(
             hourString: hourString,
             amPmLabel: ampmLabel,
             minute: minute,
-            previousMinute: prevMinute,
-            nextMinute: nextMinute,
-            cityName: cityName,
-            offsetString: offsetString
+            cityName: cityName
         )
     }
 
@@ -200,14 +233,41 @@ struct SmallLargeUniversalEntryView: View {
         let hourString: String
         let amPmLabel: String?
         let minute: Int
-        let previousMinute: Int
-        let nextMinute: Int
         let cityName: String
-        let offsetString: String
 
-        var previousMinuteString: String { String(format: "%02d", previousMinute) }
-        var currentMinuteString: String { String(format: "%02d", minute) }
-        var nextMinuteString: String { String(format: "%02d", nextMinute) }
+    }
+
+    private struct LeftColumnLayout {
+        let cityFontSize: CGFloat
+        let hourFontSize: CGFloat
+        let ampmFontSize: CGFloat
+        let topPadding: CGFloat
+        let bottomPadding: CGFloat
+        let horizontalPadding: CGFloat
+        let ampmLineHeight: CGFloat
+    }
+
+    private struct MinuteColumnLayout {
+        let offsets: [Int]
+        let fontSize: CGFloat
+        let horizontalPadding: CGFloat
+    }
+
+    private struct MinuteItem: Identifiable {
+        let offset: Int
+        let value: Int
+
+        var id: Int { offset }
+        var text: String { String(format: "%02d", value) }
+        var isCurrent: Bool { offset == 0 }
+    }
+
+    private func minuteItems(baseMinute: Int, offsets: [Int]) -> [MinuteItem] {
+        offsets.map { offset in
+            let value = (baseMinute + offset) % 60
+            let normalized = value >= 0 ? value : value + 60
+            return MinuteItem(offset: offset, value: normalized)
+        }
     }
 }
 
@@ -221,7 +281,7 @@ struct SmallLargeUniversalWidget: Widget {
         }
         .configurationDisplayName("MOW Small Universal")
         .description("Large hour + stacked minutes with city selection")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .systemLarge])
         .contentMarginsDisabled()
     }
 }
@@ -230,15 +290,27 @@ struct SmallLargeUniversalWidget: Widget {
 @available(iOSApplicationExtension 17.0, macOSApplicationExtension 14.0, visionOSApplicationExtension 1.0, *)
 struct SmallLargeUniversalWidget_Previews: PreviewProvider {
     static var previews: some View {
-        SmallLargeUniversalEntryView(
-            entry: SmallWidgetEntry(
-                date: Date(),
-                colorSchemePreference: "system",
-                use12HourFormat: true,
-                cityTimeZoneIdentifier: nil
+        Group {
+            SmallLargeUniversalEntryView(
+                entry: SmallWidgetEntry(
+                    date: Date(),
+                    colorSchemePreference: "system",
+                    use12HourFormat: true,
+                    cityTimeZoneIdentifier: nil
+                )
             )
-        )
-        .previewContext(WidgetPreviewContext(family: .systemSmall))
+            .previewContext(WidgetPreviewContext(family: .systemSmall))
+
+            SmallLargeUniversalEntryView(
+                entry: SmallWidgetEntry(
+                    date: Date(),
+                    colorSchemePreference: "system",
+                    use12HourFormat: false,
+                    cityTimeZoneIdentifier: nil
+                )
+            )
+            .previewContext(WidgetPreviewContext(family: .systemLarge))
+        }
     }
 }
 #endif

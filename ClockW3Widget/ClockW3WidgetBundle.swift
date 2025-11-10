@@ -17,21 +17,19 @@ import SwiftUI
 struct ClockW3WidgetBundle: WidgetBundle {
     @WidgetBundleBuilder
     var body: some Widget {
+        SmallLargeUniversalWidget() // Часы + столбец минут (Small/Medium/Large)
+
         LargeQuarterWidget()        // Четверть циферблата (Large)
-               
         // Альтернативный вид — первым для удобства в симуляторе
         LargeAlterWidget()          // Альтернативный вид с барабаном (Large)
-        
         // MediumHalf
         MediumHalfWidget()          // Половина циферблата (Medium)
-        
         // Флип‑виджет (Medium)
         MediumElectroWidget()
 
         // Small Electro
         SmallLeftElectroWidget()    // Electro hours (Small)
         SmallRightElectroWidget()   // Electro minutes (Small)
-        SmallLargeUniversalWidget() // Часы + столбец минут (Small)
 
         // КЛАССИЧЕСКИЕ ВИДЖЕТЫ (используют вью из приложения):
         MediumListWidget()          // Список городов (Medium)
