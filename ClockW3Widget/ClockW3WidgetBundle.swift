@@ -31,6 +31,7 @@ struct ClockW3WidgetBundle: WidgetBundle {
         // Small Electro
         SmallLeftElectroWidget()    // Electro hours (Small)
         SmallRightElectroWidget()   // Electro minutes (Small)
+        SmallLargeUniversalWidget() // Часы + столбец минут (Small)
 
         // КЛАССИЧЕСКИЕ ВИДЖЕТЫ (используют вью из приложения):
         MediumListWidget()          // Список городов (Medium)
